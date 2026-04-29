@@ -1,0 +1,107 @@
+# 신참 탐험가의 첫 미궁 (Day 1 시나리오)
+#
+# 작품 IP 처리: "게임 속 바바리안으로 살아남기" (정윤강) 영감
+# - 직접 인용 X
+# - 캐릭터 이름 / 고유 설정 모두 변경
+# - 장르 / 분위기만 차용
+
+id: novice_dungeon_run
+title: "신참 탐험가의 첫 미궁"
+estimated_minutes: 15-30
+turns_max: 10
+
+setting:
+  world: "라스카니아 왕국 — 가상의 중세 판타지"
+
+  premise: |
+    당신은 게임 「Dungeon and Stone」(가상 게임)을 즐기던 평범한 한국인.
+    어느 날 잠에서 깨어보니 그 게임 속 바바리안 종족 캐릭터로 빙의되어 있었다.
+    오늘은 당신의 첫 미궁 진입일. 죽으면 끝이다.
+
+  player_character:
+    name: "투르윈"
+    race: "바바리안"
+    height: "3m"
+    skin: "푸른"
+    background: "고향 부족에서 첫 미궁 도전을 위해 탐험가 길드에 등록"
+
+characters:
+  - id: companion_mage
+    name: "셰인"
+    role: "동료"
+    persona: |
+      30대 중반 남성 마법사. 깍듯하면서 눈치 빠른 사교적 인물.
+      신참 바바리안에게 친절하지만, 위험 시 냉정한 판단.
+      말투: 격식체 ("...입니다", "...셨군요").
+
+  - id: guildmaster
+    name: "올드 리브 영감"
+    role: "탐험가 길드 마스터"
+    persona: |
+      60대 남성. 산전수전 다 겪은 노련한 길드 마스터.
+      신참에게 짧고 직설적으로 조언. "허튼 짓 말고 살아 돌아와."
+      말투: 약간의 사투리 ("...구먼", "...그래").
+
+opening_scene:
+  location: "탐험가 길드 정문"
+  description: |
+    아침 햇살이 라스카니아 수도 거리를 비춘다.
+    당신은 거대한 푸른 손에 익숙해지려 애쓰며 길드 정문으로 들어선다.
+    오늘이 당신의 첫 미궁 진입일이다.
+
+    안에서 셰인이 손을 흔든다.
+
+  initial_options:
+    - "셰인에게 다가가 인사"
+    - "먼저 길드 마스터 사무실로"
+    - "주변을 둘러본다"
+    - "(자유 입력)"
+
+# Day 3+에서 활성화될 룰 (지금은 metadata로만 보존)
+mechanical_rules:
+  - rule: korean_ratio
+    threshold: 0.7
+    description: "응답의 70% 이상이 한국어"
+
+  - rule: ai_breakout
+    forbidden_phrases:
+      - "I'm an AI"
+      - "ChatGPT"
+      - "AI 언어 모델"
+      - "AI 어시스턴트"
+      - "저는 AI"
+      - "Claude"
+      - "GPT"
+
+  - rule: ip_leakage
+    forbidden_terms:
+      - "비요른"
+      - "한노아"
+      - "이한수"
+      - "라프도니아"
+      - "정윤강"
+      - "던전 앤 스톤"
+      - "겜바바"
+      - "게임 속 바바리안"
+
+  - rule: world_consistency
+    forbidden_elements:
+      - "총"
+      - "스마트폰"
+      - "자동차"
+      - "컴퓨터"
+      - "인터넷"
+
+  - rule: character_consistency
+    description: "각 캐릭터의 persona 따름 (Day 4에 LLM Judge 활성)"
+
+# Day 2+에 추가될 분기 (지금은 placeholder)
+ending_conditions:
+  - id: first_combat_won
+    description: "첫 전투 승리"
+  - id: retreat
+    description: "무사 귀환"
+  - id: first_combat_lost
+    description: "첫 전투 패배 (HP 0)"
+  - id: ten_turns
+    description: "10턴 도달 (자동 종료)"

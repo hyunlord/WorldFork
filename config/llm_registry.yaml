@@ -1,0 +1,76 @@
+# LLM Registry (HARNESS_CORE 9.3)
+# 어떤 모델을 어디서 어떻게 호출할지 정의.
+# 환경 검증 결과 (Day 1) 반영: claude/codex/gemini 모두 OAuth 작동.
+
+models:
+  # 게임 GM (Day 1+): 한국어 묘사 품질 최상 + 가장 빠름 (12.7초)
+  claude_code:
+    type: cli
+    command: claude
+    args:
+      - "-p"
+      - "{prompt_text}"   # 호출 시 치환됨
+    model_id: claude-code
+    family: anthropic
+    capabilities:
+      - korean
+      - json_output       # --output-format json
+      - long_context
+
+  # Cross-Model verifier 후보 1 (Day 4+): 다른 family (OpenAI)
+  codex:
+    type: cli
+    command: codex
+    args:
+      - exec
+      - --skip-git-repo-check
+      - "{prompt_text}"
+    model_id: codex-gpt-5-5
+    family: openai
+    capabilities:
+      - korean
+      - structured_output
+    notes: "non-fatal 'failed to record rollout items' 에러 stderr에 나오지만 응답 무관"
+
+  # Cross-Model verifier 후보 2 (Day 4+): Google family
+  gemini:
+    type: cli
+    command: gemini
+    args:
+      - "-p"
+      - "{prompt_text}"
+    model_id: gemini-cli
+    family: google
+    capabilities:
+      - korean
+      - very_long_context  # 1M tokens
+
+# Tier 별 권장 사용 (참고)
+tier_recommendations:
+  tier_0:
+    game_gm: claude_code
+    # Day 4 추가:
+    # cross_model_verifier: codex (or gemini)
+  tier_1:
+    # 추가 예정: local Qwen3-8B Dense
+    pass: true
+
+# 비용 정책
+cost_policy:
+  default: 0.0      # 정액제 한도 내 = 비용 0
+  api_fallback:
+    enabled: false  # Tier 0 미사용
+    # Day 4 enable 시:
+    # - claude_haiku_3_5 ($0.0008/$0.004 per 1k)
+    # - gpt_4o_mini
+
+# Cross-Model 매트릭스 (Day 4 활성)
+cross_model_matrix:
+  enabled: false
+  # Day 4 활성 시:
+  # game_gm: claude_code
+  # forbidden_verifiers:
+  #   - claude_code     # 같은 모델 금지 (self-rationalization)
+  # allowed_verifiers:
+  #   - codex
+  #   - gemini
