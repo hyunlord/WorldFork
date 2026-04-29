@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runs (큰 raw output만 제외, 결과 요약은 보존)
+runs/*/outputs/
+runs/*/llm_calls.csv
+
+# Models (gitignore — 너무 큼)
+models/
+*.gguf
+*.safetensors
+
+# Logs
+logs/
+*.log
+
+# Local
+.local/
+
+# OMC orchestration state
+.omc/
