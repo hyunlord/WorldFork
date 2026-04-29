@@ -67,6 +67,20 @@ def build_gm_prompt(
 - 게임 상태 위반 X (인벤토리에 없는 아이템 사용 X)
 - 작품명 / 원작 캐릭터명 직접 사용 X (비요른 / 라프도니아 / 정윤강 등 차단)"""
 
+    # Day 2: 현재 phase 정보 (모델이 흐름 인지)
+    if "phases" in scenario:
+        current_phase = next(
+            (p for p in scenario["phases"]
+             if p["id"] == state.phase_progress.current_phase_id),
+            None,
+        )
+        if current_phase:
+            spec += f"""
+
+현재 단계: {current_phase['name']} ({current_phase['id']})
+설명: {current_phase['description']}
+턴 범위: {current_phase['turn_range'][0]}-{current_phase['turn_range'][1]}"""
+
     # OUTPUT FORMAT
     output_format = """한국어 자연스러운 묘사. 2-4 문장 + 선택지 2-4개.
 JSON 형식 X — Day 1은 자유 텍스트.

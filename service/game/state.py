@@ -1,7 +1,7 @@
 """Tier 0 GameState — 간단 인벤토리 + HP만.
 
 Day 1: 미니멀 구조.
-Day 2: 분기 / 관계 추가.
+Day 2: 분기 추적 필드 추가 (실제 분기 동작은 Tier 1+).
 Day 5: SQL 직렬화 (Tier 2).
 """
 
@@ -33,10 +33,20 @@ class TurnLog:
 
 
 @dataclass
+class PhaseProgress:
+    """현재 진행 중인 Phase 추적 (Day 2)."""
+
+    current_phase_id: str = "phase_1_entry"
+    completed_triggers: list[str] = field(default_factory=list)
+    phase_started_turn: int = 0
+
+
+@dataclass
 class GameState:
     """게임 진행 상태.
 
     Day 1: turn, characters, location, history (in-memory만).
+    Day 2: 분기 추적 필드 추가.
     Day 5+: SQL 영속화.
     """
 
@@ -45,6 +55,10 @@ class GameState:
     location: str = ""
     characters: dict[str, Character] = field(default_factory=dict)
     history: list[TurnLog] = field(default_factory=list)
+
+    # Day 2: 분기 추적 (실제 분기 동작은 Tier 1+)
+    phase_progress: PhaseProgress = field(default_factory=PhaseProgress)
+    selected_ending: str | None = None
 
     def add_turn(
         self,
@@ -87,3 +101,15 @@ class GameState:
             if char.role == "주인공":
                 return char
         return None
+
+    def is_in_phase(self, phase_id: str) -> bool:
+        """현재 phase 확인."""
+        return self.phase_progress.current_phase_id == phase_id
+
+    def mark_trigger_completed(self, trigger_id: str) -> None:
+        """trigger 완료 표시 (Tier 1+에 사용)."""
+        if trigger_id not in self.phase_progress.completed_triggers:
+            self.phase_progress.completed_triggers.append(trigger_id)
+
+    def has_completed_trigger(self, trigger_id: str) -> bool:
+        return trigger_id in self.phase_progress.completed_triggers

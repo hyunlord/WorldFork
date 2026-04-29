@@ -78,3 +78,39 @@ class TestGameState:
     def test_get_player_none(self) -> None:
         s = GameState(scenario_id="test")
         assert s.get_player() is None
+
+
+# Day 2: 분기 추적 필드 테스트
+
+class TestPhaseProgress:
+    def test_default(self) -> None:
+        from service.game.state import PhaseProgress
+        p = PhaseProgress()
+        assert p.current_phase_id == "phase_1_entry"
+        assert p.completed_triggers == []
+        assert p.phase_started_turn == 0
+
+
+class TestGameStatePhaseTracking:
+    def test_default_phase(self) -> None:
+        s = GameState(scenario_id="test")
+        assert s.phase_progress.current_phase_id == "phase_1_entry"
+        assert s.selected_ending is None
+
+    def test_is_in_phase(self) -> None:
+        s = GameState(scenario_id="test")
+        assert s.is_in_phase("phase_1_entry")
+        assert not s.is_in_phase("phase_4_ending")
+
+    def test_mark_trigger(self) -> None:
+        s = GameState(scenario_id="test")
+        s.mark_trigger_completed("meet_shane")
+        assert s.has_completed_trigger("meet_shane")
+        assert not s.has_completed_trigger("nonexistent")
+
+    def test_mark_trigger_idempotent(self) -> None:
+        """같은 trigger 두 번 표시해도 한 번만 기록."""
+        s = GameState(scenario_id="test")
+        s.mark_trigger_completed("meet_shane")
+        s.mark_trigger_completed("meet_shane")
+        assert s.phase_progress.completed_triggers.count("meet_shane") == 1

@@ -75,3 +75,35 @@ def test_build_gm_prompt_includes_ip_blocking() -> None:
 
     assert "AI" in prompt.system
     assert "비요른" in prompt.system
+
+
+# Day 2: 분기 메타데이터 테스트
+
+def test_scenario_has_phases() -> None:
+    """시나리오에 phases 메타데이터 추가됐는지."""
+    scenario = load_scenario("novice_dungeon_run")
+    assert "phases" in scenario
+    assert len(scenario["phases"]) == 4
+    phase_ids = [p["id"] for p in scenario["phases"]]
+    assert "phase_1_entry" in phase_ids
+    assert "phase_4_ending" in phase_ids
+
+
+def test_scenario_has_ending_branches() -> None:
+    """시나리오에 결말 분기 메타데이터 추가됐는지."""
+    scenario = load_scenario("novice_dungeon_run")
+    assert "ending_branches" in scenario
+    assert len(scenario["ending_branches"]) == 4
+    ending_types = [b["type"] for b in scenario["ending_branches"]]
+    assert "best" in ending_types
+    assert "fail" in ending_types
+    assert "default" in ending_types
+
+
+def test_build_gm_prompt_includes_phase_info() -> None:
+    """프롬프트에 현재 phase 정보 포함되는지."""
+    scenario = load_scenario("novice_dungeon_run")
+    state = initialize_state(scenario)
+    prompt = build_gm_prompt(scenario, state, "test")
+    assert "길드 진입 + 동료 만남" in prompt.system
+    assert "phase_1_entry" in prompt.system

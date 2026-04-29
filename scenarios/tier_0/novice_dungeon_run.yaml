@@ -95,13 +95,74 @@ mechanical_rules:
   - rule: character_consistency
     description: "각 캐릭터의 persona 따름 (Day 4에 LLM Judge 활성)"
 
-# Day 2+에 추가될 분기 (지금은 placeholder)
-ending_conditions:
+# Day 2: 분기 트리 (메타데이터만, 실제 분기 동작은 Tier 1+에서)
+#
+# 시나리오 흐름:
+#   Phase 1 (1-3턴): 길드 진입 → 동료 만남 → 미궁 입구
+#   Phase 2 (3-5턴): 첫 전투 (소형 마물)
+#   Phase 3 (5-7턴): 첫 보상 / 후퇴 결정
+#   Phase 4 (7-10턴): 결말
+
+phases:
+  - id: phase_1_entry
+    name: "길드 진입 + 동료 만남"
+    turn_range: [1, 3]
+    description: "탐험가 길드에서 셰인을 만나고, 길드 마스터에게 신고."
+    key_npcs:
+      - companion_mage
+      - guildmaster
+    triggers:
+      - id: meet_shane
+        description: "셰인과 첫 인사 완료"
+      - id: register_with_guildmaster
+        description: "길드 마스터에게 등록 신고"
+
+  - id: phase_2_combat
+    name: "첫 전투"
+    turn_range: [3, 5]
+    description: "미궁 첫 층에서 소형 마물과 조우."
+    key_events:
+      - small_monster_encounter
+
+  - id: phase_3_decision
+    name: "후퇴 또는 진행 결정"
+    turn_range: [5, 7]
+    description: "전투 결과에 따라 진행 또는 후퇴 결정."
+
+  - id: phase_4_ending
+    name: "결말"
+    turn_range: [7, 10]
+    description: "선택된 결말 분기로 진행."
+
+ending_branches:
   - id: first_combat_won
-    description: "첫 전투 승리"
+    name: "첫 전투 승리 + 첫 보상"
+    type: best
+    requirements:
+      phase_2_outcome: combat_victory
+      hp_threshold: 50
+    description: "마물을 처치하고 보상을 획득. 무사 귀환."
+    rewards:
+      - "첫 미궁 보상 (드랍 아이템 1-2개)"
+      - "탐험가 길드 평판 +5"
+
   - id: retreat
-    description: "무사 귀환"
+    name: "후퇴 (안전 ending)"
+    type: safe
+    requirements:
+      decision: retreat
+    description: "전투 회피, 안전 귀환. 보상은 X."
+
   - id: first_combat_lost
-    description: "첫 전투 패배 (HP 0)"
+    name: "첫 전투 패배 (fail ending)"
+    type: fail
+    requirements:
+      hp_threshold_below: 1
+    description: "마물에게 패배. HP 0. 게임 종료."
+
   - id: ten_turns
-    description: "10턴 도달 (자동 종료)"
+    name: "10턴 자동 종료"
+    type: default
+    requirements:
+      turn_threshold: 10
+    description: "10턴 내에 결말 분기 도달 못함. 시간 초과."
