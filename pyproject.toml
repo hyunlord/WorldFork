@@ -56,6 +56,9 @@ warn_unused_configs = true
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --cov=core --cov=service --cov=tools --cov-report=term-missing"
+markers = [
+    "slow: marks tests as slow (real LLM calls, exclude in CI)",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -13,6 +13,8 @@ import yaml
 
 from core.llm.cli_client import get_default_game_gm
 from core.llm.client import LLMClient, Prompt
+from core.verify.mechanical import MechanicalChecker, build_check_context
+from core.verify.rule import MechanicalResult
 
 from .state import Character, GameState
 
@@ -192,6 +194,7 @@ def play_game(
     scenario_id: str = "novice_dungeon_run",
     client: LLMClient | None = None,
     max_turns: int = 5,
+    enable_mechanical: bool = True,
 ) -> GameState:
     """콘솔 게임 루프.
 
@@ -199,6 +202,7 @@ def play_game(
         scenario_id: 시나리오 식별자
         client: LLM 클라이언트 (None이면 claude_code default)
         max_turns: 최대 턴 (Day 1은 5턴)
+        enable_mechanical: Mechanical 검증 활성화 (Day 3+)
 
     Returns:
         최종 GameState
@@ -211,8 +215,14 @@ def play_game(
     if client is None:
         client = get_default_game_gm()
 
+    checker = MechanicalChecker() if enable_mechanical else None
+    check_context = build_check_context(scenario) if enable_mechanical else {}
+    mechanical_history: list[MechanicalResult] = []
+
     print(f"[게임 GM: {client.model_name}]")
     print(f"[최대 {max_turns}턴]")
+    if checker is not None:
+        print(f"[Mechanical 룰: {len(checker.rules)}개 활성]")
     print()
 
     while not state.is_completed(max_turns=max_turns):
@@ -240,14 +250,25 @@ def play_game(
             print("재시도하시겠습니까? (다른 액션 입력)")
             continue
 
+        mech_result: MechanicalResult | None = None
+        if checker is not None:
+            mech_result = checker.check(response.text, check_context)
+            mechanical_history.append(mech_result)
+
         print()
         print(response.text)
         print()
-        print(
-            f"[턴 {state.turn + 1} | "
-            f"비용: ${response.cost_usd:.4f} | "
-            f"Latency: {response.latency_ms / 1000:.1f}s]"
-        )
+
+        cost_str = f"비용: ${response.cost_usd:.4f}"
+        latency_str = f"Latency: {response.latency_ms / 1000:.1f}s"
+        if mech_result is not None:
+            mech_line = mech_result.summary_line()
+            print(f"[턴 {state.turn + 1} | {mech_line} | {cost_str} | {latency_str}]")
+            if not mech_result.passed:
+                for failure in mech_result.failures:
+                    print(f"  ⚠️ {failure.rule} ({failure.severity}): {failure.detail}")
+        else:
+            print(f"[턴 {state.turn + 1} | {cost_str} | {latency_str}]")
         print()
 
         state.add_turn(
@@ -263,10 +284,45 @@ def play_game(
         f"누적 비용 ${state.total_cost_usd():.4f}, "
         f"평균 latency {state.avg_latency_ms() / 1000:.1f}s"
     )
+    if mechanical_history:
+        print()
+        print_mechanical_summary(mechanical_history)
     print("=" * 60)
     print()
 
     return state
+
+
+def print_mechanical_summary(history: list[MechanicalResult]) -> None:
+    """Mechanical 검증 누적 통계 출력."""
+    if not history:
+        return
+
+    total_turns = len(history)
+    passed_turns = sum(1 for r in history if r.passed)
+    print(f"[Mechanical 통계 (전체 {total_turns}턴 누적)]")
+    print(f"  종합 통과율: {passed_turns}/{total_turns} ({passed_turns / total_turns:.0%})")
+    print()
+
+    fail_counts: dict[str, int] = {}
+    sev_counts: dict[str, dict[str, int]] = {}
+    for result in history:
+        for failure in result.failures:
+            fail_counts[failure.rule] = fail_counts.get(failure.rule, 0) + 1
+            if failure.rule not in sev_counts:
+                sev_counts[failure.rule] = {}
+            sev_map = sev_counts[failure.rule]
+            sev_map[failure.severity] = sev_map.get(failure.severity, 0) + 1
+
+    if fail_counts:
+        print("  실패한 룰:")
+        for rule_id, count in sorted(fail_counts.items(), key=lambda x: -x[1]):
+            severities = ", ".join(
+                f"{s}: {c}" for s, c in sev_counts[rule_id].items()
+            )
+            print(f"    {rule_id}: {count}회 실패 ({severities})")
+    else:
+        print("  모든 룰 통과 ✅")
 
 
 def main() -> None:
