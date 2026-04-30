@@ -356,6 +356,36 @@ Tier 0에서는 1축만 살리고 시작 (YAGNI).
 
 YAGNI. Tier 0의 목적은 **컨셉 검증**이지 완성품 만들기가 아니다.
 
+### Tier 0 실측 결과 (v0.2.1, 2026-04-30)
+
+Tier 0 7일 사이클 완료. 본인 인사이트로 졸업 조건을 가볍게 재해석.
+
+#### 자동 검증 통과 (코드 / 하네스 / 인프라)
+
+- ✅ 하네스 3단 본격 작동 (Mechanical / LLM Judge / Eval Set)
+- ✅ Mechanical Checker 7룰 (한국어 특화 포함)
+- ✅ LLM Judge + Cross-Model 매트릭스 활성화
+- ✅ Eval Set 50 케이스 (5 카테고리)
+- ✅ Layer 1 Ship Gate 100/100 A등급
+- ✅ AI Playtester 3 페르소나 정의 (다른 CLI 3종)
+- ✅ 비용 추적 인프라 (cost_usd / latency_ms)
+- ✅ 외부 패키지 추가 0건 (runtime)
+
+#### Tier 1+ 후로 미룸 (본인 인사이트)
+
+- ⏭ 30분 시나리오 완주 가능 — DGX Local LLM 진입 후
+- ⏭ 본인 5회 + 친구 3-5명 플레이 — DGX 후
+- ⏭ 친구 3명 끝까지 완주 — DGX 후
+- ⏭ 정성 피드백 평균 "재미있다" — DGX 후
+- ⏭ Mechanical 통과율 80%+ baseline — DGX 후 본격 측정
+- ⏭ Persona consistency baseline — DGX 후 본격 측정
+
+이유: `claude -p` latency 14-33초로 도그푸딩 부담. DGX Local LLM (1-3초 예상)에서 본격.
+
+#### 회고 문서
+
+`docs/RETROSPECTIVE_TIER_0.md` 참조.
+
 ---
 
 *[섹션 6-10 — 본격 작성]*
