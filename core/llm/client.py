@@ -7,12 +7,16 @@ Day 1 미니멀:
   - LLMResponse (text + cost + latency + tokens)
   - LLMError
 
+Day 4 추가:
+  - JSONLLMResponse (parsed dict 포함)
+  - LLMClient.generate_json() (post-hoc 파싱 default)
+
 이후 추가:
-  - Day 4: generate_json() 메서드 (구조화 출력)
   - Day 5: 비동기 a_generate()
   - Tier 1: Local 모델 클라이언트 (DGX Spark)
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -60,6 +64,24 @@ class LLMResponse:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class JSONLLMResponse:
+    """LLM 호출 결과 (JSON 응답).
+
+    parsed: JSON 파싱 결과 dict.
+    text: 원본 텍스트 (디버깅용).
+    """
+
+    parsed: dict[str, Any]
+    text: str
+    model: str
+    cost_usd: float
+    latency_ms: int
+    input_tokens: int
+    output_tokens: int
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
 class LLMClient(ABC):
     """LLM 호출 추상화.
 
@@ -89,6 +111,68 @@ class LLMClient(ABC):
             LLMError: CLI 호출 실패, timeout, 인증 실패 등
         """
         ...
+
+    def generate_json(
+        self,
+        prompt: "Prompt",
+        schema: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> "JSONLLMResponse":
+        """JSON 응답 생성 (default: post-hoc 파싱).
+
+        provider가 native JSON mode를 지원하면 override 권장.
+        기본 구현은 generate() 결과를 json.loads() 한다.
+
+        Args:
+            prompt: 5-section 프롬프트 (OUTPUT FORMAT에 JSON 명시)
+            schema: 선택적 JSON Schema-like dict
+                    {"required": [...]} 키 검증 정도만 수행.
+            **kwargs: generate()에 그대로 전달
+
+        Returns:
+            JSONLLMResponse with parsed dict.
+
+        Raises:
+            LLMError: 파싱 실패 또는 schema required 키 누락
+        """
+        response = self.generate(prompt, **kwargs)
+        text = response.text.strip()
+
+        # 마크다운 펜스 제거 (```json ... ```)
+        if text.startswith("```"):
+            lines = text.split("\n")
+            if lines[-1].strip() == "```":
+                text = "\n".join(lines[1:-1])
+            else:
+                text = "\n".join(lines[1:])
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise LLMError(
+                f"Failed to parse JSON response: {e}\nText: {text[:500]}"
+            ) from e
+
+        if not isinstance(parsed, dict):
+            raise LLMError(
+                f"Expected JSON object, got {type(parsed).__name__}: {text[:200]}"
+            )
+
+        if schema:
+            for key in schema.get("required", []):
+                if key not in parsed:
+                    raise LLMError(f"Missing required key in JSON: {key}")
+
+        return JSONLLMResponse(
+            parsed=parsed,
+            text=response.text,
+            model=response.model,
+            cost_usd=response.cost_usd,
+            latency_ms=response.latency_ms,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
+            raw=response.raw,
+        )
 
 
 class LLMError(Exception):

@@ -1,0 +1,58 @@
+# Cross-Model Matrix (HARNESS_CORE 4장)
+# Cross-Model verify: verifier != generator 강제.
+# Tier 0 = CLI 정액제 모델 3종 (claude_code / codex / gemini)
+
+categories:
+
+  game_response:
+    description: "캐릭터 응답 / GM 묘사"
+    generator:
+      tier_0: claude_code
+    verifier:
+      primary: codex
+      fallback: gemini
+    constraint: "verifier != generator"
+
+  persona_consistency:
+    description: "캐릭터 페르소나 일관성"
+    generator:
+      tier_0: claude_code
+    verifier:
+      primary: codex
+      fallback: gemini
+    constraint: "verifier != generator"
+
+  korean_quality:
+    description: "한국어 자연스러움 / 격식체 일관성"
+    generator:
+      tier_0: claude_code
+    verifier:
+      primary: codex
+      fallback: gemini
+    constraint: "verifier != generator"
+
+  ip_leakage_judge:
+    description: "미묘한 IP 누출 (mechanical로 못 잡는 케이스)"
+    generator: any
+    verifier:
+      primary: gemini
+      fallback: codex
+    constraint: "verifier != generator"
+
+models_meta:
+  claude_code:
+    family: anthropic
+  codex:
+    family: openai
+  gemini:
+    family: google
+
+enforcement:
+  enabled: true
+  on_violation: error
+  log_attempts: true
+
+verification_chains:
+  default:
+    - mechanical
+    - llm_judge
