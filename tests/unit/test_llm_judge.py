@@ -1,9 +1,6 @@
 """Day 4: LLM Judge 단위 테스트 (Mock 사용)."""
 
 from typing import Any
-from unittest.mock import MagicMock
-
-import pytest
 
 from core.llm.client import JSONLLMResponse, LLMClient, LLMResponse, Prompt
 from core.verify.llm_judge import (
@@ -13,7 +10,6 @@ from core.verify.llm_judge import (
     LLMJudge,
     build_judge_prompt,
 )
-
 
 # ─── Mock 클라이언트 ───────────────────────────────────────────
 

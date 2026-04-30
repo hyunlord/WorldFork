@@ -10,7 +10,6 @@ from core.verify.cross_model import (
     CrossModelError,
 )
 
-
 # ─── 인라인 mock 매트릭스 ─────────────────────────────────────
 
 MOCK_MATRIX: dict[str, Any] = {

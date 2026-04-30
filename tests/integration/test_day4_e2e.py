@@ -16,10 +16,9 @@ import pytest
 from core.llm.client import JSONLLMResponse, LLMClient, LLMResponse, Prompt
 from core.verify.cross_model import CrossModelEnforcer, CrossModelError
 from core.verify.integrated import IntegratedVerifier, make_retry_feedback
-from core.verify.llm_judge import JudgeCriteria, JudgeScore, LLMJudge
+from core.verify.llm_judge import JudgeCriteria, LLMJudge
 from core.verify.mechanical import MechanicalChecker
-from core.verify.retry import FeedbackMode, RetryFeedback
-
+from core.verify.retry import FeedbackMode
 
 # ─── Mock Judge 클라이언트 ────────────────────────────────────
 

@@ -2,19 +2,15 @@
 
 from typing import Any
 
-import pytest
-
 from core.llm.client import LLMClient, LLMResponse, Prompt
 from core.verify.retry import (
     FeedbackMode,
-    InformationLeakError,
     RetryAttempt,
     RetryFeedback,
     RetryResult,
     RetryRunner,
     validate_information_isolation,
 )
-
 
 # ─── 순차 응답 Mock 클라이언트 ────────────────────────────────
 
