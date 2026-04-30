@@ -8,27 +8,33 @@ categories:
     description: "캐릭터 응답 / GM 묘사"
     generator:
       tier_0: claude_code
+      tier_1: qwen35_9b_q3     # ★ NPC (38 tok/s) / qwen36_27b_q2 GM
     verifier:
       primary: codex
       fallback: gemini
+      tier_1_local: qwen36_27b_q3  # Local cross-model (다른 크기 = 독립적)
     constraint: "verifier != generator"
 
   persona_consistency:
     description: "캐릭터 페르소나 일관성"
     generator:
       tier_0: claude_code
+      tier_1: qwen35_9b_q3
     verifier:
       primary: codex
       fallback: gemini
+      tier_1_local: qwen36_27b_q3
     constraint: "verifier != generator"
 
   korean_quality:
     description: "한국어 자연스러움 / 격식체 일관성"
     generator:
       tier_0: claude_code
+      tier_1: qwen35_9b_q3
     verifier:
       primary: codex
       fallback: gemini
+      tier_1_local: qwen36_27b_q3
     constraint: "verifier != generator"
 
   ip_leakage_judge:
@@ -46,6 +52,16 @@ models_meta:
     family: openai
   gemini:
     family: google
+  # Tier 1 Local (W1 D1 추가)
+  qwen35_9b_q3:
+    family: qwen
+    size: 9B
+  qwen36_27b_q2:
+    family: qwen
+    size: 27B
+  qwen36_27b_q3:
+    family: qwen
+    size: 27B
 
 enforcement:
   enabled: true

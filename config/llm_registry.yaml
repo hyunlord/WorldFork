@@ -45,6 +45,49 @@ models:
       - korean
       - very_long_context  # 1M tokens
 
+  # ---------------------------------------------------------------------------
+  # Local LLM (Tier 1 W1 D1 — DGX Spark, llama-server)
+  # thinking OFF 기본: chat_template_kwargs={"enable_thinking": false}
+  # ---------------------------------------------------------------------------
+  qwen36_27b_q3:
+    type: local_http
+    description: "Qwen3.6-27B UD-Q3_K_XL — GM 후보, 높은 품질"
+    base_url: "http://localhost:8081"
+    model_size: "27B"
+    quantization: "Q3_K_XL"
+    family: qwen
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    thinking_default: false
+    measured_tps: 12.3
+    measured_latency_200tok: 16.3   # 초 (thinking OFF, 개별)
+
+  qwen36_27b_q2:
+    type: local_http
+    description: "Qwen3.6-27B UD-Q2_K_XL — 본인 직관 baseline"
+    base_url: "http://localhost:8082"
+    model_size: "27B"
+    quantization: "Q2_K_XL"
+    family: qwen
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    thinking_default: false
+    measured_tps: 14.5
+    measured_latency_200tok: 13.8   # 초 (thinking OFF, 개별)
+
+  qwen35_9b_q3:
+    type: local_http
+    description: "Qwen3.5-9B UD-Q3_K_XL — ★ NPC dialogue (38 tok/s, 5초 근접)"
+    base_url: "http://localhost:8083"
+    model_size: "9B"
+    quantization: "Q3_K_XL"
+    family: qwen
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    thinking_default: false
+    measured_tps: 38.0
+    measured_latency_200tok: 5.26   # 초 (thinking OFF, 개별)
+
 # Tier 별 권장 사용 (참고)
 tier_recommendations:
   tier_0:
@@ -52,8 +95,9 @@ tier_recommendations:
     # Day 4 추가:
     # cross_model_verifier: codex (or gemini)
   tier_1:
-    # 추가 예정: local Qwen3-8B Dense
-    pass: true
+    game_npc: qwen35_9b_q3        # ★ 실시간 NPC (38 tok/s)
+    game_gm: qwen36_27b_q2        # GM 후보 (본인 직관 baseline)
+    verifier_local: qwen36_27b_q3 # Cross-Model verifier 후보 (Local)
 
 # 비용 정책
 cost_policy:
