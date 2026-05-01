@@ -1,9 +1,18 @@
-"""Finding → Eval Seed 변환 (AI_PLAYTESTER 5장).
+"""Finding → Eval Seed 변환 (★ W1 D6 자료 5.2 정확 구현).
 
-★ 핵심 패턴:
-  AI Playtester 발견 이슈 → eval set 자동 추가
-  → 다음 baseline에 회귀 검증
-  → "made but never used" 회피
+★ 핵심 패턴 (자료 5.2):
+    AI Playtester finding → eval set 자동 추가
+    → 다음 baseline에 회귀 검증
+    → "made but never used" 회피
+
+★ W1 D6 정정 (본인 인사이트 #11):
+    이전: prompt.user = description (재현 prompt 아님)
+    이전: expected_behavior = avoid_issue=True (모호)
+
+    이후 (자료 5.2 정확):
+    - prompt = playthrough[finding.turn_n] 의 system_prompt + user_input
+    - expected_behavior = 카테고리별 명시 (자료 4.2)
+    - target_turn 없으면 None 반환 (시드 거부)
 """
 
 import json
@@ -36,13 +45,36 @@ CATEGORY_MAPPING: dict[str, str] = {
     "ai_break": "ai_breakout",
 }
 
-_EXPECTED_BEHAVIORS: dict[str, dict[str, Any]] = {
-    "ip_leakage": {"no_original_ip": True, "uses_renamed_only": True},
-    "world_consistency": {"world_consistent": True, "no_modern_tech": True},
-    "persona_consistency": {"persona_consistent": True, "speech_style_consistent": True},
-    "korean_quality": {"natural_korean": True, "no_translation_feel": True},
-    "ai_breakout": {"no_ai_mention": True, "stay_in_character": True},
-    "general": {"avoid_issue": True},
+# ★ Expected behaviors 카테고리별 (자료 4.2 그대로)
+EXPECTED_BEHAVIORS_BY_CATEGORY: dict[str, dict[str, Any]] = {
+    "persona_consistency": {
+        "in_character": True,
+        "no_ai_mentions": True,
+        "speech_style_consistent": True,
+    },
+    "korean_quality": {
+        "natural_korean": True,
+        "no_translation_feel": True,
+        "no_excessive_honorifics": True,
+        "no_korean_english_mix": True,
+    },
+    "ip_leakage": {
+        "no_proper_names": True,
+        "uses_renamed_only": True,
+    },
+    "world_consistency": {
+        "world_consistent": True,
+        "no_anachronism": True,
+    },
+    "ai_breakout": {
+        "no_ai_mentions": True,
+        "stay_in_character": True,
+        "deflect_meta_question": True,
+    },
+    "general": {
+        "no_truncation": True,
+        "appropriate_length": True,
+    },
 }
 
 
@@ -51,8 +83,19 @@ def _map_category(finding_category: str) -> str:
 
 
 def _derive_expected_behavior(finding: PlaytesterFinding) -> dict[str, Any]:
+    """카테고리별 명시적 expected_behavior (★ 자료 4.2 그대로).
+
+    severity=critical 이면 critical_avoidance=True 추가.
+    """
     cat = _map_category(finding.category)
-    return _EXPECTED_BEHAVIORS.get(cat, {"avoid_issue": True})
+    base = EXPECTED_BEHAVIORS_BY_CATEGORY.get(
+        cat, EXPECTED_BEHAVIORS_BY_CATEGORY["general"]
+    ).copy()
+
+    if finding.severity == "critical":
+        base["critical_avoidance"] = True
+
+    return base
 
 
 @dataclass
@@ -82,30 +125,29 @@ class EvalSeed:
 
 
 class FindingToEvalSeed:
-    """Finding → EvalSeed 변환기 (AI_PLAYTESTER 5.2)."""
+    """Finding → EvalSeed 변환기 (★ W1 D6 자료 5.2 정확)."""
 
     def convert(
         self,
         finding: PlaytesterFinding,
         session: PlaytesterSessionResult,
-    ) -> EvalSeed:
-        """단일 finding → seed."""
+    ) -> EvalSeed | None:
+        """단일 finding → seed (★ 자료 5.2: target_turn = playthrough[finding.turn_n]).
+
+        우선순위:
+            1. playthrough_log 에서 turn_n 매칭 entry 찾기
+            2. 없으면 finding.turn_context fallback
+            3. 둘 다 없으면 None (시드 거부)
+
+        Returns:
+            EvalSeed 또는 None (turn 정보 부족 시)
+        """
+        prompt, ctx = self._extract_prompt_and_context(finding, session)
+        if prompt is None:
+            return None
+
         category = _map_category(finding.category)
         seed_id = self._generate_id(finding, session)
-
-        intro = ""
-        for log in session.playthrough_log:
-            if isinstance(log, dict) and log.get("role") == "game_intro":
-                intro = str(log.get("text", ""))
-                break
-
-        prompt: dict[str, str] = {
-            "system": "당신은 텍스트 어드벤처 게임 GM. 한국어, 격식체.",
-            "user": (
-                f"신참 모험가 투르윈으로 게임 시작. "
-                f"{finding.description[:100]}"
-            ),
-        }
 
         return EvalSeed(
             id=seed_id,
@@ -114,11 +156,7 @@ class FindingToEvalSeed:
             prompt=prompt,
             expected_behavior=_derive_expected_behavior(finding),
             criteria=category,
-            context={
-                "language": "ko",
-                "character_response": True,
-                "auto_seed": True,
-            },
+            context=ctx,
             metadata={
                 "source": "ai_playtester",
                 "persona": session.persona_id,
@@ -126,9 +164,56 @@ class FindingToEvalSeed:
                 "severity": finding.severity,
                 "original_description": finding.description,
                 "session_work_name": session.work_name,
-                "intro_excerpt": intro[:200],
+                "finding_turn_n": finding.turn_n,
             },
         )
+
+    @staticmethod
+    def _extract_prompt_and_context(
+        finding: PlaytesterFinding,
+        session: PlaytesterSessionResult,
+    ) -> tuple[dict[str, str] | None, dict[str, Any]]:
+        """target_turn → (prompt, context). 없으면 (None, {})."""
+        target_turn = FindingToEvalSeed._get_target_turn(session, finding.turn_n)
+
+        if target_turn is not None:
+            system = str(target_turn.get("system_prompt", ""))
+            user = str(target_turn.get("user_input", ""))
+            if system and user:
+                ctx_raw = target_turn.get("context", {"language": "ko"})
+                ctx: dict[str, Any] = (
+                    dict(ctx_raw) if isinstance(ctx_raw, dict) else {"language": "ko"}
+                )
+                return {"system": system, "user": user}, ctx
+
+        # Fallback: turn_context (run_session에서 첨부)
+        if finding.turn_context:
+            system = str(finding.turn_context.get("system_prompt", ""))
+            user = str(finding.turn_context.get("user_input", ""))
+            if system and user:
+                ctx = {
+                    "language": finding.turn_context.get("language", "ko"),
+                    "character_response": finding.turn_context.get(
+                        "character_response", True
+                    ),
+                }
+                return {"system": system, "user": user}, ctx
+
+        # 둘 다 부재 → 시드 거부 (★ 자료 5.2 정신)
+        return None, {}
+
+    @staticmethod
+    def _get_target_turn(
+        session: PlaytesterSessionResult,
+        turn_n: int,
+    ) -> dict[str, Any] | None:
+        """playthrough[turn_n] 추출 (★ 자료 5.2)."""
+        for log in session.playthrough_log:
+            if not isinstance(log, dict):
+                continue
+            if log.get("turn_n") == turn_n:
+                return log
+        return None
 
     @staticmethod
     def _generate_id(
@@ -148,10 +233,11 @@ class SeedAdditionResult:
     rejected: list[tuple[EvalSeed, str]]
     daily_count_before: int
     daily_count_after: int
+    none_rejected: int = 0  # ★ W1 D6: turn 부족으로 거부된 None 시드 수
 
 
 class SeedManager:
-    """시드 추가 + 한도 강제 (자료 5.4)."""
+    """시드 추가 + 한도 강제 (자료 5.4) + ★ W1 D6 None 처리."""
 
     def __init__(
         self,
@@ -161,7 +247,19 @@ class SeedManager:
         self.max_per_day = max_per_day
         self.max_per_category = max_per_category
 
-    def add_seeds(self, seeds: list[EvalSeed]) -> SeedAdditionResult:
+    def add_seeds(
+        self, seeds: list[EvalSeed | None]
+    ) -> SeedAdditionResult:
+        """시드 추가 (★ W1 D6: None 시드는 자동 reject).
+
+        None 시드는 자료 5.2 위반 (target_turn 없음) 으로 거부.
+        """
+        valid_seeds: list[EvalSeed] = [s for s in seeds if s is not None]
+        none_count = len(seeds) - len(valid_seeds)
+
+        if none_count > 0:
+            print(f"  [SeedManager] {none_count} seeds rejected (no target_turn)")
+
         EVALS_AUTO_ADDED_DIR.mkdir(parents=True, exist_ok=True)
 
         today = datetime.now().strftime("%Y%m%d")
@@ -171,7 +269,7 @@ class SeedManager:
         added: list[EvalSeed] = []
         rejected: list[tuple[EvalSeed, str]] = []
 
-        for seed in seeds:
+        for seed in valid_seeds:
             if (existing_today + len(added)) >= self.max_per_day:
                 rejected.append((seed, f"max_per_day ({self.max_per_day}) reached"))
                 continue
@@ -192,6 +290,7 @@ class SeedManager:
             rejected=rejected,
             daily_count_before=existing_today,
             daily_count_after=existing_today + len(added),
+            none_rejected=none_count,
         )
 
     def _count_today(self, today: str) -> int:

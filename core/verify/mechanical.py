@@ -5,6 +5,7 @@ from typing import Any
 from .encoding_rules import get_encoding_rules
 from .game_rules import get_game_rules
 from .korean_rules import get_korean_rules
+from .length_rules import get_length_rules
 from .rule import CheckFailure, MechanicalResult, Rule
 from .standard_rules import get_standard_rules
 
@@ -27,6 +28,7 @@ class MechanicalChecker:
             *get_game_rules(),
             *get_korean_rules(),
             *get_encoding_rules(),
+            *get_length_rules(),  # ★ W1 D6 verbose 대응
         ]
 
     def check(self, response: str, context: dict[str, Any]) -> MechanicalResult:

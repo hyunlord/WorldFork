@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-05-01T22:24:45.602446",
+  "round": "round_4_turnloop_verbose",
+  "n_sessions": 6,
+  "n_skipped": 0,
+  "skipped": [],
+  "aggregated": {
+    "total_sessions": 6,
+    "skipped": 0,
+    "total_findings": 38,
+    "by_severity": {
+      "minor": 19,
+      "major": 19
+    },
+    "by_category": {
+      "onboarding": 1,
+      "truncation": 1,
+      "language_quality": 1,
+      "language": 1,
+      "wording": 1,
+      "localization": 1,
+      "clarity": 2,
+      "ui": 1,
+      "ux": 1,
+      "AI": 5,
+      "구조/언어": 1,
+      "prompt": 2,
+      "prompt_injection_resistance": 1,
+      "IP": 4,
+      "prompt_injection": 1,
+      "spatial/worldbuilding": 1,
+      "<detail>": 1,
+      "personality": 1,
+      "magic_system": 1,
+      "verbose": 5,
+      "context_loss": 1,
+      "language_mixing": 1,
+      "repetitive_intro": 1,
+      "외국어혼입": 1,
+      "verbose_clueless": 1
+    },
+    "by_persona": {
+      "casual_korean_player": {
+        "completed": true,
+        "fun": 3,
+        "findings": 4,
+        "turns": 30
+      },
+      "confused_beginner": {
+        "completed": true,
+        "fun": 3,
+        "findings": 6,
+        "turns": 30
+      },
+      "troll": {
+        "completed": false,
+        "fun": 2,
+        "findings": 14,
+        "turns": 29
+      },
+      "hardcore_lore_fan": {
+        "completed": true,
+        "fun": 4,
+        "findings": 4,
+        "turns": 30
+      },
+      "roleplayer": {
+        "completed": true,
+        "fun": 5,
+        "findings": 0,
+        "turns": 30
+      },
+      "speed_runner": {
+        "completed": false,
+        "fun": 2,
+        "findings": 10,
+        "turns": 29
+      }
+    },
+    "avg_fun": 3.1666666666666665
+  }
+}
