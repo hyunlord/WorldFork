@@ -1,0 +1,58 @@
+{
+  "persona_id": "casual_korean_player",
+  "work_name": "novice_dungeon_run",
+  "completed": false,
+  "n_turns_played": 2,
+  "elapsed_seconds": 42.00041961669922,
+  "fun_rating": 1,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "인트로 텍스트가 중간에 잘려서 첫 번째 프롬프트가 뭔지 모르겠음. '내디딜지 선' 으로 끝나서 뭘 해야 할지 전혀 모르겠다. 그리고 '존경하는 플레이어 님, 안녕하십니까' 이게 무슨 공문이야? 게임 시작부터 이러면 바로 꺼야지.",
+  "abandon_turn": 2,
+  "findings": [
+    {
+      "severity": "critical",
+      "category": "broken_ux",
+      "turn_n": 1,
+      "description": "인트로 텍스트가 '내디딜지 선' 에서 잘림. 플레이어가 무엇을 입력해야 할지 알 수 없음. 게임 시작 자체가 불가능한 상태.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "tone_mismatch",
+      "turn_n": 1,
+      "description": "'존경하는 플레이어 님, 안녕하십니까' — 공문서 같은 경어체. 20-30대 캐주얼 게이머한테 완전 거부감. 첫 인상 최악.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "verbose",
+      "turn_n": 1,
+      "description": "인트로 혼자 한 화면 꽉 참. 읽다가 지침. 핵심인 '던전 입구에 있다, 검과 빵이 있다' 를 2-3줄로 줄여야 함.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "localization",
+      "turn_n": 1,
+      "description": "'노바스 dungeon(신참의 던전)' — 한/영 혼용 + 괄호 설명이 어색함. 그냥 '신참의 던전' 하나로 통일 권장.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "존경하는 플레이어 님, 안녕하십니까.\n\n오늘은 신참 모험가 **투르윈** 님이 위대한 모험의 여정에 발을 내딛는 날입니다. 비록 초보 모험가이시지만, 투르윈 님의 용기와 결단이 이 세계의 어둠을 밝히는 첫 빛이 되기를 바랍니다.\n\n지금 우리는 **노바스 dungeon(신참의 던전)** 입구에 서 있습니다.\n바위벽에 새겨진 낡은 문이 희미한 붉은 빛을 띠며 숨을 고르고 있습니다. 바람이 거세게 불어오며 문틈 사이로 스며드는 차가운 공기가 피부에 닿습니다. 주머니 속에는 아버님께서 주신 낡은 검과, 길에서 구한 유일한 빵 하나만 남아 있습니다.\n\n이제 투르윈 님, 당신의 첫걸음을 어떻게 내디딜지 선"
+    },
+    {
+      "role": "playtester_summary",
+      "text": "인트로 텍스트가 잘리는 치명적 버그로 게임 시작 자체가 불가. 공문서체 오프닝과 과도한 장문 설명이 캐주얼 유저 이탈을 가속화함. 텍스트 렌더링 버그 수정이 최우선."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}
