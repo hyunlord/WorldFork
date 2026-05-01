@@ -141,3 +141,48 @@ class CrossModelEnforcer:
 
     def is_enabled(self) -> bool:
         return self._enabled
+
+    @staticmethod
+    def assert_compatible(
+        generator: str,
+        verifier: str,
+        mode: str = "strict",
+    ) -> None:
+        """generator + verifier 호환성 검증 (mode 기반).
+
+        Args:
+            generator: generator 모델 키
+            verifier: verifier 모델 키
+            mode: "strict" (자료 권장, 다른 family 강제) |
+                  "same_family" (같은 family OK, ★ Local-only 인사이트)
+
+        Raises:
+            CrossModelError: 위반 시
+        """
+        if generator == verifier:
+            raise CrossModelError(
+                f"Self-rationalization risk: generator and verifier are both '{generator}'"
+            )
+
+        if mode == "strict":
+            gen_fam = _extract_family(generator)
+            ver_fam = _extract_family(verifier)
+            if gen_fam == ver_fam:
+                raise CrossModelError(
+                    f"Strict mode: generator '{generator}' and verifier '{verifier}' "
+                    f"are same family ({gen_fam}). Use mode='same_family' to allow."
+                )
+
+
+def _extract_family(model_key: str) -> str:
+    """모델 키에서 family 추출."""
+    key = model_key.lower()
+    if "qwen" in key:
+        return "qwen"
+    if "claude" in key:
+        return "anthropic"
+    if "codex" in key or "gpt" in key:
+        return "openai"
+    if "gemini" in key:
+        return "google"
+    return "unknown"
