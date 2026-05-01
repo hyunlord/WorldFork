@@ -1,0 +1,10 @@
+# WorldFork Harness Configuration
+# AI_PLAYTESTER 5.4 — 자동 시드 한도
+
+ai_playtester:
+  auto_seed:
+    enabled: true
+    max_per_day: 20
+    max_per_category: 5
+    require_review: true
+    review_within_days: 7

@@ -1,0 +1,25 @@
+{
+  "persona_id": "roleplayer",
+  "work_name": "novice_dungeon_run",
+  "completed": true,
+  "n_turns_played": 30,
+  "elapsed_seconds": 15.659437656402588,
+  "fun_rating": 4,
+  "would_replay": true,
+  "abandoned": false,
+  "abandon_reason": null,
+  "abandon_turn": null,
+  "findings": [],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "이곳은 아직 신참들이 발을 담글 수 없는 초라한 모험가 동회의 입구입니다.\n창밖으로 비가 내리는 소리와 함께, 방 안에서는 다른 모험가들의 떠드는 소리가 희미하게 들려옵니다.\n투르윈은 손에 쥐고 있는 낡은 장비 목록을 보며 첫 모험을 시작해야 할 순간을 맞이하고 있습니다.\n\n다음 중 하나의 행동을 선택해 주세요.\n\n1. 동회 사무실로 가서 모험가 등록을 마치고 지도를 요청합니다.\n2. 근처의 작은 상점으로 이동하여 필요한 장비와 약품을 확인합니다.\n3. 동회 입구의 전광판에 게시된 모험 목록을 자세히 읽어봅니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "투르윈은 모험가 등록부터 시작해 비 내리는 마을 주변의 초급 의뢰를 수행하며 셰인과 올드 리브 같은 인물들과 관계를 쌓아 갔습니다. 신참다운 경계심과 조심스러운 결의가 끝까지 유지되었고, 첫 모험의 불안과 성장의 감각이 자연스럽게 이어진 30턴 세션이었습니다."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

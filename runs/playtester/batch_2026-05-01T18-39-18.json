@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-05-01T18:39:18.800431",
+  "work_name": "novice_dungeon_run",
+  "n_sessions": 6,
+  "n_skipped": 0,
+  "skipped": [],
+  "aggregated": {
+    "total_sessions": 6,
+    "skipped": 0,
+    "total_findings": 15,
+    "by_severity": {
+      "major": 9,
+      "moderate": 2,
+      "minor": 4
+    },
+    "by_category": {
+      "verbose": 9,
+      "ux": 1,
+      "pacing": 1,
+      "worldbuilding": 1,
+      "space_rules": 1,
+      "localization": 1,
+      "too_many_choices": 1
+    },
+    "by_persona": {
+      "casual_korean_player": {
+        "completed": false,
+        "fun": 2,
+        "findings": 6,
+        "turns": 14
+      },
+      "confused_beginner": {
+        "completed": false,
+        "fun": 0,
+        "findings": 0,
+        "turns": 0
+      },
+      "troll": {
+        "completed": false,
+        "fun": 0,
+        "findings": 0,
+        "turns": 0
+      },
+      "hardcore_lore_fan": {
+        "completed": false,
+        "fun": 2,
+        "findings": 3,
+        "turns": 1
+      },
+      "roleplayer": {
+        "completed": true,
+        "fun": 4,
+        "findings": 0,
+        "turns": 30
+      },
+      "speed_runner": {
+        "completed": false,
+        "fun": 2,
+        "findings": 6,
+        "turns": 8
+      }
+    },
+    "avg_fun": 1.6666666666666667
+  }
+}

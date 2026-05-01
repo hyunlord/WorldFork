@@ -1,0 +1,16 @@
+{
+  "persona_id": "confused_beginner",
+  "work_name": "novice_dungeon_run",
+  "completed": false,
+  "n_turns_played": 0,
+  "elapsed_seconds": 4.200923919677734,
+  "fun_rating": 0,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "Playtester CLI failed: CLI not found: gemini (model: gemini). Install or check PATH.",
+  "abandon_turn": 0,
+  "findings": [],
+  "playthrough_log": [],
+  "skipped": false,
+  "skip_reason": null
+}

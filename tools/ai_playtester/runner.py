@@ -111,16 +111,29 @@ class PlaytesterRunner:
 
         # 1. 게임 시작 응답 (게임 LLM)
         game_intro_prompt = Prompt(
-            system="당신은 텍스트 어드벤처 게임 GM. 한국어, 격식체.",
+            system=(
+                "당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
+                "스타일 규칙:\n"
+                "- 격식체 사용 (...입니다, ...있습니다)\n"
+                "- 자연스러운 격식 (공문서체 X, '존경하는' / '귀하' / '~습니까' X)\n"
+                "- 간결한 묘사 (3-5 문장 이내)\n"
+                "- 한국어만 (영단어 + 괄호 한국어 형식 X)\n"
+                "- 마지막에 명확한 행동 선택지 2-3개 제시\n\n"
+                "역할: 신참 모험가 투르윈의 모험 시작 GM"
+            ),
             user=(
-                f"'{work_name}' 시나리오 시작. "
-                "신참 모험가 투르윈으로 게임 시작. 첫 응답을 제공."
+                f"'{work_name}' 시나리오를 시작해 주세요. "
+                f"투르윈은 신참 모험가입니다. "
+                f"첫 응답에 다음을 포함해 주세요:\n"
+                f"1. 현재 위치 (1-2 문장)\n"
+                f"2. 보이는 것 / 들리는 것 (1-2 문장)\n"
+                f"3. 가능한 행동 2-3개 명시"
             ),
         )
 
         try:
             game_intro = self.game_client.generate(
-                game_intro_prompt, max_tokens=200
+                game_intro_prompt, max_tokens=500
             )
         except Exception as e:
             return PlaytesterSessionResult(

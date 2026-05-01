@@ -1,0 +1,50 @@
+{
+  "persona_id": "hardcore_lore_fan",
+  "work_name": "novice_dungeon_run",
+  "completed": false,
+  "n_turns_played": 1,
+  "elapsed_seconds": 66.27638173103333,
+  "fun_rating": 2,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "1턴 인트로 이후 이어지는 게임 응답이 제공되지 않아 추가 플레이 및 검증을 진행할 수 없었음.",
+  "abandon_turn": 1,
+  "findings": [
+    {
+      "severity": "major",
+      "category": "worldbuilding",
+      "turn_n": 1,
+      "description": "원작형 설정의 미궁은 도시 광장에서 월 1회 열리는 포탈로 들어가며 시작 위치도 랜덤인데, 인트로는 바람이 부는 물리적 던전 입구 앞에 서 있는 장면으로 제시해 핵심 진입 구조가 어긋난다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "space_rules",
+      "turn_n": 1,
+      "description": "‘뒤로 물러선다’는 선택지는 입구에서 자유롭게 이탈할 수 있다는 뜻인데, 원작형 미궁은 진입 후 임의 후퇴가 불가능하고 정해진 시점에만 귀환되는 구조라 공간 규칙이 맞지 않는다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "localization",
+      "turn_n": 1,
+      "description": "문장 첫머리의 ‘현재您是’는 한국어 톤에 맞지 않는 혼합 표기로, 세계관 위반은 아니지만 몰입과 캐릭터 일관성을 약하게 훼손한다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "현재您是 던전의 입구로 서 있으며, 차가운 바람이 입구에서 불어옵니다.\n\n어둠 속에서 낡은 조각들이 들려오는 숨소리와 함께 멀리서 금속이 부딪히는 소리가 희미하게 들립니다.\n\n이곳을 둘러보고자 뒤로 물러서거나, 어둠 속으로 조심스럽게 걸어 들어갈 수 있습니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "1턴 인트로만으로도 원작형 세계관의 핵심인 미궁 진입 방식과 귀환 규칙이 어긋났다. 추가 게임 응답이 제공되지 않아 1턴에서 중단했다."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}
