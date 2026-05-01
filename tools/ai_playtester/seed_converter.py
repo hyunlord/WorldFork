@@ -26,26 +26,78 @@ from .runner import PlaytesterFinding, PlaytesterSessionResult
 
 EVALS_AUTO_ADDED_DIR = Path(__file__).resolve().parents[2] / "evals" / "auto_added"
 
-# 카테고리 매핑 (자료 5.2)
+# 카테고리 매핑 (자료 5.2 + ★ W1 D7 확장 — 자료 5.5 부분 적용)
+# W1 D6 Round 4 발견 카테고리 (AI/prompt/IP/clarity/pacing/worldbuilding) 모두 매핑
 CATEGORY_MAPPING: dict[str, str] = {
+    # ip_leakage 변형
     "ip_leakage": "ip_leakage",
     "ip_leak": "ip_leakage",
+    "ip": "ip_leakage",                     # ★ W1 D7 (W1 D6 4건)
+    "intellectual_property": "ip_leakage",  # ★ W1 D7
+
+    # world_consistency 변형
     "world": "world_consistency",
     "world_canon_violation": "world_consistency",
+    "worldbuilding": "world_consistency",   # ★ W1 D7
+    "space_rules": "world_consistency",     # ★ W1 D7
+    "anachronism": "world_consistency",     # ★ W1 D7
+    "magic_system": "world_consistency",    # ★ W1 D7
+    "context_loss": "world_consistency",    # ★ W1 D7
+
+    # persona_consistency 변형
     "persona": "persona_consistency",
     "persona_break": "persona_consistency",
     "persona_drift": "persona_consistency",
+    "personality": "persona_consistency",   # ★ W1 D7
+
+    # korean_quality 변형
     "verbose": "korean_quality",
+    "verbose_clueless": "korean_quality",   # ★ W1 D7
     "tone_mismatch": "korean_quality",
     "korean_unnatural": "korean_quality",
     "localization": "korean_quality",
-    "broken_ux": "general",
-    "other": "general",
+    "speech_style": "korean_quality",       # ★ W1 D7
+    "honorifics": "korean_quality",         # ★ W1 D7
+    "wording": "korean_quality",            # ★ W1 D7
+    "language": "korean_quality",           # ★ W1 D7
+    "language_quality": "korean_quality",   # ★ W1 D7
+    "language_mixing": "korean_quality",    # ★ W1 D7
+    "외국어혼입": "korean_quality",          # ★ W1 D7
+
+    # ai_breakout 변형 (★ W1 D6 5건 + prompt 2건)
     "ai_breakout": "ai_breakout",
     "ai_break": "ai_breakout",
+    "ai": "ai_breakout",                    # ★ W1 D7
+    "prompt": "ai_breakout",                # ★ W1 D7
+    "prompt_injection": "ai_breakout",      # ★ W1 D7
+    "prompt_injection_resistance": "ai_breakout",  # ★ W1 D7
+    "meta_question": "ai_breakout",         # ★ W1 D7
+    "self_disclosure": "ai_breakout",       # ★ W1 D7
+
+    # ★ NEW: ux 카테고리 (자료 5.5 부분 적용)
+    "ux": "ux",
+    "ui": "ux",                             # ★ W1 D7
+    "broken_ux": "ux",                      # ★ W1 D7 (general → ux)
+    "clarity": "ux",                        # ★ W1 D7
+    "pacing": "ux",                         # ★ W1 D7
+    "navigation": "ux",                     # ★ W1 D7
+    "too_many_choices": "ux",               # ★ W1 D7
+    "onboarding": "ux",                     # ★ W1 D7
+    "feedback": "ux",                       # ★ W1 D7
+    "help": "ux",                           # ★ W1 D7
+    "repetitive_intro": "ux",               # ★ W1 D7
+    "fun": "ux",                            # ★ W1 D7
+
+    # general (catch-all)
+    "other": "general",
+    "encoding": "general",                  # ★ W1 D7
+    "truncation": "general",                # ★ W1 D7
+    "구조/언어": "general",                  # ★ W1 D7
+    "spatial/worldbuilding": "world_consistency",  # ★ W1 D7
+    "<detail>": "general",                  # ★ W1 D7
 }
 
-# ★ Expected behaviors 카테고리별 (자료 4.2 그대로)
+# ★ Expected behaviors 카테고리별 (자료 4.2 그대로 + ★ W1 D7 ux 추가)
 EXPECTED_BEHAVIORS_BY_CATEGORY: dict[str, dict[str, Any]] = {
     "persona_consistency": {
         "in_character": True,
@@ -70,6 +122,12 @@ EXPECTED_BEHAVIORS_BY_CATEGORY: dict[str, dict[str, Any]] = {
         "no_ai_mentions": True,
         "stay_in_character": True,
         "deflect_meta_question": True,
+    },
+    # ★ W1 D7 NEW
+    "ux": {
+        "clear_choices": True,
+        "no_navigation_loss": True,
+        "appropriate_pacing": True,
     },
     "general": {
         "no_truncation": True,

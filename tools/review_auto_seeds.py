@@ -1,5 +1,10 @@
 """Auto-added seeds 본인 검토 도구 (자료 AI_PLAYTESTER 5.3).
 
+★ 본인 인사이트 #12: 자료 5.3 보완
+    자료 5.3 원안: Description + Prompt 만 표시
+    실제 검토 시 "GM이 실제로 위반했나" 판단 불가 → game_response 필수
+    → runs/playtester/ session 파일에서 turn_n 매칭 후 game_response 출력 추가
+
 대화형 CLI:
   a: accept — evals/{category}/v2.jsonl 에 추가
   r: reject — 제거 (이유 기록)
@@ -26,6 +31,56 @@ if hasattr(sys.stdout, "reconfigure"):
 
 EVALS_AUTO_ADDED = Path(__file__).resolve().parents[1] / "evals" / "auto_added"
 EVALS_BASE = Path(__file__).resolve().parents[1] / "evals"
+RUNS_DIR = Path(__file__).resolve().parents[1] / "runs" / "playtester"
+
+
+# ---------------------------------------------------------------------------
+# Session 캐시 (runs/playtester/*.json → game_response 조회용)
+# ---------------------------------------------------------------------------
+
+# persona_id → list of playthrough_log entries (lazy-loaded once)
+_session_cache: dict[str, list[dict[str, Any]]] = {}
+_session_cache_loaded = False
+
+
+def _ensure_session_cache() -> None:
+    """runs/playtester/*.json 을 한 번만 로드해 _session_cache 채움."""
+    global _session_cache_loaded
+    if _session_cache_loaded:
+        return
+    _session_cache_loaded = True
+
+    if not RUNS_DIR.exists():
+        return
+
+    for path in sorted(RUNS_DIR.glob("*.json")):
+        try:
+            data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        persona = str(data.get("persona_id", ""))
+        logs: list[dict[str, Any]] = data.get("playthrough_log", [])
+        if persona and logs:
+            _session_cache.setdefault(persona, []).extend(logs)
+
+
+def _get_game_response(
+    persona: str,
+    turn_n: int,
+    user_input: str,
+) -> str | None:
+    """session cache에서 turn_n + user_input 매칭 후 game_response 반환.
+
+    동일 persona에 여러 세션이 있을 수 있으므로 user_input 으로 확인.
+    """
+    _ensure_session_cache()
+    logs = _session_cache.get(persona, [])
+    for log in logs:
+        if log.get("turn_n") == turn_n and log.get("user_input") == user_input:
+            response = log.get("game_response", "")
+            return str(response) if response else None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +119,9 @@ def display_seed(seed: dict[str, Any], idx: int, total: int) -> None:
     """시드 한 눈에 보기."""
     meta: dict[str, Any] = seed.get("metadata", {})
     prompt: dict[str, Any] = seed.get("prompt", {})
+    persona = str(meta.get("persona", ""))
+    finding_turn_n: int = int(meta.get("finding_turn_n", -1))
+    user_input = str(prompt.get("user", ""))
 
     print()
     print("=" * 70)
@@ -72,7 +130,7 @@ def display_seed(seed: dict[str, Any], idx: int, total: int) -> None:
     print(f"  출처 파일   : {seed.get('_source_file', '')}")
     print(f"  Category   : {seed.get('category', '?')}")
     print(f"  Severity   : {meta.get('severity', '?')}")
-    print(f"  Persona    : {meta.get('persona', '?')}")
+    print(f"  Persona    : {persona}")
     print(f"  Work       : {meta.get('session_work_name', '?')}")
     print(f"  발견일     : {str(meta.get('discovered_at', '?'))[:10]}")
     print()
@@ -80,12 +138,17 @@ def display_seed(seed: dict[str, Any], idx: int, total: int) -> None:
     desc = str(meta.get("original_description", ""))
     print(f"  {_truncate(desc, 200)}")
     print()
-    print("  [게임 인트로 발췌]")
-    excerpt = str(meta.get("intro_excerpt", ""))
-    print(f"  {_truncate(excerpt, 150)}")
+    print(f"  [Eval prompt / user (turn {finding_turn_n})]")
+    print(f"  {_truncate(user_input, 200)}")
     print()
-    print("  [Eval prompt / user]")
-    print(f"  {_truncate(str(prompt.get('user', '')), 200)}")
+
+    # ★ 본인 인사이트 #12: 실제 GM 응답 표시 (자료 5.3 보완)
+    game_response = _get_game_response(persona, finding_turn_n, user_input)
+    print("  ★ 실제 게임 응답 (해당 turn) — GM이 실제로 위반했나 확인:")
+    if game_response:
+        print(f"  {_truncate(game_response, 300)}")
+    else:
+        print("  (session 파일에서 해당 turn 응답 없음)")
     print()
     print("  [Expected behavior]")
     print(f"  {seed.get('expected_behavior', {})}")

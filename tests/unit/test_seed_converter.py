@@ -115,12 +115,13 @@ class TestFindingToEvalSeed:
         assert seed is not None
         assert seed.category == "ip_leakage"
 
-    def test_broken_ux_maps_to_general(self) -> None:
+    def test_broken_ux_maps_to_ux(self) -> None:
+        """W1 D7: broken_ux는 general → ux 로 이동."""
         seed = FindingToEvalSeed().convert(
             _make_finding("critical", "broken_ux"), _make_session()
         )
         assert seed is not None
-        assert seed.category == "general"
+        assert seed.category == "ux"
 
     def test_unknown_category_maps_to_general(self) -> None:
         seed = FindingToEvalSeed().convert(
