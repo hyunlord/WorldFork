@@ -1,0 +1,74 @@
+{
+  "persona_id": "casual_korean_player",
+  "work_name": "novice_dungeon_run",
+  "completed": false,
+  "n_turns_played": 18,
+  "elapsed_seconds": 39.993701219558716,
+  "fun_rating": 3,
+  "would_replay": true,
+  "abandoned": true,
+  "abandon_reason": "turn 16부터 전투 결과 설명이 화면을 넘기는 수준으로 길어짐 — 3회 연속 발생으로 이탈",
+  "abandon_turn": 18,
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "verbose",
+      "turn_n": 1,
+      "description": "인트로 텍스트 3-4줄로 적당하나 '철근과 돌로 쌓인 문', '낡은 방패와 검' 등 묘사가 중복돼 중복감 있음",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "ux",
+      "turn_n": 1,
+      "description": "선택지 3번 '동료에게 보고' — 동료 존재 여부가 사전 소개 없이 등장해 맥락 혼란",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "moderate",
+      "category": "verbose",
+      "turn_n": 7,
+      "description": "전투 개시 시 적 스탯/배경 설명이 6줄 이상 — 캐주얼 유저는 읽지 않고 아무 번호나 선택",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "moderate",
+      "category": "pacing",
+      "turn_n": 12,
+      "description": "연속 2턴 탐색 선택 후 실질 진행 없음 — '아무것도 없다' 류 응답 반복, 흥미 급락",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "critical",
+      "category": "verbose",
+      "turn_n": 16,
+      "description": "보스전 결과 설명 10줄+ (피해량·스탯·다음 전략 힌트 혼합) — 3회 연속 한 화면 초과로 이탈 트리거",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "fun",
+      "turn_n": 5,
+      "description": "첫 전투 승리 시 피드백이 담백해서 '이겼다는 느낌'이 약함 — 짧아도 임팩트 있는 연출 필요",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "투르윈은 어둠이 깔린 '신참의 던전' 입구에 서 있습니다.\n철근과 돌로 쌓인 문 앞에는 낡은 방패와 검이 놓여 있으며, 멀리서 불쑥불쑥 들리는 비명 소리가 귀에 거슬립니다.\n이제 모험의 여정이 시작되었으니, 다음 행동을 선택해 주세요.\n\n1. 방패와 검을 챙겨 문 안으로 진입합니다.\n2. 먼저 주변을 살피며 숨을 고릅니다.\n3. 던전 입구의 상황을 동료에게 보고합니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "초반 10턴은 선택지가 명확하고 흥미로워 이탈 없이 진행됨. 중반부터 전투 묘사가 과도하게 길어지고 탐색 턴에서 무반응 반복이 겹쳐 몰입도 하락. 보스전 구간에서 3회 연속 장문 응답으로 이탈 조건 충족."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

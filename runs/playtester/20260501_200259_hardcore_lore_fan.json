@@ -1,0 +1,50 @@
+{
+  "persona_id": "hardcore_lore_fan",
+  "work_name": "novice_dungeon_run",
+  "completed": true,
+  "n_turns_played": 1,
+  "elapsed_seconds": 42.23398947715759,
+  "fun_rating": 2,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "1턴 intro에서 공간 규칙과 생태 묘사가 서로 충돌해 IP Masked 세계관 검증 기준상 더 진행할 가치가 낮다고 판단했다.",
+  "abandon_turn": 1,
+  "findings": [
+    {
+      "severity": "major",
+      "category": "space_logic",
+      "turn_n": 1,
+      "description": "바위굴 입구와 터널 내부 장면에 '낡은 등대 불빛'을 직접 배치한 구도가 부자연스럽다. 해안 동굴인지, 지하 구조물인지 맥락이 없어 공간 규칙이 흔들린다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "worldbuilding",
+      "turn_n": 1,
+      "description": "지하 진입 장면인데 지상의 악취, 작은 새 소리, 터널 끝의 등대가 한 화면에 섞여 나온다. 폐쇄형 던전 감각과 지상 생태가 정리되지 않아 세계관 디테일 일관성이 약하다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "personality",
+      "turn_n": 1,
+      "description": "위협적인 입구 연출 직후 '휴식' 선택지를 동등하게 제시한 점은 생존 지향 캐릭터의 기본 경계심과 약간 어긋난다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "투르윈은 어두운 바위굴 입구에 서 있으며, 차가운 공기가 옷깃을 스칩니다.\n전면으로 번쩍이는 낡은 등대 불빛만이 터널 끝을 비추고 있습니다.\n지상에서 들려오는 고약한 냄새와 함께 작은 새들이 우두둑거리는 소리가 들립니다.\n앞으로 갈 것인지, 주변을 탐색할 것인지 선택해 주세요.\n\n1. 낡은 등대로 터널 안으로 들어갑니다.\n2. 입구 주변의 바위를 조심스럽게 확인합니다.\n3. 잠시 주변 환경을 관찰하며 휴식합니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "1턴 intro만으로도 공간감과 환경 규칙이 서로 충돌하는 문제가 확인됐다. 직접적인 원작 IP 노출은 없었지만, IP Masked 세계관으로서의 몰입감은 낮아 1턴에서 중단했다."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

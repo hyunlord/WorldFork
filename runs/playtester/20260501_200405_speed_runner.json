@@ -1,0 +1,66 @@
+{
+  "persona_id": "speed_runner",
+  "work_name": "novice_dungeon_run",
+  "completed": false,
+  "n_turns_played": 14,
+  "elapsed_seconds": 42.30177068710327,
+  "fun_rating": 2,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "연속 3턴 이상 한 화면 초과 묘사. 선택지 전에 읽어야 할 텍스트가 너무 많음.",
+  "abandon_turn": 14,
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "verbose",
+      "turn_n": 1,
+      "description": "인트로 묘사 2문장 + 선택지 3개. 허용 범위지만 '낡은 돌벽', '불꽃 소리' 등 분위기 묘사가 행동과 무관하게 추가됨.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "minor",
+      "category": "too_many_choices",
+      "turn_n": 4,
+      "description": "던전 내부 탐색 후 선택지 5개 제시. 빠른 결정 어려움. 2-3개가 적정.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "verbose",
+      "turn_n": 7,
+      "description": "FINDING: [major] verbose response (turn 7). 첫 전투 후 결과 설명이 4문단. 한 화면 초과. 이탈 충동 첫 발생.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "verbose",
+      "turn_n": 10,
+      "description": "FINDING: [major] verbose response (turn 10). NPC 만남 시 배경 스토리 3문단 강제 출력. 스킵 불가.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "critical",
+      "category": "verbose",
+      "turn_n": 13,
+      "description": "FINDING: [critical] verbose response (turn 13). 보스룸 진입 묘사 5문단. 3턴 연속 한 화면 초과 (7, 10, 13턴). 이탈 결정.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "투르윈은 어둠이 깔린 신참 던전의 입구에 서 있습니다.\n앞으로 이어지는 길은 낡은 돌벽으로 이루어져 있고, 멀리서 불꽃 소리가 들려옵니다.\n지금 투르윈은 다음 중 하나를 선택할 수 있습니다.\n\n1. 던전 입구로 들어가 안을 조사합니다.\n2. 입구 근처에 있는 낡은 지도를 확인합니다.\n3. 던전 입구에서 잠시 쉼을 취합니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "핵심 문제는 전투/이벤트 결과 묘사 과다(평균 3-4문단). 선택지 개수도 4-5개로 많아 결정 피로 발생. 묘사를 1-2문장으로 압축하고 선택지를 3개 이하로 제한하면 빠른 게이머 이탈 방지 가능."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

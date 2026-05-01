@@ -1,0 +1,50 @@
+{
+  "persona_id": "confused_beginner",
+  "work_name": "novice_dungeon_run",
+  "completed": true,
+  "n_turns_played": 3,
+  "elapsed_seconds": 28.278972387313843,
+  "fun_rating": 2,
+  "would_replay": false,
+  "abandoned": true,
+  "abandon_reason": "첫 선택 이후 게임의 다음 응답이 없어 진행할 수 없었음",
+  "abandon_turn": 3,
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "onboarding",
+      "turn_n": 1,
+      "description": "시작 상황과 첫 선택지 두 개는 비교적 명확해서 텍스트 어드벤처 초보도 첫 행동을 고르기 쉬웠다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "feedback",
+      "turn_n": 2,
+      "description": "첫 행동 이후 게임의 반응이나 후속 선택지가 제시되지 않아 무엇을 할 수 있는지 즉시 불명확해졌다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    },
+    {
+      "severity": "major",
+      "category": "help",
+      "turn_n": 3,
+      "description": "막혔을 때 사용할 수 있는 도움말이나 유도 문구가 없어 '도와주세요' 같은 초보자 행동을 이어가기 어려웠다.",
+      "reproduction_input": "",
+      "reproduction_response": ""
+    }
+  ],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "투르윈은 신참 모험가로서 '새로운 모험가'라는 이름의 지하 던전 입구에 서 있습니다.\n앞으로 보이는 것은 낡은 철제 문과 무언가 숨쉬는 듯한 신비로운 정적이 가득한 어둠입니다.\n이곳에서 투르윈은 문을 두드리고 들어갈 수 있거나, 주위를 더 신중하게 살피는 선택을 할 수 있습니다."
+    },
+    {
+      "role": "playtester_summary",
+      "text": "도입부 자체는 분위기와 첫 선택이 분명했지만, 그 뒤의 반응이 없어 초보자 관점에서 바로 막혔다. 최소한의 피드백과 다음 행동 안내가 있었다면 더 오래 플레이할 수 있었을 것이다."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

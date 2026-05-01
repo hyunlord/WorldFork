@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from .encoding_rules import get_encoding_rules
 from .game_rules import get_game_rules
 from .korean_rules import get_korean_rules
 from .rule import CheckFailure, MechanicalResult, Rule
@@ -25,6 +26,7 @@ class MechanicalChecker:
             *get_standard_rules(),
             *get_game_rules(),
             *get_korean_rules(),
+            *get_encoding_rules(),
         ]
 
     def check(self, response: str, context: dict[str, Any]) -> MechanicalResult:

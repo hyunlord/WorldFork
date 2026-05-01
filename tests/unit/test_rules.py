@@ -172,8 +172,8 @@ class TestIPLeakageRule:
 class TestMechanicalChecker:
     def test_default_rules_count(self) -> None:
         checker = MechanicalChecker()
-        # 4 standard + 1 game + 2 korean = 7
-        assert len(checker.rules) == 7
+        # 4 standard + 1 game + 2 korean + 2 encoding = 9
+        assert len(checker.rules) == 9
 
     def test_all_pass(self) -> None:
         checker = MechanicalChecker()

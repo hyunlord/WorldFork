@@ -1,0 +1,25 @@
+{
+  "persona_id": "roleplayer",
+  "work_name": "novice_dungeon_run",
+  "completed": true,
+  "n_turns_played": 30,
+  "elapsed_seconds": 13.90338683128357,
+  "fun_rating": 4,
+  "would_replay": true,
+  "abandoned": false,
+  "abandon_reason": null,
+  "abandon_turn": null,
+  "findings": [],
+  "playthrough_log": [
+    {
+      "role": "game_intro",
+      "text": "투르윈은 이제부터 시작되는 모험의 첫 장을 펼치기 위해 초록빛 식물이 우거진 초입에 서 있습니다.\n\n주변은 아직 평온하지만, 멀리서 들리는 희미한 바람 소리만이 신비로운 분위기를 자아냅니다.\n\n지금 투르윈은 앞을 향해 걸어가거나, 주변 지형을 살핀 뒤, 혹은 잠시 쉬어가게 될 수 있습니다.\n\n1. 앞을 향해 걸어가다\n2. 주변을 자세히 살피다\n3. 잠시 숨 고르며 쉬다"
+    },
+    {
+      "role": "playtester_summary",
+      "text": "투르윈은 초입의 평온한 숲길에서 출발해 주변 지형을 탐색하고, 길 위에서 마주친 인물들과 조심스럽게 관계를 맺으며 첫 모험의 흐름을 단단히 붙잡았다. 전반적으로 페르소나 일관성과 몰입감이 안정적으로 유지된 세션이었다."
+    }
+  ],
+  "skipped": false,
+  "skip_reason": null
+}

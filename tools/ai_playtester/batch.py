@@ -4,17 +4,21 @@
   - 6 페르소나 × 1세션 = 6 호출
   - 직렬 실행 (병렬 X)
   - 각 세션 사이 sleep 5 (CLI / GPU 안정)
+
+★ Tier 1 W1 D5:
+  - backup_cli fallback (shutil.which 가용성 체크)
 """
 
+import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from core.llm.cli_client import CLIClient
+from core.llm.cli_client import CLIClient, _load_registry
 from core.llm.client import LLMClient
 
-from .persona import list_personas, load_persona
+from .persona import Persona, list_personas, load_persona
 from .runner import (
     PlaytesterError,
     PlaytesterRunner,
@@ -76,9 +80,7 @@ class BatchRunner:
 
             try:
                 persona = load_persona(pid, tier=tier)
-                # cli_to_use: "claude-code" → "claude_code"
-                cli_key = persona.cli_to_use.replace("-", "_")
-                playtester = CLIClient(model_key=cli_key)
+                playtester = self._create_playtester_with_fallback(persona)
 
                 runner = PlaytesterRunner(
                     persona=persona,
@@ -113,6 +115,58 @@ class BatchRunner:
                 time.sleep(self.sleep_between)
 
         return result
+
+    def _create_playtester_with_fallback(self, persona: Persona) -> CLIClient:
+        """CLI 가용성 확인 후 backup_cli fallback.
+
+        Args:
+            persona: cli_to_use / backup_cli 필드 사용
+
+        Returns:
+            CLIClient (primary 가능이면 primary, 아니면 backup)
+
+        Raises:
+            PlaytesterError: primary / backup 둘 다 불가 시
+        """
+        primary_key = persona.cli_to_use.replace("-", "_")
+
+        if self._is_cli_available(primary_key):
+            return CLIClient(model_key=primary_key)
+
+        print(f"    [fallback] {primary_key} not available, trying backup")
+
+        if persona.backup_cli is None:
+            raise PlaytesterError(
+                f"Persona '{persona.id}' has no backup_cli, "
+                f"primary {primary_key} unavailable"
+            )
+
+        backup_key = persona.backup_cli.replace("-", "_")
+
+        # Cross-Model 강제: backup_cli도 forbidden_game_llms에 없어야 함
+        if backup_key in persona.forbidden_game_llms:
+            raise PlaytesterError(
+                f"Persona '{persona.id}' backup_cli '{backup_key}' is in "
+                f"forbidden_game_llms. Cannot fallback."
+            )
+
+        if self._is_cli_available(backup_key):
+            print(f"    [fallback] using backup {backup_key}")
+            return CLIClient(model_key=backup_key)
+
+        raise PlaytesterError(
+            f"Persona '{persona.id}': backup {backup_key} also unavailable"
+        )
+
+    @staticmethod
+    def _is_cli_available(cli_key: str) -> bool:
+        """CLI 명령이 시스템 PATH에 있는지 확인."""
+        try:
+            registry = _load_registry()
+            command: str = registry["models"][cli_key]["command"]
+            return shutil.which(command) is not None
+        except Exception:
+            return False
 
     @staticmethod
     def aggregate_findings(result: BatchRunResult) -> dict[str, Any]:

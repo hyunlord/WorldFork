@@ -1,0 +1,70 @@
+{
+  "timestamp": "2026-05-01T20-04-39",
+  "round": "round_3_after_fixes",
+  "n_sessions": 6,
+  "n_skipped": 0,
+  "skipped": [],
+  "aggregated": {
+    "total_sessions": 6,
+    "skipped": 0,
+    "total_findings": 17,
+    "by_severity": {
+      "minor": 7,
+      "moderate": 2,
+      "critical": 2,
+      "major": 6
+    },
+    "by_category": {
+      "verbose": 7,
+      "ux": 1,
+      "pacing": 1,
+      "fun": 1,
+      "onboarding": 1,
+      "feedback": 1,
+      "help": 1,
+      "space_logic": 1,
+      "worldbuilding": 1,
+      "personality": 1,
+      "too_many_choices": 1
+    },
+    "by_persona": {
+      "casual_korean_player": {
+        "completed": false,
+        "fun": 3,
+        "findings": 6,
+        "turns": 18
+      },
+      "confused_beginner": {
+        "completed": true,
+        "fun": 2,
+        "findings": 3,
+        "turns": 3
+      },
+      "troll": {
+        "completed": false,
+        "fun": 0,
+        "findings": 0,
+        "turns": 0
+      },
+      "hardcore_lore_fan": {
+        "completed": true,
+        "fun": 2,
+        "findings": 3,
+        "turns": 1
+      },
+      "roleplayer": {
+        "completed": true,
+        "fun": 4,
+        "findings": 0,
+        "turns": 30
+      },
+      "speed_runner": {
+        "completed": false,
+        "fun": 2,
+        "findings": 5,
+        "turns": 14
+      }
+    },
+    "avg_fun": 2.1666666666666665
+  }
+}
