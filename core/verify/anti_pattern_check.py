@@ -109,9 +109,9 @@ PATTERNS: list[AntiPattern] = [
         severity="critical",
         description="New external package added to pyproject.toml.",
         # 버전 지정자(>=,<=,==,~=,!=,>,<) 포함한 줄만 — JSON/config 오탐 방지
-        # ★ _extract_added_lines 적용 후 '+' 제거됨 → ^\s* 사용 (^\+ 불필요)
+        # ★ diff-native 패턴: 원본 diff (+라인)에서 실행 → ^\+ 유지
         pattern=re.compile(
-            r"^\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
+            r"^\+\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
             r"python-dotenv|jupyterlab|huggingface-hub|"
             r"pytest|pytest-asyncio|pytest-cov|pytest-mock|"
             r"hypothesis|ruff|mypy|types-PyYAML|"
@@ -158,8 +158,7 @@ PATTERNS: list[AntiPattern] = [
 def _extract_added_lines(diff: str) -> str:
     """git diff에서 신규 추가 라인(+)만 추출, '+' 프리픽스 제거.
 
-    삭제 라인(-)은 빈 줄로 치환 (line 번호 유지).
-    scan_target이 이미 '추가 코드만' 이므로 패턴에서 ^+ 불필요.
+    삭제(-) / 컨텍스트 라인은 빈 줄로 치환 (line 번호 유지).
     diff가 아닌 일반 파일 내용이면 그대로 반환.
     """
     if "diff --git" not in diff and not diff.startswith("--- a/"):
@@ -168,12 +167,14 @@ def _extract_added_lines(diff: str) -> str:
     result: list[str] = []
     for line in diff.splitlines():
         if line.startswith("+") and not line.startswith("+++"):
-            result.append(line[1:])  # '+' 제거 → 원본 코드 (패턴 정상 동작)
-        elif line.startswith("-") and not line.startswith("---"):
-            result.append("")  # 삭제 라인 → 빈 줄 (line 번호 유지)
+            result.append(line[1:])  # '+' 제거 → 원본 코드
         else:
-            result.append(line)  # 헤더 / 컨텍스트 그대로
+            result.append("")  # 삭제 / 컨텍스트 / 헤더 → 빈 줄 (오탐 방지)
     return "\n".join(result)
+
+
+# external_pkg_added 는 원본 diff ('+' 프리픽스) 가 필요한 diff-native 패턴
+_DIFF_NATIVE_PATTERN_IDS: frozenset[str] = frozenset({"external_pkg_added"})
 
 
 def check_anti_patterns(
@@ -189,13 +190,15 @@ def check_anti_patterns(
     Returns:
         매칭 리스트
     """
-    # diff면 신규 추가 라인만 검사 (삭제 라인 오탐 방지)
-    scan_target = _extract_added_lines(diff_or_files)
+    # 일반 패턴: + 제거된 추가 라인만 (컨텍스트/삭제 오탐 방지)
+    scan_added = _extract_added_lines(diff_or_files)
     matches: list[AntiPatternMatch] = []
 
     for ap in PATTERNS:
-        for match in ap.pattern.finditer(scan_target):
-            line_n = scan_target[: match.start()].count("\n") + 1
+        # diff-native 패턴(external_pkg_added)은 원본 diff 사용 (^\+ 필요)
+        scan = diff_or_files if ap.id in _DIFF_NATIVE_PATTERN_IDS else scan_added
+        for match in ap.pattern.finditer(scan):
+            line_n = scan[: match.start()].count("\n") + 1
             matches.append(
                 AntiPatternMatch(
                     anti_pattern=ap,
