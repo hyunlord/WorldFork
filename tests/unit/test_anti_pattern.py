@@ -165,6 +165,44 @@ class TestHardcodedPassedTrue:
         assert len(hardcoded) == 0
 
 
+class TestExtractAddedLines:
+    """★ D1.5 fix: diff 스캔 시 +라인만 체크."""
+
+    def test_filters_removed_lines(self) -> None:
+        from core.verify.anti_pattern_check import _extract_added_lines
+        diff = (
+            "diff --git a/foo.py b/foo.py\n"
+            "-score = 95\n"
+            "+score = result.get_score()\n"
+        )
+        extracted = _extract_added_lines(diff)
+        assert "score = 95" not in extracted
+        assert "score = result.get_score()" in extracted
+
+    def test_non_diff_passthrough(self) -> None:
+        from core.verify.anti_pattern_check import _extract_added_lines
+        code = "score = 95\nresult = True\n"
+        assert _extract_added_lines(code) == code
+
+    def test_added_line_pattern_detected(self) -> None:
+        diff = (
+            "diff --git a/foo.py b/foo.py\n"
+            "+result.score = 95\n"
+        )
+        matches = check_anti_patterns(diff)
+        assert any(m.anti_pattern.id == "hardcoded_score" for m in matches)
+
+    def test_removed_line_pattern_not_detected(self) -> None:
+        diff = (
+            "diff --git a/foo.py b/foo.py\n"
+            "-result.score = 95\n"
+            "+result.score = real_eval.score\n"
+        )
+        matches = check_anti_patterns(diff)
+        hardcoded = [m for m in matches if m.anti_pattern.id == "hardcoded_score"]
+        assert len(hardcoded) == 0
+
+
 class TestPatternsList:
     def test_patterns_not_empty(self) -> None:
         assert len(PATTERNS) >= 9

@@ -125,10 +125,7 @@ PATTERNS: list[AntiPattern] = [
     AntiPattern(
         id="hardcoded_score_dict",
         severity="critical",
-        description=(
-            "Hardcoded score in dict/JSON literal. "
-            '★ {"score": 95} 형태 오탐 방지 강화.'
-        ),
+        description="Dict/JSON literal에 점수 하드코딩. score 키에 숫자 직접 할당.",
         # "score": <숫자> 또는 'score': <숫자> — dict literal 형태
         pattern=re.compile(
             r"['\"]score['\"\s]*:\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
@@ -138,10 +135,7 @@ PATTERNS: list[AntiPattern] = [
     AntiPattern(
         id="hardcoded_score_attribute",
         severity="critical",
-        description=(
-            "Hardcoded score assigned to self attribute. "
-            "★ self._score = 85 또는 self.score = 85 형태."
-        ),
+        description="self 속성에 점수 하드코딩. 직접 숫자 할당 형태 차단.",
         pattern=re.compile(
             r"self\._?score\s*=\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
         ),
@@ -150,19 +144,32 @@ PATTERNS: list[AntiPattern] = [
     AntiPattern(
         id="hardcoded_passed_true",
         severity="critical",
-        description=(
-            "Result returned with hardcoded passed=True. "
-            "★ return Result(passed=True) 형태 — 자기 합리화."
-        ),
+        description="Result 생성 시 passed 하드코딩. 자기 합리화 차단.",
         pattern=re.compile(
             r"return\s+\w*[Rr]esult\s*\([^)]*\bpassed\s*=\s*True",
             re.DOTALL,
         ),
-        suggestion=(
-            "Do not hardcode passed=True. Derive from real score/verdict."
-        ),
+        suggestion="Do not hardcode passed=True. Derive from real score/verdict.",
     ),
 ]
+
+
+def _extract_added_lines(diff: str) -> str:
+    """git diff에서 신규 추가 라인(+)만 추출.
+
+    삭제 라인(-) / 컨텍스트 라인은 제외.
+    diff가 아닌 일반 파일 내용이면 그대로 반환.
+    """
+    if "diff --git" not in diff and not diff.startswith("--- a/"):
+        return diff
+
+    added: list[str] = []
+    for line in diff.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            added.append(line[1:])  # '+' 제거 후 원본 코드
+        elif not line.startswith("-") and not line.startswith("---"):
+            added.append(line)  # 헤더 / 컨텍스트 라인 유지 (line 번호 추적용)
+    return "\n".join(added)
 
 
 def check_anti_patterns(
@@ -178,11 +185,13 @@ def check_anti_patterns(
     Returns:
         매칭 리스트
     """
+    # diff면 신규 추가 라인만 검사 (삭제 라인 오탐 방지)
+    scan_target = _extract_added_lines(diff_or_files)
     matches: list[AntiPatternMatch] = []
 
     for ap in PATTERNS:
-        for match in ap.pattern.finditer(diff_or_files):
-            line_n = diff_or_files[: match.start()].count("\n") + 1
+        for match in ap.pattern.finditer(scan_target):
+            line_n = scan_target[: match.start()].count("\n") + 1
             matches.append(
                 AntiPatternMatch(
                     anti_pattern=ap,
