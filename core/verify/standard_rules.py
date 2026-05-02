@@ -106,7 +106,8 @@ class LengthRule(Rule):
 class AIBreakoutRule(Rule):
     """AI 본능 누설 ('I am an AI', 'ChatGPT' 등)."""
 
-    forbidden_phrases: list[str] = [
+    # 부정 문맥(아닙니다/아니며)에서도 항상 실패 — 모델명 언급 자체가 월드 파괴
+    forbidden_always: list[str] = [
         "I'm an AI",
         "I am an AI",
         "as an AI",
@@ -119,10 +120,24 @@ class AIBreakoutRule(Rule):
         "OpenAI",
         "AI 어시스턴트",
         "AI 언어 모델",
-        "저는 AI",
-        "저는 인공지능",
         "AI로서",
     ]
+
+    # "저는 AI 가 아닙니다" 오탐 방지: 긍정 AI 인정 패턴만 잡음
+    forbidden_affirmative: list[str] = [
+        "저는 AI",
+        "저는 인공지능",
+    ]
+
+    # 바로 뒤에 이 서픽스가 오면 부정 — 실패 제외
+    _negation_suffixes: tuple[str, ...] = (
+        " 가 아닙",
+        " 이 아닙",
+        " 가 아니",
+        " 이 아니",
+        "가 아닙",
+        "이 아닙",
+    )
 
     @property
     def rule_id(self) -> str:
@@ -137,10 +152,21 @@ class AIBreakoutRule(Rule):
             return None
 
         response_lower = response.lower()
-        leaked = [
-            p for p in self.forbidden_phrases
-            if p.lower() in response_lower
-        ]
+        leaked: list[str] = []
+
+        for phrase in self.forbidden_always:
+            if phrase.lower() in response_lower:
+                leaked.append(phrase)
+
+        for phrase in self.forbidden_affirmative:
+            p_lower = phrase.lower()
+            idx = response_lower.find(p_lower)
+            if idx < 0:
+                continue
+            after = response_lower[idx + len(p_lower): idx + len(p_lower) + 15]
+            if not any(after.startswith(neg) for neg in self._negation_suffixes):
+                leaked.append(phrase)
+
         if leaked:
             return CheckFailure(
                 rule=self.rule_id,

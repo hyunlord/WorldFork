@@ -121,6 +121,47 @@ PATTERNS: list[AntiPattern] = [
         ),
         suggestion="External packages 0건 streak. Add to whitelist if exception.",
     ),
+    # ★ D1.5 추가 패턴 3종 (codex 리뷰 피드백 반영)
+    AntiPattern(
+        id="hardcoded_score_dict",
+        severity="critical",
+        description=(
+            "Hardcoded score in dict/JSON literal. "
+            '★ {"score": 95} 형태 오탐 방지 강화.'
+        ),
+        # "score": <숫자> 또는 'score': <숫자> — dict literal 형태
+        pattern=re.compile(
+            r"['\"]score['\"\s]*:\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
+        ),
+        suggestion="Use real evaluation result, not dict literal with hardcoded score.",
+    ),
+    AntiPattern(
+        id="hardcoded_score_attribute",
+        severity="critical",
+        description=(
+            "Hardcoded score assigned to self attribute. "
+            "★ self._score = 85 또는 self.score = 85 형태."
+        ),
+        pattern=re.compile(
+            r"self\._?score\s*=\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
+        ),
+        suggestion="Compute score from real LLM evaluation.",
+    ),
+    AntiPattern(
+        id="hardcoded_passed_true",
+        severity="critical",
+        description=(
+            "Result returned with hardcoded passed=True. "
+            "★ return Result(passed=True) 형태 — 자기 합리화."
+        ),
+        pattern=re.compile(
+            r"return\s+\w*[Rr]esult\s*\([^)]*\bpassed\s*=\s*True",
+            re.DOTALL,
+        ),
+        suggestion=(
+            "Do not hardcode passed=True. Derive from real score/verdict."
+        ),
+    ),
 ]
 
 
