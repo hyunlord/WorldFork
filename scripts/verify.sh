@@ -91,35 +91,37 @@ fi
 SCORE=$((SCORE + EVAL_SCORE))
 DETAILS="$DETAILS\n[4/5] Eval: $EVAL_SCORE/20"
 
-# [5/5] Verify Agent (25점) — Tier 0 미니멀
+# [5/5] Verify Agent (25점) — ★ 진짜 LLM 호출 (Tier 1.5 D1)
 echo ""
-echo "[5/5] Verify Agent (Tier 0: 정적 검증)..."
+echo "[5/5] Verify Agent (★ Cross-LLM 코드 리뷰)..."
 VERIFY_SCORE=0
 
-# Tier 0는 LLM 호출 없이 정적 분석만:
-if python -c "
-from core.verify.cross_model import CrossModelEnforcer
-from core.verify.integrated import IntegratedVerifier
-from core.verify.mechanical import MechanicalChecker
-from core.verify.llm_judge import LLMJudge
-from core.verify.retry import FeedbackMode, RetryRunner
-from core.eval.spec import EvalSpec, list_categories
-from core.eval.runner import EvalRunner
-from core.eval.filter_pipeline import STANDARD_FILTER_PIPELINE
-e = CrossModelEnforcer()
-assert e.is_enabled(), 'Cross-Model not enabled'
-cats = list_categories()
-assert len(cats) >= 5, f'Need 5+ eval categories, found {len(cats)}'
-print('Verify infrastructure OK')
-" 2>/dev/null; then
-    VERIFY_SCORE=25
-    echo "  ✅ Verify infrastructure ready (25/25)"
+# ★ codex가 git diff 리뷰 (★ 자기 합리화 차단)
+if command -v codex &>/dev/null; then
+    REVIEW_OUTPUT=$(python scripts/verify_layer1_review.py 2>&1)
+    REVIEW_EXIT=$?
+
+    SCORE_LINE=$(echo "$REVIEW_OUTPUT" | grep -oE 'SCORE=[0-9]+' | tail -1)
+    if [ -n "$SCORE_LINE" ]; then
+        VERIFY_SCORE=$(echo "$SCORE_LINE" | sed 's/SCORE=//')
+        if [ $REVIEW_EXIT -eq 0 ]; then
+            echo "  ✅ Verify passed ($VERIFY_SCORE/25)"
+        else
+            echo "  ⚠️ Verify fail ($VERIFY_SCORE/25)"
+        fi
+        echo "$REVIEW_OUTPUT" | head -8 | sed 's/^/    /'
+    else
+        echo "  ❌ Verify Agent output parse failed"
+        echo "$REVIEW_OUTPUT" | head -5 | sed 's/^/    /'
+        VERIFY_SCORE=0
+    fi
 else
-    echo "  ❌ Verify infrastructure incomplete (0/25)"
+    echo "  ⚠️ codex CLI not available"
+    VERIFY_SCORE=0
 fi
 
 SCORE=$((SCORE + VERIFY_SCORE))
-DETAILS="$DETAILS\n[5/5] Verify: $VERIFY_SCORE/25"
+DETAILS="$DETAILS\n[5/5] Verify Agent: $VERIFY_SCORE/25"
 
 # 결과
 echo ""
