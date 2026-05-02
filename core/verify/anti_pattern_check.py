@@ -156,21 +156,18 @@ PATTERNS: list[AntiPattern] = [
 
 
 def _extract_added_lines(diff: str) -> str:
-    """git diff에서 신규 추가 라인(+)만 추출, '+' 프리픽스 제거.
+    """git diff에서 신규 추가 라인(+)만 순수 추출, '+' 프리픽스 제거.
 
-    삭제(-) / 컨텍스트 라인은 빈 줄로 치환 (line 번호 유지).
+    삭제(-) / 컨텍스트 / 헤더 라인은 완전 제외.
     diff가 아닌 일반 파일 내용이면 그대로 반환.
     """
     if "diff --git" not in diff and not diff.startswith("--- a/"):
         return diff
-
-    result: list[str] = []
-    for line in diff.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
-            result.append(line[1:])  # '+' 제거 → 원본 코드
-        else:
-            result.append("")  # 삭제 / 컨텍스트 / 헤더 → 빈 줄 (오탐 방지)
-    return "\n".join(result)
+    return "\n".join(
+        line[1:]
+        for line in diff.splitlines()
+        if line.startswith("+") and not line.startswith("+++")
+    )
 
 
 # external_pkg_added 는 원본 diff ('+' 프리픽스) 가 필요한 diff-native 패턴
