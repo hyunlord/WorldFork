@@ -7,7 +7,7 @@ abort 지원, LLM 호출 0회 (Mechanical only).
 from __future__ import annotations
 
 import json
-import re
+import shlex
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -80,31 +80,31 @@ def _builtin_post_code_blocking(ctx: HookContext) -> None:
 
 
 def _builtin_external_pkg_check(ctx: HookContext) -> None:
-    """POST_CODE: pyproject.toml 외부 패키지 추가 감지."""
+    """POST_CODE: pyproject.toml 외부 패키지 추가 감지.
+
+    anti_pattern_check.external_pkg_added 패턴 위임 (단일 출처).
+    """
     diff = ctx.payload.get("diff", "")
     if not diff or "pyproject.toml" not in diff:
         return
 
-    pattern = re.compile(
-        r"^\+\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
-        r"python-dotenv|jupyterlab|huggingface-hub|"
-        r"pytest|pytest-asyncio|pytest-cov|pytest-mock|"
-        r"hypothesis|ruff|mypy|types-PyYAML|"
-        r"openai|google-generativeai|sqlalchemy|"
-        r"llama-cpp-python|streamlit)"
-        r"[a-zA-Z][a-zA-Z0-9_.-]*(?:>=|<=|==|~=|!=|>|<|\[)",
-        re.MULTILINE,
-    )
-    if pattern.search(diff):
+    from core.verify.anti_pattern_check import check_anti_patterns
+
+    matches = check_anti_patterns(diff)
+    pkg_matches = [m for m in matches if m.anti_pattern.id == "external_pkg_added"]
+    if pkg_matches:
         ctx.set_abort("Unapproved external package addition detected in pyproject.toml")
 
 
 def _builtin_verify_threshold(ctx: HookContext) -> None:
-    """POST_VERIFY: 점수 임계값 미달 시 abort."""
+    """POST_VERIFY: 점수 임계값 미달 시 abort.
+
+    abort_reason에 실제 점수 포함 X (정보 격리 — retry 누설 방지).
+    """
     score = ctx.payload.get("score")
     threshold = ctx.payload.get("threshold", 95)
     if score is not None and score < threshold:
-        ctx.set_abort(f"Verify score {score} < threshold {threshold}")
+        ctx.set_abort("Score did not meet the required threshold")
 
 
 _BUILTIN_HOOKS: list[HookDefinition] = [
@@ -171,16 +171,19 @@ def _load_json_hooks(path: Path, priority: int) -> list[HookDefinition]:
 
 
 def _make_shell_fn(cmd: str) -> HookFn:
+    """shell=False으로 실행 (command injection 방지)."""
+    args = shlex.split(cmd)
+
     def shell_fn(ctx: HookContext) -> None:
         result = subprocess.run(
-            cmd,
-            shell=True,
+            args,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=60,
         )
         if result.returncode != 0:
-            ctx.set_abort(f"Shell hook failed ({cmd!r}): {result.stderr[:200]}")
+            ctx.set_abort(f"Shell hook failed: {result.stderr[:200]}")
 
     return shell_fn
 
