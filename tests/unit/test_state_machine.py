@@ -8,6 +8,7 @@ from service.pipeline.types import (
     InterviewResult,
     PipelineState,
     Plan,
+    PlanResult,
     PlanVerifyResult,
 )
 
@@ -93,9 +94,19 @@ class TestApplyResults:
     def test_apply_plan_result(self) -> None:
         sm = PipelineStateMachine(PipelineState(stage="planning"))
         plan = self._make_plan()
-        sm.apply_plan_result(plan)
+        result = PlanResult(plan=plan)
+        ok = sm.apply_plan_result(result)
+        assert ok
         assert sm.current_stage == "verify"
         assert sm.state.plan is plan
+
+    def test_apply_plan_result_error_no_advance(self) -> None:
+        sm = PipelineStateMachine(PipelineState(stage="planning"))
+        plan = self._make_plan()
+        result = PlanResult(plan=plan, error="something failed")
+        ok = sm.apply_plan_result(result)
+        assert not ok
+        assert sm.current_stage == "planning"
 
     def test_apply_plan_verify_passed(self) -> None:
         sm = PipelineStateMachine(PipelineState(stage="verify"))

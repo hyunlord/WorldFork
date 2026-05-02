@@ -6,7 +6,7 @@ forward-only 전이: interview → planning → verify → review
 
 from typing import Literal
 
-from .types import InterviewResult, PipelineState, Plan, PlanVerifyResult
+from .types import InterviewResult, PipelineState, PlanResult, PlanVerifyResult
 
 StageType = Literal[
     "interview", "planning", "verify", "review",
@@ -61,20 +61,27 @@ class PipelineStateMachine:
         self._state.stage = next_stage
         return next_stage
 
-    def apply_interview_result(self, result: InterviewResult) -> None:
+    def apply_interview_result(self, result: InterviewResult) -> bool:
         self._state.interview_result = result
         self._state.user_input_raw = result.parsed_input
         if result.skip:
             self.advance_to("planning")
+            return True
+        return False
 
-    def apply_plan_result(self, plan: Plan) -> None:
-        self._state.plan = plan
+    def apply_plan_result(self, result: PlanResult) -> bool:
+        if result.error:
+            return False
+        self._state.plan = result.plan
         self.advance_to("verify")
+        return True
 
-    def apply_plan_verify(self, result: PlanVerifyResult) -> None:
+    def apply_plan_verify(self, result: PlanVerifyResult) -> bool:
         self._state.plan_verify_result = result
         if result.passed:
             self.advance_to("review")
+            return True
+        return False
         # 실패 시 같은 단계 유지 (재시도 로직은 호출자 책임)
 
     def is_complete(self) -> bool:
