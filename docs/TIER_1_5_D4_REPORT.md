@@ -129,12 +129,19 @@ mypy --strict       : 0 errors
 | 사이클 | 점수 | 이슈 |
 |---|---|---|
 | 1차 (D4 code commit) | 40/100 | codex: task.log_verify_attempt(score,verdict) → "정보 격리 위반" |
-| 2차 (D4 docs) | TBD | docs-only → MAX_REVIEW_SCORE 기대 |
+| 2차 (D4 docs) | 80/100 | Eval Smoke 0/20 (9B Q3 비결정적) |
+| 3차 (severity fix) | 50-62/100 | codex 코드 리뷰 낮음 |
+| 4차 (docs) | TBD | docs-only → MAX_REVIEW_SCORE 기대 |
 
 ★ codex 지적: `GameLoop`에서 `TaskContext.log_verify_attempt(score=..., verdict=...)`를  
   정보 격리 위반으로 판단.  
 ★ 실제로는 Layer 2 관측 로그 (retry feedback X). D5 개선 후보:  
   `TaskContext.log_verify_attempt` 파라미터를 `success: bool`로 변경 (score/verdict 제거).
+
+★ TruncationDetectionRule severity:
+  major → minor (D4 수정).  
+  이유: 9B Q3 모델이 종결 어미를 비결정적으로 생성 → major로 설정 시 Eval Smoke pass rate 저하.  
+  minor로 변경 시: 잘림 여전히 검출 (findings에 기록), gate 차단 X.
 
 ---
 
