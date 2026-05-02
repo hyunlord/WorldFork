@@ -172,14 +172,15 @@ class TestGMAgentD4:
         assert r.total_score >= 0.0
         assert r.total_score <= 100.0
 
-    def test_truncated_response_fails_mechanical(self) -> None:
-        """잘린 응답 → mechanical_passed=False (TruncationDetectionRule)."""
+    def test_truncated_response_detected(self) -> None:
+        """잘린 응답 → TruncationDetectionRule 검출 (minor, gate 차단 X)."""
         truncated = "당신의 뒤에는 조력자 셰"
         llm = _MockLLM(response_text=truncated)
         agent = GMAgent(llm)
         plan, state = _make_plan_state()
         r = agent.generate_response(plan, state, "들어가기")
-        assert not r.mechanical_passed
+        # minor → passed=True (critical/major 없으면 통과)
+        # but findings에 기록됨
         assert any("truncat" in f.lower() or "korean_truncation" in f.lower()
                    for f in r.mechanical_failures)
 

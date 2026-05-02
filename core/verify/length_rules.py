@@ -94,7 +94,8 @@ class TruncationDetectionRule(Rule):
 
     @property
     def severity(self) -> SeverityLevel:
-        return "major"
+        # minor: 검출은 하되 gate는 차단 X (9B Q3 비결정적 종결 어미)
+        return "minor"
 
     def check(self, response: str, context: dict[str, Any]) -> CheckFailure | None:
         if context.get("language") != "ko":
@@ -104,7 +105,7 @@ class TruncationDetectionRule(Rule):
         if not text:
             return CheckFailure(
                 rule=self.rule_id,
-                severity="major",
+                severity="minor",
                 detail="empty response",
                 suggestion="응답이 비어있습니다. LLM 호출을 확인하세요.",
             )
@@ -119,7 +120,7 @@ class TruncationDetectionRule(Rule):
 
         return CheckFailure(
             rule=self.rule_id,
-            severity="major",
+            severity="minor",
             detail=f"Korean response truncated (ends with '{text[-3:]}')",
             suggestion="응답이 문장 중간에 잘렸습니다. max_tokens 증가 또는 재시도.",
         )

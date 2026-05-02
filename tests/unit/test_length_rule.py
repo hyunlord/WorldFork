@@ -72,12 +72,12 @@ class TestTruncationDetectionRule:
     """★ Tier 1.5 D4: W2 D5 본인 짚음 정공법."""
 
     def test_truncated_korean_fails(self) -> None:
-        """★ W2 D5 실제 잘린 응답 → 실패."""
+        """★ W2 D5 실제 잘린 응답 → 실패 (minor — 검출은 하되 gate 차단 X)."""
         rule = TruncationDetectionRule()
         result = rule.check("당신의 뒤에는 조력자 셰", {"language": "ko"})
         assert result is not None
         assert result.rule == "korean_truncation"
-        assert result.severity == "major"
+        assert result.severity == "minor"
 
     def test_sentence_end_passes(self) -> None:
         """마침표로 끝나는 응답 → 통과."""
