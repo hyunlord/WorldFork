@@ -41,8 +41,9 @@ PATTERNS: list[AntiPattern] = [
         description=(
             "Hardcoded score detected. All scores must come from real evaluation."
         ),
+        # (?<!\w) 로 REVIEW_SCORE 같은 상수명 오탐 방지
         pattern=re.compile(
-            r"\.?score\s*=\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
+            r"(?<!\w)\.?score\s*=\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
         ),
         suggestion="Use real LLM call result instead of hardcoded number.",
     ),
