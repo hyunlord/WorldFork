@@ -44,19 +44,29 @@ class TestInfoLeakInRetry:
 
 class TestExternalPackage:
     def test_external_pkg_diff(self) -> None:
-        diff = '+    "requests>=2.31",\n+    "numpy>=1.24",\n'
+        diff = (
+            "diff --git a/pyproject.toml b/pyproject.toml\n"
+            '+    "requests>=2.31",\n'
+            '+    "numpy>=1.24",\n'
+        )
         matches = check_anti_patterns(diff)
         external = [m for m in matches if m.anti_pattern.id == "external_pkg_added"]
         assert len(external) >= 1
 
     def test_existing_pkg_no_alert(self) -> None:
-        diff = '+    "anthropic>=0.40",\n'
+        diff = (
+            "diff --git a/pyproject.toml b/pyproject.toml\n"
+            '+    "anthropic>=0.40",\n'
+        )
         matches = check_anti_patterns(diff)
         external = [m for m in matches if m.anti_pattern.id == "external_pkg_added"]
         assert len(external) == 0
 
     def test_pytest_ok(self) -> None:
-        diff = '+    "pytest>=8.0",\n'
+        diff = (
+            "diff --git a/pyproject.toml b/pyproject.toml\n"
+            '+    "pytest>=8.0",\n'
+        )
         matches = check_anti_patterns(diff)
         external = [m for m in matches if m.anti_pattern.id == "external_pkg_added"]
         assert len(external) == 0
@@ -176,9 +186,9 @@ class TestExtractAddedLines:
             "+score = result.get_score()\n"
         )
         extracted = _extract_added_lines(diff)
-        # 삭제 라인은 빈 줄로 치환, 추가 라인은 + 프리픽스 유지
+        # 삭제 라인은 빈 줄로 치환, 추가 라인은 + 프리픽스 제거
         assert "score = 95" not in extracted
-        assert "+score = result.get_score()" in extracted
+        assert "score = result.get_score()" in extracted
 
     def test_non_diff_passthrough(self) -> None:
         from core.verify.anti_pattern_check import _extract_added_lines

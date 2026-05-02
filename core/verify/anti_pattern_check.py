@@ -109,8 +109,9 @@ PATTERNS: list[AntiPattern] = [
         severity="critical",
         description="New external package added to pyproject.toml.",
         # 버전 지정자(>=,<=,==,~=,!=,>,<) 포함한 줄만 — JSON/config 오탐 방지
+        # ★ _extract_added_lines 적용 후 '+' 제거됨 → ^\s* 사용 (^\+ 불필요)
         pattern=re.compile(
-            r"^\+\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
+            r"^\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
             r"python-dotenv|jupyterlab|huggingface-hub|"
             r"pytest|pytest-asyncio|pytest-cov|pytest-mock|"
             r"hypothesis|ruff|mypy|types-PyYAML|"
@@ -155,10 +156,10 @@ PATTERNS: list[AntiPattern] = [
 
 
 def _extract_added_lines(diff: str) -> str:
-    """git diff에서 삭제 라인(-) 제거.
+    """git diff에서 신규 추가 라인(+)만 추출, '+' 프리픽스 제거.
 
-    추가 라인(+)은 '+' 프리픽스 유지 (external_pkg_added 등 ^+ 패턴 호환).
-    컨텍스트 라인 유지 (line 번호 추적).
+    삭제 라인(-)은 빈 줄로 치환 (line 번호 유지).
+    scan_target이 이미 '추가 코드만' 이므로 패턴에서 ^+ 불필요.
     diff가 아닌 일반 파일 내용이면 그대로 반환.
     """
     if "diff --git" not in diff and not diff.startswith("--- a/"):
@@ -166,10 +167,12 @@ def _extract_added_lines(diff: str) -> str:
 
     result: list[str] = []
     for line in diff.splitlines():
-        if line.startswith("-") and not line.startswith("---"):
+        if line.startswith("+") and not line.startswith("+++"):
+            result.append(line[1:])  # '+' 제거 → 원본 코드 (패턴 정상 동작)
+        elif line.startswith("-") and not line.startswith("---"):
             result.append("")  # 삭제 라인 → 빈 줄 (line 번호 유지)
         else:
-            result.append(line)  # + 라인 / 헤더 / 컨텍스트 그대로 유지
+            result.append(line)  # 헤더 / 컨텍스트 그대로
     return "\n".join(result)
 
 
