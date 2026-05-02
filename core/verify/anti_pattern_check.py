@@ -41,9 +41,11 @@ PATTERNS: list[AntiPattern] = [
         description=(
             "Hardcoded score detected. All scores must come from real evaluation."
         ),
-        # (?<!\w) 로 REVIEW_SCORE 같은 상수명 오탐 방지
+        # 세 위치만 허용: .score (속성), (score (kwarg), ^score (독립 변수)
+        # MAX_REVIEW_SCORE / _score 접미사는 매칭 X
         pattern=re.compile(
-            r"(?<!\w)\.?score\s*=\s*(?:25|50|65|70|75|80|85|90|95|100)\b",
+            r"(?:(?<=\.)|(?<=\()|(?<![_A-Za-z\d]))score\s*=\s*"
+            r"(?:25|50|65|70|75|80|85|90|95|100)\b",
         ),
         suggestion="Use real LLM call result instead of hardcoded number.",
     ),
