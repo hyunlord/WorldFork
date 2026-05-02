@@ -1,0 +1,63 @@
+name: Verify (★ Tier 1.5 D3)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ship-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" --quiet
+
+      - name: Lint (Ruff)
+        run: ruff check core/ service/ tools/ tests/
+
+      - name: Type check (Mypy --strict)
+        run: mypy --strict core/ service/ tools/
+
+      - name: Tests
+        run: pytest tests/unit/ tests/integration/ -m "not slow" --tb=short -q
+
+      - name: Anti-pattern check (no LLM)
+        run: |
+          python -c "
+          from core.verify.anti_pattern_check import check_anti_patterns
+          import subprocess, sys
+          diff = subprocess.run(
+              ['git', 'diff', 'HEAD~1..HEAD'],
+              capture_output=True, text=True,
+          ).stdout
+          matches = check_anti_patterns(diff) if diff else []
+          critical = [m for m in matches if m.anti_pattern.severity == 'critical']
+          if critical:
+              print(f'FAIL: {len(critical)} critical anti-patterns:')
+              for m in critical[:5]:
+                  print(f'  - {m.anti_pattern.id}: line {m.line}')
+              sys.exit(1)
+          print(f'OK: AntiPattern check pass ({len(matches)} non-critical)')
+          "
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Ship Gate (CI): Lint / Mypy / Tests / AntiPattern"
+          echo "Full 95+ gate = local pre-push hook"

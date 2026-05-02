@@ -195,7 +195,24 @@ class HookManager:
     같은 priority → 등록 순서 유지.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        project_dir: Path | None = None,
+        user_dir: Path | None = None,
+    ) -> None:
+        """
+        Args:
+            project_dir: 프로젝트 루트 (.autodev/ 찾기). None → 현재 디렉토리
+            user_dir: 글로벌 설정 디렉토리. None → ~/.autodev/
+        """
+        self._project_hooks_file = (
+            (project_dir / ".autodev" / "hooks.json")
+            if project_dir is not None
+            else _PROJECT_HOOKS_FILE
+        )
+        self._global_hooks_dir = (
+            user_dir if user_dir is not None else _GLOBAL_HOOKS_DIR
+        )
         self._hooks: list[HookDefinition] = []
         self._load_defaults()
 
@@ -204,13 +221,13 @@ class HookManager:
         for h in _BUILTIN_HOOKS:
             self._hooks.append(h)
 
-        # 2. global (~/.autodev/hooks.json)
-        global_path = _GLOBAL_HOOKS_DIR / "hooks.json"
+        # 2. global (~/.autodev/hooks.json or custom)
+        global_path = self._global_hooks_dir / "hooks.json"
         for h in _load_json_hooks(global_path, priority=50):
             self._hooks.append(h)
 
-        # 3. project (.autodev/hooks.json)
-        for h in _load_json_hooks(_PROJECT_HOOKS_FILE, priority=90):
+        # 3. project (.autodev/hooks.json or custom)
+        for h in _load_json_hooks(self._project_hooks_file, priority=90):
             self._hooks.append(h)
 
     def register(
