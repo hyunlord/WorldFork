@@ -1742,4 +1742,43 @@ v0.2 재검토 항목 (Tier 0에서 ablation):
 
 ---
 
-*문서 끝. v0.1 초안.*
+## Tier 1.5 — 하네스 재구축 (★ 2026-05-02 본인 #15-#18 후)
+
+★ 트리거: W2 D5 본인 첫 풀 플레이 → "사람이 검증할 가치 없는 상태" 짚음
+
+### 진단
+- 22 commits 동안 두 하네스 모두 30%만 진척
+- Ship Gate 100/100 12번 = 자기 합리화 점수
+- Verify Agent verify.sh = import 검증만 (가짜)
+
+### 본인 인사이트
+- #15: Layer 2 (서비스) 미통합
+- #16: 사람 검증 = 게이트 통과 후만
+- #17: Layer 1 (개발) 자동화 X
+- #18: ★ 자기 합리화 차단 미구현
+
+### 4 사이클 ROADMAP
+참고: `docs/TIER_1_5_HARNESS_REBUILD_ROADMAP.md`
+
+```
+D1: Layer 1 인프라 + Verify Agent (★ 본격)
+D2: Layer 1 Hook 시스템 + 자율 Fix
+D3: Layer 1 CI + Re-plan + Eval Smoke 진짜
+D4: Layer 2 통합 (★ 가볍게, Layer 1 타도록)
+D5 (게이트 후): 본인 첫 진짜 검증 가능 플레이
+```
+
+### 환경 매핑
+- Layer 1 (개발): codex + local qwen + claude code (★ 매 단계 독립)
+- Layer 2 (서비스): local만 (★ ComfyUI 내릴 수도)
+
+### 게이트 (★ 본인 #16)
+- 게이트 1: Layer 2 자동 검증 통합 (D4)
+- 게이트 1.5: Layer 1 자동화 (D1-D3)
+- 게이트 2: 게임 완성도 (Tier 2)
+- 게이트 3: Web UI (Tier 2)
+- ★ 모든 게이트 통과 = 사람 검증 (Tier 2 후반)
+
+---
+
+*문서 끝. v0.2 — Tier 1.5 추가.*
