@@ -8,6 +8,7 @@
   - AntiPatternChecker 사전 cheap check
 """
 
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,25 @@ from core.verify.anti_pattern_check import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+MAX_REVIEW_SCORE = 25  # Verify Agent 만점
+
+# 테스트 파일 섹션을 diff에서 제거 (anti-pattern 오탐 방지)
+_TEST_PATHS = ("tests/", "test_", "_test.py")
+
+
+def _strip_test_sections(diff: str) -> str:
+    """git diff에서 테스트 파일 섹션 제거."""
+    sections = re.split(r"(?=^diff --git )", diff, flags=re.MULTILINE)
+    kept = []
+    for section in sections:
+        header_match = re.match(r"diff --git a/(\S+)", section)
+        if header_match:
+            file_path = header_match.group(1)
+            if any(p in file_path for p in _TEST_PATHS):
+                continue
+        kept.append(section)
+    return "".join(kept)
 
 
 @dataclass
@@ -109,14 +129,15 @@ class Layer1ReviewAgent:
 
         if not diff.strip():
             return Layer1ReviewResult(
-                score=25,
+                score=MAX_REVIEW_SCORE,
                 verdict="pass",
                 summary="No code changes to review (docs-only commit)",
                 reviewer_model=self._reviewer.model_name,
             )
 
-        # 2. AntiPattern 사전 cheap check (LLM 호출 0회)
-        ap_matches = check_anti_patterns(diff, file_path=f"{ref_old}..{ref_new}")
+        # 2. AntiPattern 사전 cheap check (LLM 호출 0회, 테스트 파일 제외)
+        diff_no_tests = _strip_test_sections(diff)
+        ap_matches = check_anti_patterns(diff_no_tests, file_path=f"{ref_old}..{ref_new}")
         ap_penalty = severity_score_penalty(ap_matches)
 
         # 3. LLM 리뷰 (★ 정보 격리: 점수 / verdict 안 알려줌)
@@ -189,10 +210,13 @@ class Layer1ReviewAgent:
         """LLM 호출 (★ 정보 격리)."""
         prompt_def = load_agent_prompt("code_reviewer")
 
+        # 테스트 섹션 제거 + 크기 제한 (LLM timeout 방지)
+        diff_trimmed = _strip_test_sections(diff)[:15000]
+
         # ★ 정보 격리: score / verdict / threshold 절대 안 줌 — diff만 전달
         user_text = (
             "# GIT DIFF (자기 합리화 차단 — 다른 LLM이 작성한 코드 리뷰)\n\n"
-            f"```diff\n{diff[:30000]}\n```\n\n"
+            f"```diff\n{diff_trimmed}\n```\n\n"
             "위 diff를 위 SPEC대로 리뷰. JSON only.\n"
         )
 
