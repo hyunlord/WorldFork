@@ -176,8 +176,9 @@ class TestExtractAddedLines:
             "+score = result.get_score()\n"
         )
         extracted = _extract_added_lines(diff)
+        # 삭제 라인은 빈 줄로 치환, 추가 라인은 + 프리픽스 유지
         assert "score = 95" not in extracted
-        assert "score = result.get_score()" in extracted
+        assert "+score = result.get_score()" in extracted
 
     def test_non_diff_passthrough(self) -> None:
         from core.verify.anti_pattern_check import _extract_added_lines
