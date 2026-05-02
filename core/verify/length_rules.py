@@ -76,5 +76,54 @@ class LengthAppropriatenessRule(Rule):
         return 1500
 
 
+class TruncationDetectionRule(Rule):
+    """응답 잘림 검출 (★ W2 D5 본인 짚음 정공법).
+
+    한국어 종결 어미 / 문장 부호로 끝나지 않으면 잘림 의심.
+    context['language'] == 'ko' 일 때만 활성.
+    """
+
+    KOREAN_ENDINGS: tuple[str, ...] = (
+        "다", "요", "음", "함", "임", "까", "지", "네", "야", "나",
+    )
+    PUNCTUATION: tuple[str, ...] = (".", "!", "?", "…", '"', "'", "」", "』", "]", ")")
+
+    @property
+    def rule_id(self) -> str:
+        return "korean_truncation"
+
+    @property
+    def severity(self) -> SeverityLevel:
+        return "major"
+
+    def check(self, response: str, context: dict[str, Any]) -> CheckFailure | None:
+        if context.get("language") != "ko":
+            return None
+
+        text = response.strip()
+        if not text:
+            return CheckFailure(
+                rule=self.rule_id,
+                severity="major",
+                detail="empty response",
+                suggestion="응답이 비어있습니다. LLM 호출을 확인하세요.",
+            )
+
+        last_char = text[-1]
+        if last_char in self.PUNCTUATION:
+            return None
+
+        for ending in self.KOREAN_ENDINGS:
+            if text.endswith(ending):
+                return None
+
+        return CheckFailure(
+            rule=self.rule_id,
+            severity="major",
+            detail=f"Korean response truncated (ends with '{text[-3:]}')",
+            suggestion="응답이 문장 중간에 잘렸습니다. max_tokens 증가 또는 재시도.",
+        )
+
+
 def get_length_rules() -> list[Rule]:
-    return [LengthAppropriatenessRule()]
+    return [LengthAppropriatenessRule(), TruncationDetectionRule()]

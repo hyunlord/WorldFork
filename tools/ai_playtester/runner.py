@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from core.llm.client import LLMClient, Prompt
+from core.verify.mechanical import MechanicalChecker  # ★ D4 Made-but-Never-Used 해결
 
 from .persona import Persona, is_compatible
 
@@ -120,6 +121,7 @@ class PlaytesterRunner:
         self.persona = persona
         self.game_client = game_client
         self.playtester_client = playtester_client
+        self._checker = MechanicalChecker()  # ★ D4 Layer 1 자산 진짜 사용
 
     def run_session(
         self,
@@ -250,7 +252,25 @@ class PlaytesterRunner:
                 abandon_turn = turn_n
                 break
 
-            # 3. 기록
+            # 3. ★ Mechanical 검증 (Layer 1 자산, D4)
+            mech_ctx = {
+                "language": "ko",
+                "character_response": True,
+                "user_input": user_action,
+            }
+            mech_result = self._checker.check(game_response.text, mech_ctx)
+            if not mech_result.passed:
+                for failure in mech_result.failures:
+                    findings.append(PlaytesterFinding(
+                        severity=failure.severity,
+                        category=failure.rule,
+                        turn_n=turn_n,
+                        description=failure.detail,
+                        reproduction_input=user_action,
+                        reproduction_response=game_response.text[:300],
+                    ))
+
+            # 4. 기록
             playthrough.append(
                 TurnLog(
                     turn_n=turn_n,
@@ -259,7 +279,11 @@ class PlaytesterRunner:
                     user_input=user_action,
                     game_response=game_response.text,
                     latency_ms=game_response.latency_ms,
-                    context={"language": "ko", "character_response": True},
+                    context={
+                        "language": "ko",
+                        "character_response": True,
+                        "mechanical_passed": mech_result.passed,
+                    },
                 )
             )
             last_game_response = game_response.text

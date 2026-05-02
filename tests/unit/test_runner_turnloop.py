@@ -75,7 +75,7 @@ class TestTurnLoop:
 
     def test_finding_with_turn_context(self) -> None:
         persona = load_persona("casual_korean_player", tier="tier_0")
-        game = MockLLM("qwen35-9b-q3", responses=["응답"] * 5)
+        game = MockLLM("qwen35-9b-q3", responses=["당신은 던전에 도착했습니다."] * 5)
         playtester = MockLLM(
             "claude_code",
             responses=[

@@ -1,7 +1,9 @@
-"""W2 D4 작업 6: Game Loop 테스트."""
+"""W2 D4 작업 6 + Tier 1.5 D4: Game Loop 테스트."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
+from core.harness.hooks import HookManager
 from service.game.game_loop import GameLoop, classify_action
 from service.game.gm_agent import GMResponse, MockGMAgent
 from service.game.init_from_plan import init_game_state_from_plan
@@ -65,8 +67,9 @@ class TestGameLoopRetry:
             GMResponse(
                 text="fail", mechanical_passed=False,
                 mechanical_failures=["test fail"],
+                verify_passed=False, total_score=0.0,
             ),
-            GMResponse(text="pass", mechanical_passed=True),
+            GMResponse(text="pass", mechanical_passed=True, verify_passed=True, total_score=100.0),
         ]
 
         loop = GameLoop(gm)
@@ -85,6 +88,7 @@ class TestGameLoopRetry:
             text="fail",
             mechanical_passed=False,
             mechanical_failures=["always fail"],
+            verify_passed=False, total_score=0.0,
         )
 
         loop = GameLoop(gm)
@@ -101,8 +105,10 @@ class TestGameLoopErrors:
 
         gm = MagicMock()
         gm.generate_response.side_effect = [
-            GMResponse(text="", error="LLM down", mechanical_passed=False),
-            GMResponse(text="recovered", mechanical_passed=True),
+            GMResponse(text="", error="LLM down", mechanical_passed=False,
+                       verify_passed=False, total_score=0.0),
+            GMResponse(text="recovered", mechanical_passed=True,
+                       verify_passed=True, total_score=100.0),
         ]
 
         loop = GameLoop(gm)
@@ -141,6 +147,7 @@ class TestGameLoopErrors:
         gm = MagicMock()
         gm.generate_response.return_value = GMResponse(
             text="", error="LLM down", mechanical_passed=False,
+            verify_passed=False, total_score=0.0,
         )
 
         loop = GameLoop(gm)
@@ -148,3 +155,74 @@ class TestGameLoopErrors:
 
         assert result.fallback_used
         assert "어려움" in result.response or "오류" in result.response
+
+
+class TestGameLoopD4:
+    """★ Tier 1.5 D4: TaskContext + HookManager 통합 테스트."""
+
+    def test_task_context_created(self, tmp_path: Path) -> None:
+        """성공 응답 → task_context 반환."""
+        plan, state = _make_plan_state()
+        gm = MockGMAgent()
+        hooks = HookManager(project_dir=tmp_path / "p", user_dir=tmp_path / "h")
+        loop = GameLoop(gm, hook_manager=hooks)
+        result = loop.process_action(plan, state, "들어가기")
+
+        assert result.task_context is not None
+        assert result.task_context.success
+
+    def test_task_context_fail_on_fallback(self, tmp_path: Path) -> None:
+        """모든 retry 실패 → task_context.success=False."""
+        plan, state = _make_plan_state()
+
+        gm = MagicMock()
+        gm.generate_response.return_value = GMResponse(
+            text="fail", mechanical_passed=False, mechanical_failures=["always fail"],
+            verify_passed=False, total_score=0.0,
+        )
+
+        hooks = HookManager(project_dir=tmp_path / "p", user_dir=tmp_path / "h")
+        loop = GameLoop(gm, hook_manager=hooks)
+        result = loop.process_action(plan, state, "x")
+
+        assert result.fallback_used
+        assert result.task_context is not None
+        assert not result.task_context.success
+
+    def test_verify_passed_on_success(self, tmp_path: Path) -> None:
+        """성공 → verify_passed=True."""
+        plan, state = _make_plan_state()
+        gm = MockGMAgent()
+        hooks = HookManager(project_dir=tmp_path / "p", user_dir=tmp_path / "h")
+        loop = GameLoop(gm, hook_manager=hooks)
+        result = loop.process_action(plan, state, "x")
+
+        assert result.verify_passed is True
+        assert result.total_score == 100.0
+
+    def test_total_score_zero_on_fallback(self, tmp_path: Path) -> None:
+        """Fallback → total_score < 100."""
+        plan, state = _make_plan_state()
+
+        gm = MagicMock()
+        gm.generate_response.return_value = GMResponse(
+            text="fail", mechanical_passed=False,
+            verify_passed=False, total_score=0.0,
+        )
+
+        hooks = HookManager(project_dir=tmp_path / "p", user_dir=tmp_path / "h")
+        loop = GameLoop(gm, hook_manager=hooks)
+        result = loop.process_action(plan, state, "x")
+
+        assert result.total_score == 0.0
+
+    def test_task_context_description_contains_action(self, tmp_path: Path) -> None:
+        """TaskContext description에 user_action 포함."""
+        plan, state = _make_plan_state()
+        gm = MockGMAgent()
+        hooks = HookManager(project_dir=tmp_path / "p", user_dir=tmp_path / "h")
+        loop = GameLoop(gm, hook_manager=hooks)
+        result = loop.process_action(plan, state, "던전 탐색")
+
+        assert result.task_context is not None
+        assert "던전 탐색" in result.task_context.description

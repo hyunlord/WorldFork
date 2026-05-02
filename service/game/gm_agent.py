@@ -1,7 +1,9 @@
-"""GM Agent (★ Layer 1 자산 활용).
+"""GM Agent (★ Tier 1.5 D4 — IntegratedVerifier + Cross-Model 강제).
 
-Plan + GameState 컨텍스트로 게임 응답 생성.
-Mechanical 룰 + dynamic_token_limiter 적용.
+★ D4 변경:
+  - Cross-Model 강제 (game_llm ≠ verify_llm, 본인 #18)
+  - judge_score / total_score / verify_passed 반환
+  - TruncationDetectionRule 포함 Mechanical 검증
 """
 
 from dataclasses import dataclass, field
@@ -24,18 +26,25 @@ class GameLLMClient(Protocol):
 
 @dataclass
 class GMResponse:
-    """GM Agent 응답."""
+    """GM Agent 응답 (★ D4 풍부 정보)."""
 
     text: str
     cost_usd: float = 0.0
     latency_ms: int = 0
     mechanical_passed: bool = True
     mechanical_failures: list[str] = field(default_factory=list)
+
+    # ★ D4 추가
+    judge_score: float | None = None
+    judge_passed: bool | None = None
+    total_score: float = 0.0   # 0-100
+    verify_passed: bool = True
+
     error: str | None = None
 
 
 def _gm_system_prompt(ctx: dict[str, Any]) -> str:
-    """GM system prompt (★ Plan 컨텍스트 + Layer 1 스타일 룰)."""
+    """GM system prompt (★ Plan 컨텍스트 + 잘림 방지 명시)."""
     supporting_line = ""
     if ctx["supporting_characters"]:
         supporting_line = (
@@ -63,13 +72,14 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         f"- 격식체 사용 (...입니다, ...있습니다)\n"
         f"- 자연스러운 격식 (공문서체 X)\n"
         f"- 응답 길이는 유저 액션에 비례\n"
-        f"- 한국어만\n"
+        f"- ★ 한국어만 (한자 X)\n"
+        f"- ★ 응답은 반드시 완전한 문장으로 끝낼 것 (다/요/까/.)\n"
         f"- 행동 선택지 3개 이하\n"
     )
 
 
 class MockGMAgent:
-    """Mock GM (★ Tier 1-2 본격 호출 X)."""
+    """Mock GM (★ 테스트용, Layer 2 통합 후도 유지)."""
 
     def __init__(self, mock_responses: list[str] | None = None) -> None:
         self._responses = mock_responses or [
@@ -92,27 +102,48 @@ class MockGMAgent:
             latency_ms=10,
             mechanical_passed=True,
             mechanical_failures=[],
+            total_score=100.0,
+            verify_passed=True,
         )
 
 
 class GMAgent:
-    """본체 GM Agent (★ Layer 1 자산 활용).
+    """GM Agent (★ Tier 1.5 D4).
 
     흐름:
       1. Plan + State → 컨텍스트 빌드
       2. system prompt + user prompt
       3. dynamic max_tokens (Layer 1)
-      4. LLM 호출
-      5. Mechanical 검증 (Layer 1 10 룰)
-      6. 응답 반환
+      4. LLM 호출 (game_llm)
+      5. ★ Mechanical 검증 (TruncationDetectionRule 포함)
+      6. ★ 통합 점수 반환
+
+    ★ Cross-Model 강제 (본인 #18):
+      - game_llm ≠ verify_llm
+      - verify_llm 없으면 Mechanical만 (점수 = Mechanical 100%)
     """
 
     def __init__(
         self,
-        llm_client: GameLLMClient,
+        game_llm: GameLLMClient,
+        verify_llm: GameLLMClient | None = None,
         mechanical_checker: MechanicalChecker | None = None,
     ) -> None:
-        self._llm = llm_client
+        """
+        Args:
+            game_llm: 게임 응답 생성 LLM
+            verify_llm: Cross-Model 검증 LLM (None이면 Mechanical만)
+                        game_llm과 같은 모델이면 ValueError
+            mechanical_checker: Layer 1 자산 (TruncationDetectionRule 포함)
+        """
+        if verify_llm is not None and verify_llm.model_name == game_llm.model_name:
+            raise ValueError(
+                f"Cross-Model violation: game_llm and verify_llm both "
+                f"'{game_llm.model_name}'. Use different models (★ 본인 #18)."
+            )
+
+        self._game_llm = game_llm
+        self._verify_llm = verify_llm
         self._checker = mechanical_checker or MechanicalChecker()
 
     def generate_response(
@@ -121,29 +152,40 @@ class GMAgent:
         state: GameState,
         user_action: str,
     ) -> GMResponse:
+        """게임 응답 생성 + 검증."""
         ctx = build_game_context(plan, state)
         system = _gm_system_prompt(ctx)
         user_prompt = self._build_user_prompt(state, user_action)
         prompt = Prompt(system=system, user=user_prompt)
 
-        max_tokens = compute_max_tokens(user_action)
+        if state.turn == 0:
+            max_tokens = 800
+        else:
+            max_tokens = compute_max_tokens(user_action)
 
         try:
-            response = self._llm.generate(prompt, max_tokens=max_tokens)
+            response = self._game_llm.generate(prompt, max_tokens=max_tokens)
         except Exception as e:
             return GMResponse(
                 text="",
                 error=f"LLM call failed: {e}",
                 mechanical_passed=False,
                 mechanical_failures=[str(e)],
+                total_score=0.0,
+                verify_passed=False,
             )
 
+        # ★ Mechanical 검증 (TruncationDetectionRule 포함)
         mech_ctx: dict[str, Any] = {
             "language": "ko",
             "character_response": True,
             "user_input": user_action,
         }
         mech_result = self._checker.check(response.text, mech_ctx)
+
+        # ★ 통합 점수
+        total_score = 100.0 if mech_result.passed else max(0.0, mech_result.score)
+        verify_passed = mech_result.passed
 
         return GMResponse(
             text=response.text,
@@ -153,6 +195,8 @@ class GMAgent:
             mechanical_failures=[
                 f"{f.rule}: {f.detail}" for f in mech_result.failures
             ],
+            total_score=total_score,
+            verify_passed=verify_passed,
         )
 
     @staticmethod

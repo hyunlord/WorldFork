@@ -1,6 +1,6 @@
-"""W1 D6: LengthAppropriatenessRule 단위 테스트 (★ verbose 대응)."""
+"""W1 D6 + Tier 1.5 D4: LengthAppropriatenessRule + TruncationDetectionRule 테스트."""
 
-from core.verify.length_rules import LengthAppropriatenessRule
+from core.verify.length_rules import LengthAppropriatenessRule, TruncationDetectionRule
 
 
 class TestLengthAppropriatenessRule:
@@ -66,3 +66,45 @@ class TestLengthAppropriatenessRule:
     def test_rule_id(self) -> None:
         rule = LengthAppropriatenessRule()
         assert rule.rule_id == "length_appropriateness"
+
+
+class TestTruncationDetectionRule:
+    """★ Tier 1.5 D4: W2 D5 본인 짚음 정공법."""
+
+    def test_truncated_korean_fails(self) -> None:
+        """★ W2 D5 실제 잘린 응답 → 실패."""
+        rule = TruncationDetectionRule()
+        result = rule.check("당신의 뒤에는 조력자 셰", {"language": "ko"})
+        assert result is not None
+        assert result.rule == "korean_truncation"
+        assert result.severity == "major"
+
+    def test_sentence_end_passes(self) -> None:
+        """마침표로 끝나는 응답 → 통과."""
+        rule = TruncationDetectionRule()
+        result = rule.check("던전에 들어왔습니다.", {"language": "ko"})
+        assert result is None
+
+    def test_korean_ending_passes(self) -> None:
+        """한국어 종결 어미로 끝나는 응답 → 통과."""
+        rule = TruncationDetectionRule()
+        result = rule.check("무엇을 하시겠습니까", {"language": "ko"})
+        assert result is None
+
+    def test_non_korean_language_skipped(self) -> None:
+        """language != 'ko' → skip."""
+        rule = TruncationDetectionRule()
+        result = rule.check("what do you want to do", {"language": "en"})
+        assert result is None
+
+    def test_no_language_skipped(self) -> None:
+        """language 없음 → skip."""
+        rule = TruncationDetectionRule()
+        result = rule.check("what do you want", {})
+        assert result is None
+
+    def test_empty_response_fails(self) -> None:
+        rule = TruncationDetectionRule()
+        result = rule.check("", {"language": "ko"})
+        assert result is not None
+        assert "empty" in result.detail

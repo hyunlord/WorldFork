@@ -146,7 +146,15 @@ def _step_game_loop(plan: Plan) -> tuple[int, list[dict[str, Any]], float]:
         elapsed = time.perf_counter() - t0
         total_cost += result.cost_usd
 
-        print(f"{elapsed:.1f}초 / ${result.cost_usd:.4f}\n")
+        # ★ D4 풍부한 턴 정보 출력
+        mech_icon = "✅" if result.mechanical_passed else "❌"
+        score_str = f"{result.total_score:.0f}/100"
+        attempts_str = f"{result.attempts}회"
+        fallback_str = " [Fallback]" if result.fallback_used else ""
+        print(
+            f"  Mech {mech_icon}  Score {score_str}  {attempts_str}  "
+            f"{elapsed:.1f}s / ${result.cost_usd:.4f}{fallback_str}"
+        )
         print(f"{'─' * 40}")
         print(result.response)
         print(f"{'─' * 40}\n")
@@ -162,9 +170,9 @@ def _step_game_loop(plan: Plan) -> tuple[int, list[dict[str, Any]], float]:
 
         if result.mechanical_failures:
             for failure in result.mechanical_failures:
-                print(f"  [Mechanical] {failure}")
+                print(f"  [Mechanical ❌] {failure}")
                 issues.append({
-                    "category": "general",
+                    "category": "mechanical",
                     "description": f"Turn {state.turn}: Mechanical — {failure}",
                     "turn": state.turn,
                     "severity": "minor",
