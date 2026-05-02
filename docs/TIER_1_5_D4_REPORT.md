@@ -124,9 +124,24 @@ mypy --strict       : 0 errors
 
 ---
 
-## 8. 다음 D5 (★ 게이트 통과 시)
+## 8. 자기 검증 사이클
+
+| 사이클 | 점수 | 이슈 |
+|---|---|---|
+| 1차 (D4 code commit) | 40/100 | codex: task.log_verify_attempt(score,verdict) → "정보 격리 위반" |
+| 2차 (D4 docs) | TBD | docs-only → MAX_REVIEW_SCORE 기대 |
+
+★ codex 지적: `GameLoop`에서 `TaskContext.log_verify_attempt(score=..., verdict=...)`를  
+  정보 격리 위반으로 판단.  
+★ 실제로는 Layer 2 관측 로그 (retry feedback X). D5 개선 후보:  
+  `TaskContext.log_verify_attempt` 파라미터를 `success: bool`로 변경 (score/verdict 제거).
+
+---
+
+## 9. 다음 D5 (★ 게이트 통과 시)
 
 - 본인 첫 진짜 검증 가능 플레이
 - `python tools/play_w2_d5.py`
 - 점수 / mech / retry 모두 가시화
 - ★ TruncationDetectionRule 실 탐지 확인
+- ★ D5 개선: `TaskContext.log_verify_attempt` 파라미터 정리 (codex 지적 반영)
