@@ -1,0 +1,64 @@
+#!/bin/bash
+# Pre-push Hook — Heavy Gate (~60s)
+# Tier 1.5 D2: verify.sh quick, 95+ 미달 시 push 차단
+# SKIP_VERIFY=1 환경변수로 긴급 우회 가능 (audit log 기록)
+
+set -u
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+cd "$PROJECT_ROOT"
+
+# venv 활성화
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+fi
+
+# 긴급 우회
+if [ "${SKIP_VERIFY:-0}" = "1" ]; then
+    echo "⚠️  SKIP_VERIFY=1 — pre-push heavy gate bypassed"
+    echo "    [$(date -Iseconds)] SKIP_VERIFY bypass" >> .omc/logs/skip_verify.log 2>/dev/null || true
+    exit 0
+fi
+
+echo ""
+echo "┌─────────────────────────────────────┐"
+echo "│  Pre-push Heavy Gate (verify.sh)    │"
+echo "└─────────────────────────────────────┘"
+echo ""
+
+# verify.sh quick 실행
+VERIFY_OUTPUT=$(bash scripts/verify.sh quick 2>&1)
+VERIFY_EXIT=$?
+
+echo "$VERIFY_OUTPUT"
+
+# 점수 파싱
+TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP 'TOTAL:\s*\K[0-9]+' | tail -1)
+if [ -z "$TOTAL" ]; then
+    TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP '총점:\s*\K[0-9]+' | tail -1)
+fi
+if [ -z "$TOTAL" ]; then
+    TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP '\b([0-9]+)/100\b' | grep -oP '^[0-9]+' | tail -1)
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Pre-push 점수: ${TOTAL:-?}/100  (gate: 95+)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ -z "$TOTAL" ]; then
+    echo "❌ 점수 파싱 실패 — verify.sh 출력 확인"
+    exit 1
+fi
+
+if [ "$TOTAL" -ge 95 ]; then
+    echo "✅ PASSED ($TOTAL/100) — push 진행"
+    exit 0
+else
+    echo "❌ FAILED ($TOTAL/100 < 95) — push 차단"
+    echo ""
+    echo "   해결 방법:"
+    echo "     scripts/verify.sh quick   # 상세 확인"
+    echo "     SKIP_VERIFY=1 git push    # 긴급 우회"
+    exit 1
+fi

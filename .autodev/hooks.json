@@ -1,5 +1,19 @@
 {
-  "version": "0.1.0",
-  "hooks": {},
-  "notes": "D2 Hook 시스템에서 본격 정의"
+  "version": "0.2.0",
+  "description": "Tier 1.5 D2 — 12 Hook 이벤트 시스템 (project-level overrides)",
+  "hooks": {
+    "task_start": [],
+    "pre_plan": [],
+    "post_plan": [],
+    "plan_review": [],
+    "pre_code": [],
+    "post_code": [],
+    "pre_verify": [],
+    "post_verify": [],
+    "on_retry": [],
+    "on_replan": [],
+    "task_complete": [],
+    "task_fail": []
+  },
+  "notes": "project hooks override global (~/.autodev/hooks.json) and built-ins"
 }
