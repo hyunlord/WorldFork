@@ -60,8 +60,19 @@ GitHub Actions CI + TaskContext + Coding Loop max 3 + Re-plan max 2. Layer 1 100
 pytest tests/unit/       : 660 passed
 ruff check core/...      : All checks passed
 mypy core/ service/ --strict : 61 source files, 0 errors
-verify.sh quick          : ?/100
+verify.sh quick (D3 code commit)  : 60/100 — Eval 20/20, Verify 10/50
+verify.sh quick (D3 report docs)  : 100/100 — Eval 20/20, Verify 50/50
 ```
+
+### 자기 검증 사이클
+
+| 사이클 | 점수 | 이슈 |
+|---|---|---|
+| 1차 (D3 code commit) | 60/100 | codex: POST_CODE payload에 diff 없음 (설계 한계) |
+| 2차 (D3 report docs) | 100/100 | docs-only → MAX_REVIEW_SCORE (25/25 → 50/50) |
+
+★ codex 지적: `CodingLoop.POST_CODE` 페이로드에 `diff` 미포함 → anti-pattern hook 작동 X
+★ D4 개선 후보: `CodingLoop`에 `diff` 전달 경로 추가 (현재는 git hook이 담당)
 
 ---
 
