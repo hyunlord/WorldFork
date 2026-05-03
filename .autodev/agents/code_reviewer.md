@@ -57,7 +57,8 @@ Review the git diff below. Score 0-25.
 - IntegratedVerifier instantiated but not called in service code
 - Mechanical/Judge declared but skipped in pipeline
 - Test pass != production behavior (Mock-only verification)
-- New external package added (★ 0건 streak policy)
+- New external package added — UNLESS the package is in the project's
+  pre-approved migration list (see EXCLUSIONS below)
 
 # EXCLUSIONS (★ DO NOT report these)
 
@@ -74,6 +75,26 @@ Review the git diff below. Score 0-25.
 ★ Only report if the change matches a SPEC category above.
 ★ "I don't fully understand the change" is NOT an issue — DO NOT report.
 ★ "This could cause issues elsewhere" is NOT an issue (we have tests) — DO NOT report.
+
+★ Pre-approved package migration list (★ 본인 결정):
+The following packages are pre-approved per project owner decisions and
+are NOT external_pkg_added violations:
+- anthropic, openai, google-generativeai, httpx (LLM providers)
+- pydantic, pyyaml, python-dotenv (infrastructure)
+- jupyterlab, huggingface-hub
+- pytest family, hypothesis, ruff, mypy, types-PyYAML (dev)
+- llama-cpp-python (Tier 1 local LLM)
+- streamlit (Tier 2 quick prototype option)
+- ★ fastapi, uvicorn (Tier 2 D7 Web UI backend, 본인 결정 D)
+- ★ next, react, vitest, playwright, msw (Tier 2+ Web UI frontend, 본인 결정 D)
+★ Do NOT report adding these packages as a violation.
+
+★ verify_llm=None on GMAgent is valid in non-game-loop contexts:
+- API endpoint construction (request handler)
+- Documentation tools / scripts
+- Mechanical-only verification is intentional in these paths
+★ Only report Cross-Model violations where the same model is used as
+  generator AND verifier (real cross-model violation).
 
 # OUTPUT FORMAT
 JSON only. No prose. No markdown:
