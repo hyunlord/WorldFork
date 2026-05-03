@@ -1753,7 +1753,7 @@ v0.2 재검토 항목 (Tier 0에서 ablation):
 
 ### 본인 인사이트
 - #15: Layer 2 (서비스) 미통합
-- #16: 사람 검증 = 게이트 통과 후만
+- #16: 사람 검증 = 게이트 통과 후만 (★ Web UI 있어야 사람이 검증 가능)
 - #17: Layer 1 (개발) 자동화 X
 - #18: ★ 자기 합리화 차단 미구현
 
@@ -1761,24 +1761,56 @@ v0.2 재검토 항목 (Tier 0에서 ablation):
 참고: `docs/TIER_1_5_HARNESS_REBUILD_ROADMAP.md`
 
 ```
-D1: Layer 1 인프라 + Verify Agent (★ 본격)
-D2: Layer 1 Hook 시스템 + 자율 Fix
-D3: Layer 1 CI + Re-plan + Eval Smoke 진짜
-D4: Layer 2 통합 (★ 가볍게, Layer 1 타도록)
-D5 (게이트 후): 본인 첫 진짜 검증 가능 플레이
+D1: Layer 1 인프라 + Verify Agent (★ 본격)        ✅ 완료
+D2: Layer 1 Hook 시스템 + 자율 Fix                ✅ 완료
+D3: Layer 1 CI + Re-plan + Eval Smoke 진짜        ✅ 완료
+D4: Layer 2 통합 (★ Made-but-Never-Used 정공법)   ✅ 완료 (2026-05-03)
+D5: Tier 1.5 마무리 + 자동 검증 정착 (★ #16)      ⏳ 예정
 ```
+
+### Tier 1.5 D4 완료 기록 (2026-05-03)
+
+| 자산 | D4 전 | D4 후 |
+|---|---|---|
+| TruncationDetectionRule | ❌ 없음 | ✅ minor severity (잘림 검출, gate 차단 X) |
+| GMAgent Cross-Model | ❌ 미강제 | ✅ ValueError 강제 (game ≠ verify 모델) |
+| TaskContext | ❌ 테스트 전용 | ✅ GameLoop 매 턴 진짜 사용 |
+| HookManager | ✅ scripts만 | ✅ + GameLoop 12 이벤트 통합 |
+| MechanicalChecker | ✅ GMAgent만 | ✅ + PlaytesterRunner 통합 |
+
+검증 결과: pytest 677 passed, ruff all clean, mypy --strict 0 errors
 
 ### 환경 매핑
 - Layer 1 (개발): codex + local qwen + claude code (★ 매 단계 독립)
 - Layer 2 (서비스): local만 (★ ComfyUI 내릴 수도)
 
-### 게이트 (★ 본인 #16)
-- 게이트 1: Layer 2 자동 검증 통합 (D4)
-- 게이트 1.5: Layer 1 자동화 (D1-D3)
-- 게이트 2: 게임 완성도 (Tier 2)
-- 게이트 3: Web UI (Tier 2)
-- ★ 모든 게이트 통과 = 사람 검증 (Tier 2 후반)
+### 게이트 (★ 본인 #16 재정의 — 2026-05-03)
+
+```
+게이트 1:   Layer 2 자동 검증 통합 (D4)         ✅ 통과
+게이트 1.5: Layer 1 자동화 (D1-D3)              ✅ 통과
+게이트 2:   게임 완성도 (Tier 2 전반)            ⏳ Tier 2
+게이트 3:   Web UI — 브라우저에서 게임처럼 플레이  ⏳ Tier 2
+---
+★ 게이트 2+3 모두 통과 → 사람 검증 시작
+```
+
+### ★ 사람 검증 정책 (★ 본인 #16 명시)
+
+**사람 검증은 Web UI 거의 완성 후에만.**
+
+이유:
+- 파이썬 CLI (`python tools/play_w2_d5.py`) = 자동 검증 도구, 사람 검증 X
+- 친구가 파이썬 코드 돌릴 수 없음 → 게임처럼 플레이 불가
+- Web UI 없이 사람에게 검증 요청 = 의미 없는 피드백
+
+실행 조건 (모두 충족 시에만 사람 초대):
+1. ✅ 게이트 1+1.5: 자동 검증 작동
+2. ✅ 게이트 2: 30턴 완주 + 풍부한 응답
+3. ✅ 게이트 3: 브라우저에서 게임처럼 플레이 가능한 Web UI
+
+참고: `docs/TIER_2_GATE_2_3_PLAN.md`
 
 ---
 
-*문서 끝. v0.2 — Tier 1.5 추가.*
+*문서 끝. v0.3 — Tier 1.5 D4 완료 + 사람 검증 정책 명시 (2026-05-03).*
