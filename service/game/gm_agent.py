@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from core.llm.client import LLMResponse, Prompt
-from core.llm.dynamic_token_limiter import compute_max_tokens
+from core.llm.game_token_policy import compute_game_max_tokens
 from core.verify.mechanical import MechanicalChecker
 from service.pipeline.types import Plan
 
@@ -161,7 +161,7 @@ class GMAgent:
         if state.turn == 0:
             max_tokens = 800
         else:
-            max_tokens = compute_max_tokens(user_action)
+            max_tokens = compute_game_max_tokens(user_action)
 
         try:
             response = self._game_llm.generate(prompt, max_tokens=max_tokens)
