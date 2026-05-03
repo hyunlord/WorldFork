@@ -116,7 +116,9 @@ PATTERNS: list[AntiPattern] = [
             r"pytest|pytest-asyncio|pytest-cov|pytest-mock|"
             r"hypothesis|ruff|mypy|types-PyYAML|"
             r"openai|google-generativeai|sqlalchemy|"
-            r"llama-cpp-python|streamlit)"
+            r"llama-cpp-python|streamlit|"
+            # ★ Tier 2 D7 (Web UI 백엔드): 본인 결정 D 마이그레이션
+            r"fastapi|uvicorn)"
             r"[a-zA-Z][a-zA-Z0-9_.-]*(?:>=|<=|==|~=|!=|>|<|\[)",
             re.MULTILINE,
         ),

@@ -16,6 +16,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "jupyterlab>=4.5.7",
     "huggingface-hub>=1.12.2",
+    # ★ Tier 2 D7: Web UI 백엔드 (게이트 3 W1)
+    # 외부 패키지 0건 streak 19번 → 마이그레이션 (★ 본인 결정 D)
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 
 [project.optional-dependencies]
