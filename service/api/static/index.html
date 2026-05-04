@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorldFork — 한국어 어드벤처</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WorldFork</h1>
+            <p class="subtitle">한국어 텍스트 어드벤처 (★ Tier 2 D8 W2)</p>
+            <div class="status">
+                <span id="session-status">세션 없음</span>
+                <span id="turn-counter">턴: -</span>
+            </div>
+        </header>
+
+        <main>
+            <div id="game-area">
+                <div id="welcome">
+                    <h2>모험을 시작하세요</h2>
+                    <p>아래 "게임 시작" 버튼을 누르면 새 세션이 만들어집니다.</p>
+                    <button id="start-btn" type="button">게임 시작</button>
+                </div>
+
+                <div id="chat" hidden>
+                    <div id="messages"></div>
+
+                    <div id="input-area">
+                        <input type="text" id="action-input"
+                               placeholder="행동을 입력하세요 (예: 주변을 살펴봅니다)"
+                               autocomplete="off">
+                        <button id="send-btn" type="button">전송</button>
+                    </div>
+                </div>
+            </div>
+
+            <aside id="metrics" hidden>
+                <h3>턴 정보</h3>
+                <dl>
+                    <dt>Mechanical:</dt>
+                    <dd id="m-mechanical">-</dd>
+
+                    <dt>잘림:</dt>
+                    <dd id="m-truncated">-</dd>
+
+                    <dt>점수:</dt>
+                    <dd id="m-score">-</dd>
+
+                    <dt>Verify:</dt>
+                    <dd id="m-verify">-</dd>
+                </dl>
+
+                <h3>위치</h3>
+                <p id="m-location">-</p>
+            </aside>
+        </main>
+
+        <footer>
+            <p class="warning">
+                ★ 본인 #16 정공법: 이 UI는 시각적 디버깅용. 사람 검증 X.
+                Web UI 거의 완성 (D9 Next.js + D10 UX) 후만 진짜 사람 검증.
+            </p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
