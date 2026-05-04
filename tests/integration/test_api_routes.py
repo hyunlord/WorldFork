@@ -69,3 +69,77 @@ class TestStaticFiles:
     def test_static_js(self, client: TestClient) -> None:
         response = client.get("/static/app.js")
         assert response.status_code == 200
+
+
+class TestEndSession:
+    """세션 종료 라우트 (★ Tier 2 D10)."""
+
+    def test_end_not_found(self, client: TestClient) -> None:
+        response = client.post(
+            "/game/end",
+            json={"session_id": "nonexistent"},
+        )
+        assert response.status_code == 404
+
+    def test_end_basic(self, client: TestClient) -> None:
+        # Start
+        start_resp = client.post("/game/start", json={})
+        sid = start_resp.json()["session_id"]
+
+        # End
+        end_resp = client.post(
+            "/game/end",
+            json={
+                "session_id": sid,
+                "comment": "test",
+            },
+        )
+        assert end_resp.status_code == 200
+        data = end_resp.json()
+        assert "saved_path" in data
+        assert data["total_turns"] == 0
+
+    def test_end_with_rating(self, client: TestClient) -> None:
+        start_resp = client.post("/game/start", json={})
+        sid = start_resp.json()["session_id"]
+
+        end_resp = client.post(
+            "/game/end",
+            json={
+                "session_id": sid,
+                "fun_rating": {"score": 5, "comment": "재밌음"},
+                "findings": [
+                    {
+                        "category": "truncation",
+                        "description": "응답 잘림",
+                        "severity": "major",
+                    },
+                ],
+            },
+        )
+        assert end_resp.status_code == 200
+        assert end_resp.json()["summary"]["fun_score"] == 5
+
+    def test_fun_rating_validation(self, client: TestClient) -> None:
+        start_resp = client.post("/game/start", json={})
+        sid = start_resp.json()["session_id"]
+
+        # Invalid rating (>5)
+        response = client.post(
+            "/game/end",
+            json={
+                "session_id": sid,
+                "fun_rating": {"score": 6},
+            },
+        )
+        assert response.status_code == 422
+
+    def test_session_cleared_after_end(self, client: TestClient) -> None:
+        start_resp = client.post("/game/start", json={})
+        sid = start_resp.json()["session_id"]
+
+        client.post("/game/end", json={"session_id": sid})
+
+        # State 가져오려 시도
+        state_resp = client.get(f"/game/state/{sid}")
+        assert state_resp.status_code == 404

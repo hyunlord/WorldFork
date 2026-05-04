@@ -63,3 +63,38 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: str | None = None
+
+
+class FunRating(BaseModel):
+    """Fun rating (★ Tier 2 D10 사람 검증 UX)."""
+
+    score: int = Field(description="1-5 별점", ge=1, le=5)
+    comment: str | None = Field(default=None, description="자유 코멘트")
+
+
+class Finding(BaseModel):
+    """Findings 입력 (★ 한 항목)."""
+
+    category: str = Field(
+        description="카테고리 (truncation/character/world/style/other)"
+    )
+    description: str = Field(description="설명", min_length=1)
+    severity: str = Field(default="minor", description="critical/major/minor")
+
+
+class EndSessionRequest(BaseModel):
+    """세션 종료 요청."""
+
+    session_id: str
+    fun_rating: FunRating | None = None
+    findings: list[Finding] = Field(default_factory=list)
+    comment: str | None = None
+
+
+class EndSessionResponse(BaseModel):
+    """세션 종료 응답."""
+
+    session_id: str
+    saved_path: str
+    total_turns: int
+    summary: dict[str, Any]

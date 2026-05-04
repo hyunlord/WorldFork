@@ -57,3 +57,6 @@ frontend/build/
 frontend/.env*.local
 frontend/coverage/
 frontend/next-env.d.ts
+
+# Session results (★ Tier 2 D10 사람 검증)
+docs/sessions/*.json

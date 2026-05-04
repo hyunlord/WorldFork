@@ -56,3 +56,32 @@ export interface Message {
   content: string;
   timestamp: number;
 }
+
+export interface FunRating {
+  score: number; // 1-5
+  comment?: string | null;
+}
+
+export interface Finding {
+  category: string;
+  description: string;
+  severity: "critical" | "major" | "minor";
+}
+
+export interface EndSessionRequest {
+  session_id: string;
+  fun_rating?: FunRating | null;
+  findings?: Finding[];
+  comment?: string | null;
+}
+
+export interface EndSessionResponse {
+  session_id: string;
+  saved_path: string;
+  total_turns: number;
+  summary: {
+    fun_score?: number | null;
+    findings_count: number;
+    history_length: number;
+  };
+}

@@ -14,7 +14,11 @@ import type { Message, TurnResponse } from "@/lib/types";
 interface ChatProps {
   onMetricsUpdate?: (metrics: TurnResponse | null) => void;
   onLocationUpdate?: (location: string) => void;
+  onSessionStart?: (sessionId: string) => void;
+  onTurnsLimitReached?: (sessionId: string, totalTurns: number) => void;
 }
+
+const TURNS_LIMIT = 30;
 
 let messageIdCounter = 0;
 
@@ -57,11 +61,14 @@ function MessageBubble({ message }: { message: Message }) {
 export default function Chat({
   onMetricsUpdate,
   onLocationUpdate,
+  onSessionStart,
+  onTurnsLimitReached,
 }: ChatProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnNumber, setTurnNumber] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,6 +84,8 @@ export default function Chat({
     try {
       const data = await startGame();
       setSessionId(data.session_id);
+      setTurnNumber(0);
+      onSessionStart?.(data.session_id);
       onLocationUpdate?.(data.initial_state.location || "-");
       addMessage(
         "system",
@@ -110,8 +119,17 @@ export default function Chat({
       });
       addMessage("gm", data.response);
       onMetricsUpdate?.(data);
+      setTurnNumber(data.turn_n);
       if (data.truncated) {
         addMessage("system", "⚠️ 응답이 잘렸을 가능성이 있습니다.");
+      }
+      // ★ 30턴 도달
+      if (data.turn_n >= TURNS_LIMIT && sessionId) {
+        addMessage(
+          "system",
+          `★ ${TURNS_LIMIT}턴 도달! 세션을 종료해 주세요.`,
+        );
+        onTurnsLimitReached?.(sessionId, data.turn_n);
       }
     } catch (err) {
       const msg =
@@ -160,6 +178,17 @@ export default function Chat({
         ))}
         <div ref={messagesEndRef} />
       </div>
+
+      {sessionId && (
+        <div className="flex justify-between items-center pt-4 pb-2 text-xs text-slate-400">
+          <span>
+            턴: {turnNumber}/{TURNS_LIMIT}
+          </span>
+          {turnNumber >= TURNS_LIMIT && (
+            <span className="text-yellow-400">★ 종료 권장</span>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2 pt-4 border-t border-slate-700">
         <input

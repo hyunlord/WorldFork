@@ -4,7 +4,10 @@
 ★ API는 얇은 wrapper.
 """
 
+import json
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -12,6 +15,8 @@ from fastapi import APIRouter, HTTPException
 from core.llm.local_client import get_qwen35_9b_q3
 from core.verify.mechanical import MechanicalChecker
 from service.api.models import (
+    EndSessionRequest,
+    EndSessionResponse,
     GameStateResponse,
     StartGameRequest,
     StartGameResponse,
@@ -161,4 +166,86 @@ async def get_state(session_id: str) -> GameStateResponse:
             }
             for h in state.history[-5:]  # 최근 5턴
         ],
+    )
+
+
+@router.post("/end", response_model=EndSessionResponse)
+async def end_session(request: EndSessionRequest) -> EndSessionResponse:
+    """세션 종료 + 저장 (★ Tier 2 D10 사람 검증 UX).
+
+    Fun rating + Findings를 받아 JSON 파일로 저장.
+    """
+    if request.session_id not in _sessions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session not found: {request.session_id}",
+        )
+
+    session = _sessions[request.session_id]
+    state: GameState = session["state"]
+    plan: Plan = session["plan"]
+
+    # 저장 디렉토리
+    sessions_dir = Path("docs/sessions")
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    saved_path = sessions_dir / f"{request.session_id[:8]}_{timestamp}.json"
+
+    # 직렬화
+    data = {
+        "session_id": request.session_id,
+        "saved_at": datetime.now(UTC).isoformat(),
+        "plan": {
+            "work_name": plan.work_name,
+            "world_setting": plan.world.setting_name,
+            "opening_scene": plan.opening_scene,
+        },
+        "total_turns": state.turn,
+        "history": [
+            {
+                "turn": h.turn,
+                "user_action": h.user_action,
+                "gm_response": h.gm_response,
+                "cost_usd": h.cost_usd,
+                "latency_ms": h.latency_ms,
+            }
+            for h in state.history
+        ],
+        "fun_rating": (
+            {
+                "score": request.fun_rating.score,
+                "comment": request.fun_rating.comment,
+            }
+            if request.fun_rating
+            else None
+        ),
+        "findings": [
+            {
+                "category": f.category,
+                "description": f.description,
+                "severity": f.severity,
+            }
+            for f in request.findings
+        ],
+        "comment": request.comment,
+    }
+
+    saved_path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    # 세션 정리 (★ in-memory)
+    del _sessions[request.session_id]
+
+    return EndSessionResponse(
+        session_id=request.session_id,
+        saved_path=str(saved_path),
+        total_turns=state.turn,
+        summary={
+            "fun_score": request.fun_rating.score if request.fun_rating else None,
+            "findings_count": len(request.findings),
+            "history_length": len(state.history),
+        },
     )

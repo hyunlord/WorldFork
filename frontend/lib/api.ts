@@ -6,6 +6,8 @@
  */
 
 import type {
+  EndSessionRequest,
+  EndSessionResponse,
   GameStateResponse,
   StartGameResponse,
   TurnRequest,
@@ -69,6 +71,17 @@ export async function getState(
 ): Promise<GameStateResponse> {
   const response = await fetch(`${API_URL}/game/state/${sessionId}`);
   return handleResponse<GameStateResponse>(response);
+}
+
+export async function endSession(
+  request: EndSessionRequest,
+): Promise<EndSessionResponse> {
+  const response = await fetch(`${API_URL}/game/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<EndSessionResponse>(response);
 }
 
 export { APIError };
