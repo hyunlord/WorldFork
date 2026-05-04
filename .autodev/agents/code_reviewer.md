@@ -86,8 +86,13 @@ are NOT external_pkg_added violations:
 - llama-cpp-python (Tier 1 local LLM)
 - streamlit (Tier 2 quick prototype option)
 - ★ fastapi, uvicorn (Tier 2 D7 Web UI backend, 본인 결정 D)
-- ★ next, react, vitest, playwright, msw (Tier 2+ Web UI frontend, 본인 결정 D)
+- ★ Web UI frontend (Tier 2+, 본인 결정 D — Next.js/React/TypeScript stack):
+  * next, react, react-dom, typescript
+  * tailwindcss, @tailwindcss/postcss, postcss, autoprefixer
+  * @types/node, @types/react, @types/react-dom (TypeScript dev essentials)
+  * vitest, playwright, msw (Tier 2+ testing)
 ★ Do NOT report adding these packages as a violation.
+★ Do NOT report transitive deps in package-lock.json (★ npm internal).
 
 ★ verify_llm=None on GMAgent is valid in non-game-loop contexts:
 - API endpoint construction (request handler)
