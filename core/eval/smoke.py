@@ -112,7 +112,7 @@ def _run_single(
     )
 
     try:
-        resp = llm.generate(prompt, max_tokens=256)
+        resp = llm.generate(prompt, max_tokens=256, temperature=0.3)
         text = resp.text
     except Exception as e:
         return SmokeAttempt(
