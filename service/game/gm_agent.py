@@ -219,7 +219,8 @@ class GMAgent:
         if integrated_result.judge is not None:
             total_score = integrated_result.judge.score
         else:
-            total_score = 100.0 if mech_result.passed else max(0.0, mech_result.score)
+            # ★ hardcoded 100.0 차단 (codex 5.5 진단) — mech_result.score 진짜 점수
+            total_score = mech_result.score
         verify_passed = integrated_result.passed
 
         return GMResponse(
