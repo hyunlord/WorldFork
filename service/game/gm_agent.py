@@ -9,13 +9,28 @@
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from core.llm.client import LLMResponse, Prompt
+from core.llm.client import LLMClient, LLMResponse, Prompt
 from core.llm.game_token_policy import compute_game_max_tokens
+from core.verify.integrated import IntegratedVerifier
+from core.verify.llm_judge import JudgeCriteria, LLMJudge
 from core.verify.mechanical import MechanicalChecker
 from service.pipeline.types import Plan
 
 from .init_from_plan import build_game_context
 from .state import GameState
+
+# ★ 게임 응답 검증 기준 (★ Cross-Model LLM Judge용, A1.5)
+GAME_CRITERIA = JudgeCriteria(
+    name="game_response_quality",
+    description="한국어 텍스트 어드벤처 게임 응답의 품질 평가",
+    dimensions=[
+        "한국어 자연스러움 (한자/외국어 혼입 X)",
+        "캐릭터 페르소나 일관성",
+        "세계관 일관성",
+        "사용자 행동에 대한 적절한 반응",
+        "응답 완결성 (잘림 X)",
+    ],
+)
 
 
 class GameLLMClient(Protocol):
@@ -126,7 +141,7 @@ class GMAgent:
     def __init__(
         self,
         game_llm: GameLLMClient,
-        verify_llm: GameLLMClient | None = None,
+        verify_llm: LLMClient | None = None,
         mechanical_checker: MechanicalChecker | None = None,
     ) -> None:
         """
@@ -144,7 +159,19 @@ class GMAgent:
 
         self._game_llm = game_llm
         self._verify_llm = verify_llm
-        self._checker = mechanical_checker or MechanicalChecker()
+        mechanical = mechanical_checker or MechanicalChecker()
+        self._checker = mechanical  # 호환성 유지 (★ 기존 tests용)
+
+        # ★ ★ A1.5: IntegratedVerifier (Mechanical + LLM Judge 진짜 통합)
+        # verify_llm 있으면 LLMJudge 활성화 (★ Cross-Model)
+        judge: LLMJudge | None = None
+        if verify_llm is not None:
+            judge = LLMJudge(judge_client=verify_llm)
+        self._verifier = IntegratedVerifier(
+            mechanical=mechanical,
+            judge=judge,
+            skip_judge_on_critical=True,  # critical 시 judge 스킵 (비용/지연 ↓)
+        )
 
     def generate_response(
         self,
@@ -175,17 +202,25 @@ class GMAgent:
                 verify_passed=False,
             )
 
-        # ★ Mechanical 검증 (TruncationDetectionRule 포함)
-        mech_ctx: dict[str, Any] = {
+        # ★ ★ ★ A1.5: 통합 검증 (Mechanical + LLM Judge, ★ verify_llm 진짜 호출!)
+        verify_ctx: dict[str, Any] = {
             "language": "ko",
             "character_response": True,
             "user_input": user_action,
         }
-        mech_result = self._checker.check(response.text, mech_ctx)
+        # criteria는 verify_llm 있을 때만 (★ judge 호출 결정)
+        criteria = GAME_CRITERIA if self._verify_llm is not None else None
+        integrated_result = self._verifier.verify(
+            response.text, verify_ctx, criteria=criteria
+        )
+        mech_result = integrated_result.mechanical
 
-        # ★ 통합 점수
-        total_score = 100.0 if mech_result.passed else max(0.0, mech_result.score)
-        verify_passed = mech_result.passed
+        # ★ 통합 점수: Judge 호출됐으면 judge.score, 아니면 Mechanical 기준
+        if integrated_result.judge is not None:
+            total_score = integrated_result.judge.score
+        else:
+            total_score = 100.0 if mech_result.passed else max(0.0, mech_result.score)
+        verify_passed = integrated_result.passed
 
         return GMResponse(
             text=response.text,

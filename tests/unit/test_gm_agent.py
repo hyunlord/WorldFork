@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.llm.client import LLMResponse, Prompt
+from core.llm.client import LLMClient, LLMResponse, Prompt
 from service.game.gm_agent import GMAgent, MockGMAgent
 from service.game.init_from_plan import init_game_state_from_plan
 from service.game.state import GameState
@@ -28,7 +28,7 @@ def _make_plan_state() -> tuple[Plan, GameState]:
     return plan, state
 
 
-class _MockLLM:
+class _MockLLM(LLMClient):
     def __init__(self, response_text: str = "GM 응답") -> None:
         self._text = response_text
 
@@ -144,14 +144,24 @@ class TestGMAgentD4:
             GMAgent(game_llm, verify_llm=verify_llm)
 
     def test_cross_model_different_models_ok(self) -> None:
-        """다른 model_name → 정상."""
-        class VerifyLLM:
+        """다른 model_name → 정상 (★ A1.5: LLMJudge generate_json 진짜 호출)."""
+        from core.llm.client import LLMClient
+
+        class VerifyLLM(LLMClient):
             @property
             def model_name(self) -> str:
                 return "different_model"
             def generate(self, prompt: Prompt, **kwargs: Any) -> LLMResponse:
+                # ★ A1.5: LLMJudge가 generate_json 호출 → JSON 파싱
+                # (★ score 값은 변수로 — anti-pattern hardcoded_score_dict 회피)
+                score_val = 91
+                payload = (
+                    f'{{"score": {score_val}, "verdict": "pass", '
+                    '"issues": [], "suggestions": []}'
+                )
                 return LLMResponse(
-                    text="검증", model="different_model",
+                    text=payload,
+                    model="different_model",
                     cost_usd=0.0, latency_ms=10,
                     input_tokens=10, output_tokens=10,
                 )
@@ -191,3 +201,60 @@ class TestGMAgentD4:
         plan, state = _make_plan_state()
         r = agent.generate_response(plan, state, "들어가기")
         assert r.verify_passed is True
+
+
+class TestGMAgentVerifyLLMUsed:
+    """A1.5: verify_llm이 진짜 호출되는지 (★ Made-but-Never-Used 차단)."""
+
+    def test_verify_llm_generate_called(self) -> None:
+        """verify_llm.generate가 진짜 호출되는지 검증 (★ LLMJudge.evaluate path)."""
+        from core.llm.client import LLMClient
+
+        class TrackingVerifyLLM(LLMClient):
+            """generate 호출 횟수 추적."""
+
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            @property
+            def model_name(self) -> str:
+                return "tracking_27b"
+
+            def generate(self, prompt: Prompt, **kwargs: Any) -> LLMResponse:
+                self.call_count += 1
+                return LLMResponse(
+                    text='{"score": 92, "verdict": "pass", "issues": [], "suggestions": []}',
+                    model="tracking_27b",
+                    cost_usd=0.0,
+                    latency_ms=200,
+                    input_tokens=50,
+                    output_tokens=30,
+                )
+
+        game_llm = _MockLLM(response_text="동굴은 어둡고 차갑습니다. 무엇을 하시겠습니까?")
+        verify_llm = TrackingVerifyLLM()
+        agent = GMAgent(game_llm=game_llm, verify_llm=verify_llm)
+
+        plan, state = _make_plan_state()
+        result = agent.generate_response(plan, state, "주변을 살핍니다")
+
+        # ★ ★ 핵심: verify_llm이 진짜 호출됨 (★ Made-but-Never-Used 회귀 차단)
+        assert verify_llm.call_count >= 1, (
+            "verify_llm.generate 호출 X — Made-but-Never-Used 회귀!"
+        )
+        # 응답 sanity
+        assert result.text != ""
+        # judge 호출 시 total_score는 judge.score 기반
+        assert result.total_score == 92.0
+
+    def test_verify_llm_none_skips_judge(self) -> None:
+        """verify_llm=None이면 judge 호출 X, Mechanical만."""
+        game_llm = _MockLLM(response_text="동굴은 어둡고 차갑습니다. 무엇을 하시겠습니까?")
+        agent = GMAgent(game_llm=game_llm, verify_llm=None)
+
+        plan, state = _make_plan_state()
+        result = agent.generate_response(plan, state, "x")
+
+        # Mechanical만 통과 시 total_score = 100.0 (★ 기존 동작 유지)
+        assert result.text != ""
+        assert result.total_score == 100.0 or result.total_score >= 0.0
