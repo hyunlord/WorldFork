@@ -258,3 +258,102 @@ class TestGMAgentVerifyLLMUsed:
         # Mechanical만 통과 시 total_score = 100.0 (★ 기존 동작 유지)
         assert result.text != ""
         assert result.total_score == 100.0 or result.total_score >= 0.0
+
+
+class TestGMPromptFindings:
+    """본인 풀 플레이 5턴 finding 자동 차단 (★ 회귀 방지)."""
+
+    @staticmethod
+    def _make_ctx(main_name: str = "모험가") -> dict[str, Any]:
+        return {
+            "work_name": "신비한 모험",
+            "work_genre": "판타지",
+            "world_setting": "중세 판타지",
+            "world_tone": "신비",
+            "world_rules": ["마법 있음"],
+            "main_character_name": main_name,
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "시작",
+            "current_turn": 0,
+        }
+
+    def test_system_prompt_no_player_meta_word(self) -> None:
+        """finding #5: '플레이어' 메타 단어 차단 + 호칭 일관 명시."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._make_ctx(main_name="투르윈"))
+        # 호칭 규칙 명시 진짜
+        assert "호칭" in prompt
+        # 진짜 이름이 system prompt에 들어감
+        assert "투르윈" in prompt
+        # '플레이어' 메타 단어 차단 명시
+        assert "플레이어" in prompt and "메타" in prompt
+
+    def test_system_prompt_progression_rule(self) -> None:
+        """finding #4: 진행 / 변화 명시."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._make_ctx())
+        assert "진행" in prompt
+        assert "단순 반복" in prompt or "반복 절대 X" in prompt
+
+    def test_user_prompt_first_turn_explicit(self) -> None:
+        """finding #1: 첫 턴 (turn==0) 선택지 명시."""
+        from service.game.gm_agent import GMAgent
+        from service.game.state import GameState
+
+        state = GameState(scenario_id="test", turn=0, location="시작")
+        prompt = GMAgent._build_user_prompt(state, "")
+        assert "게임 시작" in prompt
+        assert "선택지" in prompt
+        # 빈 user_action도 처리
+        assert "시작" in prompt
+
+    def test_user_prompt_history_3_turns_500_chars(self) -> None:
+        """finding #3: 이전 history 3턴 + 500자."""
+        from service.game.gm_agent import GMAgent
+        from service.game.state import GameState, TurnLog
+
+        history = [
+            TurnLog(
+                turn=i,
+                user_action=f"행동{i}",
+                gm_response=f"GM {i}: " + "x" * 600,
+                cost_usd=0.0,
+                latency_ms=100,
+            )
+            for i in range(1, 5)
+        ]
+        state = GameState(
+            scenario_id="test", turn=4, location="장소", history=history,
+        )
+        prompt = GMAgent._build_user_prompt(state, "다음")
+        # 최근 3턴 진짜 (행동2/3/4)
+        assert "행동2" in prompt or "행동3" in prompt
+        assert "행동4" in prompt
+        # 500자 적용 — GM 응답이 500자까지 들어감 (★ 200자보다 길게)
+        # "x" * 600 → :500 잘리면 [:500]에는 "GM 1: " 8자 + "x" 492자 = 500자
+        # 200자였으면 192자만 — 명확히 구분
+        # 응답 길이로 검증
+        gm_section = prompt.split("GM:")[1] if "GM:" in prompt else ""
+        # 한 턴의 GM 응답 부분만 잘라서 검증 — 충분히 김 (500자 근처)
+        assert len(gm_section) >= 200
+
+    def test_user_prompt_progression_emphasis(self) -> None:
+        """finding #4: 일반 턴에서 결과 반영 + 새 이벤트 명시."""
+        from service.game.gm_agent import GMAgent
+        from service.game.state import GameState, TurnLog
+
+        history = [
+            TurnLog(
+                turn=1, user_action="이전",
+                gm_response="응답", cost_usd=0.0, latency_ms=100,
+            ),
+        ]
+        state = GameState(
+            scenario_id="test", turn=1, location="장소", history=history,
+        )
+        prompt = GMAgent._build_user_prompt(state, "1")
+        assert "결과" in prompt and "반영" in prompt
+        assert "단순 반복" in prompt

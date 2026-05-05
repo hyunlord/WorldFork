@@ -71,6 +71,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             + "\n"
         )
 
+    main_name = ctx["main_character_name"]
     return (
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"
@@ -79,7 +80,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         f"- 톤: {ctx['world_tone']}\n"
         f"- 규칙: {', '.join(ctx['world_rules'])}\n\n"
         f"등장 인물:\n"
-        f"- 주인공: {ctx['main_character_name']} ({ctx['main_character_role']})\n"
+        f"- 주인공: {main_name} ({ctx['main_character_role']})\n"
         f"{supporting_line}\n"
         f"현재 위치: {ctx['current_location']}\n"
         f"현재 턴: {ctx['current_turn']}\n\n"
@@ -88,8 +89,22 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         f"- 자연스러운 격식 (공문서체 X)\n"
         f"- 응답 길이는 유저 액션에 비례\n"
         f"- ★ 한국어만 (한자 X)\n"
-        f"- ★ 응답은 반드시 완전한 문장으로 끝낼 것 (다/요/까/.)\n"
-        f"- 행동 선택지 3개 이하\n"
+        f"- ★ 응답은 반드시 완전한 문장으로 끝낼 것 (다/요/까/.)\n\n"
+        f"호칭 규칙 (★ 본인 finding #5):\n"
+        f"- 주인공 호칭은 '{main_name}'으로 일관되게\n"
+        f"- '플레이어', '플레이어님' 같은 메타 단어 절대 사용 X\n"
+        f"- 또는 2인칭 '당신'을 일관되게 사용 (★ 섞어 쓰기 X)\n\n"
+        f"진행 규칙 (★ 본인 finding #4):\n"
+        f"- 매 턴 위치 변화 또는 새 이벤트가 발생 (★ 단순 반복 X)\n"
+        f"- 같은 묘사 / 같은 선택지 반복 절대 X\n"
+        f"- 주인공 행동에 따라 NPC, 환경, 단서가 진짜 다르게 등장\n"
+        f"- 이전 턴의 결과가 현재 턴에 반영 (★ 인과관계)\n\n"
+        f"응답 구조 (★ 본인 finding #1):\n"
+        f"- 묘사: 2-4 문장 (★ 현재 상황, 감각, 분위기)\n"
+        f"- 선택지: 매 턴 정확히 3개 (★ 첫 턴 포함)\n"
+        f"  - 형식: '1. ...', '2. ...', '3. ...' (★ 새 줄 분리)\n"
+        f"  - 각 선택지는 서로 다른 방향 / 결과를 암시\n"
+        f"  - 단순 변형 X (★ '빠르게'/'천천히' 같은 속도 차이만 X)\n"
     )
 
 
@@ -237,17 +252,41 @@ class GMAgent:
 
     @staticmethod
     def _build_user_prompt(state: GameState, user_action: str) -> str:
-        """최근 history + 현재 액션으로 user prompt 구성."""
+        """최근 history + 현재 액션으로 user prompt 구성.
+
+        ★ 본인 풀 플레이 finding 반영:
+          - finding #3: history 1턴 → 3턴, 200자 → 500자 (★ 이전 선택 반영)
+          - finding #1: 첫 턴 (state.turn==0) 명시 (★ 빈 입력도 시작)
+          - finding #4: 일반 턴에서 '결과 반영 + 새 이벤트' 명시
+        """
         parts: list[str] = []
 
+        # ★ 최근 3턴 (★ finding #3, 1 → 3)
         if state.history:
-            recent = state.history[-1]
-            parts.append(
-                f"[이전 턴 {recent.turn}]\n"
-                f"플레이어: {recent.user_action}\n"
-                f"GM: {recent.gm_response[:200]}\n"
-            )
+            recent_turns = state.history[-3:]
+            for h in recent_turns:
+                parts.append(
+                    f"[이전 턴 {h.turn}]\n"
+                    f"플레이어: {h.user_action}\n"
+                    f"GM: {h.gm_response[:500]}\n"  # ★ 200 → 500
+                )
 
-        parts.append(f"[현재 턴 {state.turn + 1}]\n플레이어: {user_action}")
+        # ★ 현재 턴 — 첫 턴 vs 일반 턴 분기 (★ finding #1, #4)
+        if state.turn == 0:
+            parts.append(
+                f"[현재 턴 {state.turn + 1}] (★ 게임 시작)\n"
+                f"플레이어: {user_action or '시작'}\n"
+                f"GM: 시작 위치 묘사 + 3가지 행동 선택지 제공"
+            )
+        elif state.history:
+            parts.append(
+                f"[현재 턴 {state.turn + 1}]\n"
+                f"플레이어가 '{user_action}'를 선택했음.\n"
+                f"위 선택의 결과를 반영하여 진행 + 새 3가지 선택지 제공.\n"
+                f"이전 묘사와 다른 새 위치/이벤트/단서 등장 (★ 단순 반복 X).\n"
+                f"플레이어: {user_action}"
+            )
+        else:
+            parts.append(f"[현재 턴 {state.turn + 1}]\n플레이어: {user_action}")
 
         return "\n".join(parts)
