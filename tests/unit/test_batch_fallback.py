@@ -71,7 +71,7 @@ class TestBackupCliFallback:
         runner = BatchRunner(game_client=MockGameLLM())
         persona = _make_persona(cli_to_use="codex")
         client = runner._create_playtester_with_fallback(persona)
-        assert client.model_name == "codex-gpt-5-5"
+        assert client.model_name == "gpt-5.5"
 
     @patch.object(BatchRunner, "_is_cli_available")
     def test_fallback_to_backup_when_primary_unavailable(

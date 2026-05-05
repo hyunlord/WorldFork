@@ -143,3 +143,24 @@ class TestEndSession:
         # State 가져오려 시도
         state_resp = client.get(f"/game/state/{sid}")
         assert state_resp.status_code == 404
+
+
+class TestCrossModelVerify:
+    """Cross-Model 검증 (★ A1, game_llm ≠ verify_llm)."""
+
+    def test_game_routes_imports_27b(self) -> None:
+        """game_routes.py가 27B factory를 import."""
+        import inspect
+
+        from service.api import game_routes
+
+        source = inspect.getsource(game_routes)
+        assert "get_qwen36_27b_q3" in source
+
+    def test_cross_model_distinct_names(self) -> None:
+        """9B와 27B model_name이 진짜 다름."""
+        from core.llm.local_client import get_qwen35_9b_q3, get_qwen36_27b_q3
+
+        c9 = get_qwen35_9b_q3()
+        c27 = get_qwen36_27b_q3()
+        assert c9.model_name != c27.model_name

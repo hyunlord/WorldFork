@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from core.llm.local_client import get_qwen35_9b_q3
+from core.llm.local_client import get_qwen35_9b_q3, get_qwen36_27b_q3
 from core.verify.mechanical import MechanicalChecker
 from service.api.models import (
     EndSessionRequest,
@@ -116,8 +116,14 @@ async def process_turn(request: TurnRequest) -> TurnResponse:
 
     # GMAgent + GameLoop (★ service/game/ 그대로)
     try:
-        llm = get_qwen35_9b_q3()
-        gm = GMAgent(game_llm=llm, mechanical_checker=MechanicalChecker())
+        # ★ Cross-Model: 9B Q3 (game) ≠ 27B Q3 (verify) — 본인 #18 정신
+        game_llm = get_qwen35_9b_q3()
+        verify_llm = get_qwen36_27b_q3()
+        gm = GMAgent(
+            game_llm=game_llm,
+            verify_llm=verify_llm,
+            mechanical_checker=MechanicalChecker(),
+        )
         loop = GameLoop(gm)
 
         result = loop.process_action(plan, state, request.user_action)
