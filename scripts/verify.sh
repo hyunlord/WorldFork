@@ -1,13 +1,13 @@
 #!/bin/bash
 # Layer 1 Ship Gate (HARNESS_LAYER1_DEV 2장)
-# Tier 1.5 D1.5 — Verify 50점 강화 (★ 인사이트 #19)
+# Tier 2 D11 — Mechanical E2E 추가 (★ 점수 b)
 #
 # 사용:
-#   scripts/verify.sh quick    # 빠른 검증 (~30초)
-#   scripts/verify.sh full     # 전체 (~5분)
+#   scripts/verify.sh quick    # 빠른 검증
+#   scripts/verify.sh full     # 전체
 #
 # 종료 코드: 0 = pass (95+) / 1 = fail
-# 점수 분배: Build 10 + Lint 10 + Tests 10 + Eval 20 + Verify 50 = 100
+# 점수 분배: Build 10 + Lint 10 + Tests 10 + Smoke 10 + E2E 10 + Verify 50 = 100
 
 set -u
 
@@ -17,13 +17,13 @@ DETAILS=""
 
 cd "$(dirname "$0")/.."
 
-# [1/5] Build (10점)
+# [1/6] Build (10점)
 echo ""
 echo "════════════════════════════════════════════════"
-echo "Layer 1 Ship Gate (Tier 1.5 D1.5 — Verify 50)"
+echo "Layer 1 Ship Gate (Tier 2 D11 — 6단계, Mechanical E2E)"
 echo "════════════════════════════════════════════════"
 echo ""
-echo "[1/5] Build..."
+echo "[1/6] Build..."
 BUILD_SCORE=0
 
 if python -c "import core; import service; import tools" 2>/dev/null; then
@@ -34,11 +34,11 @@ else
 fi
 
 SCORE=$((SCORE + BUILD_SCORE))
-DETAILS="$DETAILS\n[1/5] Build: $BUILD_SCORE/10"
+DETAILS="$DETAILS\n[1/6] Build: $BUILD_SCORE/10"
 
-# [2/5] Lint + Type Check (10점)
+# [2/6] Lint + Type Check (10점)
 echo ""
-echo "[2/5] Lint + Type..."
+echo "[2/6] Lint + Type..."
 LINT_SCORE=0
 
 if ruff check core/ service/ tools/ tests/ --quiet 2>/dev/null; then
@@ -56,11 +56,11 @@ else
 fi
 
 SCORE=$((SCORE + LINT_SCORE))
-DETAILS="$DETAILS\n[2/5] Lint: $LINT_SCORE/10"
+DETAILS="$DETAILS\n[2/6] Lint: $LINT_SCORE/10"
 
-# [3/5] Unit Tests (10점)
+# [3/6] Unit Tests (10점)
 echo ""
-echo "[3/5] Unit Tests..."
+echo "[3/6] Unit Tests..."
 UNIT_SCORE=0
 
 PYTEST_OUT=$(pytest tests/unit/ -m "not slow" --tb=no -q 2>&1)
@@ -75,11 +75,11 @@ else
 fi
 
 SCORE=$((SCORE + UNIT_SCORE))
-DETAILS="$DETAILS\n[3/5] Unit: $UNIT_SCORE/10"
+DETAILS="$DETAILS\n[3/6] Unit: $UNIT_SCORE/10"
 
-# [4/5] Eval Smoke (20점) — ★ 9B Q3 실제 LLM 호출 (D1.5)
+# [4/6] Eval Smoke (10점) — ★ 9B Q3 실제 LLM 호출 (★ 점수 b: 20→10)
 echo ""
-echo "[4/5] Eval Smoke (★ 9B Q3 LLM smoke — 95%+ 목표)..."
+echo "[4/6] Eval Smoke (★ 9B Q3 LLM smoke — 95%+ 목표)..."
 EVAL_SCORE=0
 
 # ★ 9B Q3 로컬 서버 확인 후 smoke runner 실행
@@ -90,16 +90,16 @@ if curl -sf http://localhost:8083/health > /dev/null 2>&1; then
     RATE_LINE=$(echo "$SMOKE_OUTPUT" | grep -oE 'SMOKE_PASS_RATE=[0-9]+' | tail -1)
     if [ -n "$RATE_LINE" ]; then
         SMOKE_RATE=$(echo "$RATE_LINE" | sed 's/SMOKE_PASS_RATE=//')
-        # 95%+ → 20점, 80-94% → 10점, <80% → 0점
+        # 95%+ → 10점, 80-94% → 5점, <80% → 0점
         if [ "$SMOKE_RATE" -ge 95 ]; then
-            EVAL_SCORE=20
-            echo "  ✅ Smoke passed ($SMOKE_RATE% ≥ 95%) (20/20)"
-        elif [ "$SMOKE_RATE" -ge 80 ]; then
             EVAL_SCORE=10
-            echo "  ⚠️ Smoke partial ($SMOKE_RATE% ≥ 80%) (10/20)"
+            echo "  ✅ Smoke passed ($SMOKE_RATE% ≥ 95%) (10/10)"
+        elif [ "$SMOKE_RATE" -ge 80 ]; then
+            EVAL_SCORE=5
+            echo "  ⚠️ Smoke partial ($SMOKE_RATE% ≥ 80%) (5/10)"
         else
             EVAL_SCORE=0
-            echo "  ❌ Smoke failed ($SMOKE_RATE% < 80%) (0/20)"
+            echo "  ❌ Smoke failed ($SMOKE_RATE% < 80%) (0/10)"
         fi
         echo "$SMOKE_OUTPUT" | head -5 | sed 's/^/    /'
     else
@@ -107,22 +107,70 @@ if curl -sf http://localhost:8083/health > /dev/null 2>&1; then
         echo "$SMOKE_OUTPUT" | head -3 | sed 's/^/    /'
     fi
 else
-    # 9B Q3 서버 없으면 integration 테스트 fallback (10점 상한)
-    echo "  ⚠️ 9B Q3 server not available — integration test fallback (10점 상한)"
+    # 9B Q3 서버 없으면 integration 테스트 fallback (5점 상한)
+    echo "  ⚠️ 9B Q3 server not available — integration test fallback (5점 상한)"
     if pytest tests/integration/ -m "not slow" --tb=no -q > /dev/null 2>&1; then
-        EVAL_SCORE=10
-        echo "  ✅ Integration tests OK (10/20)"
+        EVAL_SCORE=5
+        echo "  ✅ Integration tests OK (5/10)"
     else
-        echo "  ❌ Integration tests failed (0/20)"
+        echo "  ❌ Integration tests failed (0/10)"
     fi
 fi
 
 SCORE=$((SCORE + EVAL_SCORE))
-DETAILS="$DETAILS\n[4/5] Eval: $EVAL_SCORE/20"
+DETAILS="$DETAILS\n[4/6] Smoke: $EVAL_SCORE/10"
 
-# [5/5] Verify Agent (50점) — ★ Cross-LLM 코드 리뷰 (★ 인사이트 #19)
+# [5/6] Mechanical E2E (10점) — ★ 신규 (★ Tier 2 D11)
 echo ""
-echo "[5/5] Verify Agent (★ Cross-LLM 코드 리뷰 — 50점)..."
+echo "[5/6] Mechanical E2E (★ uvicorn + curl 자동, 본인 #15 마무리)..."
+E2E_SCORE=0
+
+# ★ 8090 포트 사용 중이면 skip 신호 (본인이 띄워둔 dev 서버 보존)
+if lsof -ti:8090 > /dev/null 2>&1; then
+    echo "  ⚠️ port 8090 사용 중 — E2E skip (★ dev 서버 보존, 0/10)"
+    E2E_SCORE=0
+elif curl -sf http://localhost:8083/health > /dev/null 2>&1 && \
+     curl -sf http://localhost:8081/health > /dev/null 2>&1; then
+    # ★ 9B + 27B 둘 다 작동 시 풀 검증 (★ /game/turn 포함)
+    if python tools/run_e2e_check.py > /tmp/e2e_out.log 2>&1; then
+        E2E_SCORE=10
+        echo "  ✅ E2E passed — 모든 endpoint + CORS (10/10)"
+        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+    else
+        E2E_SCORE=0
+        echo "  ❌ E2E failed (0/10)"
+        tail -10 /tmp/e2e_out.log | sed 's/^/    /'
+    fi
+elif curl -sf http://localhost:8083/health > /dev/null 2>&1; then
+    # ★ 9B만 있을 때 — turn skip (★ verify_llm 27B 없어 GMAgent 호출 시 실패)
+    echo "  ⚠️ 27B (8081) X — /game/turn skip"
+    if python tools/run_e2e_check.py --skip-turn > /tmp/e2e_out.log 2>&1; then
+        E2E_SCORE=5
+        echo "  ✅ E2E partial — start/CORS/end OK (5/10)"
+    else
+        E2E_SCORE=0
+        echo "  ❌ E2E failed (0/10)"
+        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+    fi
+else
+    # ★ LLM 서버 없을 때 — turn skip (CI 환경)
+    echo "  ⚠️ LLM 서버 (8083) 없음 — --skip-turn (CI 환경)"
+    if python tools/run_e2e_check.py --skip-turn > /tmp/e2e_out.log 2>&1; then
+        E2E_SCORE=5
+        echo "  ✅ E2E partial (no-LLM) — start/CORS/end OK (5/10)"
+    else
+        E2E_SCORE=0
+        echo "  ❌ E2E failed (0/10)"
+        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+    fi
+fi
+
+SCORE=$((SCORE + E2E_SCORE))
+DETAILS="$DETAILS\n[5/6] E2E: $E2E_SCORE/10"
+
+# [6/6] Verify Agent (50점) — ★ Cross-LLM 코드 리뷰 (★ 인사이트 #19)
+echo ""
+echo "[6/6] Verify Agent (★ Cross-LLM 코드 리뷰 — 50점)..."
 VERIFY_SCORE=0
 
 # ★ codex가 git diff 리뷰 (★ 자기 합리화 차단)
@@ -152,7 +200,7 @@ else
 fi
 
 SCORE=$((SCORE + VERIFY_SCORE))
-DETAILS="$DETAILS\n[5/5] Verify Agent: $VERIFY_SCORE/50"
+DETAILS="$DETAILS\n[6/6] Verify Agent: $VERIFY_SCORE/50"
 
 # 결과
 echo ""

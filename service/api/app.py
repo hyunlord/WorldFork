@@ -7,6 +7,7 @@
   - / + /static/* (★ D8 정적 chat UI)
 """
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -17,6 +18,25 @@ from fastapi.staticfiles import StaticFiles
 from service.api.game_routes import router as game_router
 
 
+def _parse_cors_origins() -> list[str]:
+    """CORS allowed origins (★ env var 우선, default = dev 포트들).
+
+    환경변수 ALLOWED_ORIGINS (콤마 구분):
+      ALLOWED_ORIGINS="http://localhost:4000,http://100.70.109.50:4000"
+
+    기본값: localhost/127.0.0.1 의 3000 + 4000 (Next.js dev).
+    """
+    env_value = os.environ.get("ALLOWED_ORIGINS", "").strip()
+    if env_value:
+        return [origin.strip() for origin in env_value.split(",") if origin.strip()]
+    return [
+        "http://localhost:3000",
+        "http://localhost:4000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:4000",
+    ]
+
+
 def create_app() -> FastAPI:
     """FastAPI app 생성."""
     app = FastAPI(
@@ -25,10 +45,10 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
-    # CORS (★ 다음 단계 Next.js 위해)
+    # CORS (★ env var ALLOWED_ORIGINS 우선, default Next.js dev 포트)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],  # Next.js dev
+        allow_origins=_parse_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
