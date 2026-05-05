@@ -59,6 +59,8 @@ Exception 리스트 (이미 합의된 것만):
 - sqlalchemy, pytest 계열
 - llama-cpp-python (Tier 1+)
 - next, react, vitest, playwright, msw (Tier 2+)
+- fastapi, uvicorn (Tier 2 D7+ Web UI 백엔드)
+- **types-PyYAML, types-requests** (★ Tier 2 D11 — mypy --strict CI 통과 위한 type stubs, runtime 영향 X)
 
 이외 패키지 추가는 ROADMAP에 정당화 + 본인 승인 필요.
 
