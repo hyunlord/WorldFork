@@ -60,3 +60,6 @@ frontend/next-env.d.ts
 
 # Session results (★ Tier 2 D10 사람 검증)
 docs/sessions/*.json
+
+# 시나리오 자료 (★ 저작권, 개인 use case)
+docs/scenarios/
