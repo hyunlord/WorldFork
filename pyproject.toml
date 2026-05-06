@@ -33,6 +33,7 @@ dev = [
     "mypy>=1.7",
     "types-PyYAML>=6.0",
     "types-requests>=2.31",
+    "playwright>=1.40",
 ]
 tier_1 = [
     # Tier 1 진입 시 추가 (지금은 X)

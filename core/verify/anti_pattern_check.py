@@ -114,7 +114,7 @@ PATTERNS: list[AntiPattern] = [
             r"^\+\s*['\"](?!anthropic|httpx|pydantic|pyyaml|"
             r"python-dotenv|jupyterlab|huggingface-hub|"
             r"pytest|pytest-asyncio|pytest-cov|pytest-mock|"
-            r"hypothesis|ruff|mypy|types-PyYAML|types-requests|"
+            r"hypothesis|ruff|mypy|types-PyYAML|types-requests|playwright|"
             r"openai|google-generativeai|sqlalchemy|"
             r"llama-cpp-python|streamlit|"
             # ★ Tier 2 D7 (Web UI 백엔드): 본인 결정 D 마이그레이션

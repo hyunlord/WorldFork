@@ -120,49 +120,56 @@ fi
 SCORE=$((SCORE + EVAL_SCORE))
 DETAILS="$DETAILS\n[4/6] Smoke: $EVAL_SCORE/10"
 
-# [5/6] Mechanical E2E (10점) — ★ 신규 (★ Tier 2 D11)
+# [5/6] E2E (10점 = Mechanical 5 + Browser 5) — ★ Tier 2 D11+
+#   Mechanical (curl): backend endpoint + CORS
+#   Browser (playwright): 진짜 사람 클릭 흐름 (★ HMR / fetch 진짜 발생)
 echo ""
-echo "[5/6] Mechanical E2E (★ uvicorn + curl 자동, 본인 #15 마무리)..."
+echo "[5/6] E2E (★ Mechanical curl + Browser playwright)..."
 E2E_SCORE=0
 
-# ★ 8090 포트 사용 중이면 skip 신호 (본인이 띄워둔 dev 서버 보존)
+# (a) Mechanical E2E — backend
 if lsof -ti:8090 > /dev/null 2>&1; then
-    echo "  ⚠️ port 8090 사용 중 — E2E skip (★ dev 서버 보존, 0/10)"
-    E2E_SCORE=0
+    echo "  ⚠️ port 8090 사용 중 — Mechanical skip (★ dev 서버 보존, 0/5)"
 elif curl -sf http://localhost:8083/health > /dev/null 2>&1 && \
      curl -sf http://localhost:8081/health > /dev/null 2>&1; then
-    # ★ 9B + 27B 둘 다 작동 시 풀 검증 (★ /game/turn 포함)
     if python tools/run_e2e_check.py > /tmp/e2e_out.log 2>&1; then
-        E2E_SCORE=10
-        echo "  ✅ E2E passed — 모든 endpoint + CORS (10/10)"
-        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+        E2E_SCORE=$((E2E_SCORE + 5))
+        echo "  ✅ Mechanical passed — backend + CORS (5/5)"
     else
-        E2E_SCORE=0
-        echo "  ❌ E2E failed (0/10)"
-        tail -10 /tmp/e2e_out.log | sed 's/^/    /'
+        echo "  ❌ Mechanical failed (0/5)"
+        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
     fi
 elif curl -sf http://localhost:8083/health > /dev/null 2>&1; then
-    # ★ 9B만 있을 때 — turn skip (★ verify_llm 27B 없어 GMAgent 호출 시 실패)
     echo "  ⚠️ 27B (8081) X — /game/turn skip"
     if python tools/run_e2e_check.py --skip-turn > /tmp/e2e_out.log 2>&1; then
-        E2E_SCORE=5
-        echo "  ✅ E2E partial — start/CORS/end OK (5/10)"
+        E2E_SCORE=$((E2E_SCORE + 3))
+        echo "  ✅ Mechanical partial (3/5)"
     else
-        E2E_SCORE=0
-        echo "  ❌ E2E failed (0/10)"
-        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+        echo "  ❌ Mechanical failed (0/5)"
     fi
 else
-    # ★ LLM 서버 없을 때 — turn skip (CI 환경)
-    echo "  ⚠️ LLM 서버 (8083) 없음 — --skip-turn (CI 환경)"
+    echo "  ⚠️ LLM 서버 X — --skip-turn (CI 환경)"
     if python tools/run_e2e_check.py --skip-turn > /tmp/e2e_out.log 2>&1; then
-        E2E_SCORE=5
-        echo "  ✅ E2E partial (no-LLM) — start/CORS/end OK (5/10)"
+        E2E_SCORE=$((E2E_SCORE + 3))
+        echo "  ✅ Mechanical partial no-LLM (3/5)"
     else
-        E2E_SCORE=0
-        echo "  ❌ E2E failed (0/10)"
-        tail -8 /tmp/e2e_out.log | sed 's/^/    /'
+        echo "  ❌ Mechanical failed (0/5)"
     fi
+fi
+
+# (b) Browser E2E — frontend → backend 진짜 사람 흐름
+if curl -sf http://localhost:4000 > /dev/null 2>&1 && \
+   lsof -ti:8090 > /dev/null 2>&1; then
+    if python tools/run_browser_e2e.py --frontend-url http://localhost:4000 \
+        > /tmp/browser_e2e_out.log 2>&1; then
+        E2E_SCORE=$((E2E_SCORE + 5))
+        echo "  ✅ Browser passed — 사람 클릭 흐름 진짜 (5/5)"
+    else
+        echo "  ❌ Browser failed (0/5)"
+        tail -10 /tmp/browser_e2e_out.log | sed 's/^/    /'
+    fi
+else
+    echo "  ⚠️ frontend (4000) 또는 backend (8090) X — Browser skip (CI 환경, 0/5)"
 fi
 
 SCORE=$((SCORE + E2E_SCORE))
