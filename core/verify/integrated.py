@@ -83,7 +83,11 @@ class IntegratedVerifier:
 
         passed = mech_result.passed
         if judge_score is not None:
-            passed = passed and judge_score.verdict == "pass"
+            # ★ A (Tier 2 D11+): verdict != "fail"이면 통과 — warn은 차단 X
+            # JudgeScore 3-tier: pass=통과 / warn=경고(사용 가능) / fail=차단
+            # 30턴 진짜 데이터: score 95 + verdict='warn' → fallback 메시지였음
+            # = 본인 풀 플레이 '어쩌라고' 무반응 진짜 원인
+            passed = passed and judge_score.verdict != "fail"
 
         return IntegratedResult(
             mechanical=mech_result,
