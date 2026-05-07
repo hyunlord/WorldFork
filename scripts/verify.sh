@@ -48,7 +48,11 @@ if ruff check core/ service/ tools/ tests/ --quiet 2>/dev/null; then
     echo "  ✅ ruff (5/5)"
 else
     echo "  ⚠️  ruff failed → AutoFix runner 1 cycle 호출..."
-    if python scripts/auto_fix_runner.py --check-only 2>&1 | tail -3; then
+    # ★ pipe 우회: exit code 진짜 검사 (★ tail의 0 X)
+    AUTOFIX_OUT=$(python scripts/auto_fix_runner.py --check-only 2>&1)
+    AUTOFIX_RC=$?
+    echo "$AUTOFIX_OUT" | tail -3
+    if [ $AUTOFIX_RC -eq 0 ]; then
         if ruff check core/ service/ tools/ tests/ --quiet 2>/dev/null; then
             LINT_SCORE=$((LINT_SCORE + 5))
             echo "  ✅ ruff (AutoFix 후 5/5)"
@@ -56,7 +60,7 @@ else
             echo "  ❌ ruff failed (AutoFix 후도 X)"
         fi
     else
-        echo "  ❌ ruff failed (AutoFix smoke fail)"
+        echo "  ❌ ruff failed (AutoFix smoke fail rc=$AUTOFIX_RC)"
     fi
 fi
 
