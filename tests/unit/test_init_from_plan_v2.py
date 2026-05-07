@@ -382,3 +382,33 @@ def test_build_game_context_includes_floor_definition() -> None:
     assert fd["name"] == "수정동굴"
     assert len(fd["sub_areas"]) == 6
     assert len(fd["monsters"]) == 7
+
+
+# ─── Stage 3: Rifts (★ 2026-05-07) ───
+
+
+def test_init_floor_definition_includes_rifts() -> None:
+    """1층 정의에 rifts 4종 진짜 포함."""
+    plan = _make_dungeon_plan("1층 미궁")
+    from service.game.init_from_plan import init_floor_definition_from_plan
+
+    fd = init_floor_definition_from_plan(plan)
+    assert "rifts" in fd
+    assert len(fd["rifts"]) == 4
+
+    # 핏빛성채 검증
+    bc = next(r for r in fd["rifts"] if r["rift_id"] == "bloody_castle")
+    assert bc["boss_grade"] == 5
+    assert bc["boss_is_variant"]
+    assert bc["boss_monster_name"] == "뱀파이어 공작 캠브로미어"
+    assert "네크로노미콘" in bc["hidden_pieces"]
+
+
+def test_build_game_context_includes_rifts() -> None:
+    """build_game_context가 v2_floor_definition['rifts'] 포함."""
+    plan = _make_dungeon_plan("1층 미궁")
+    state = init_game_state_from_plan(plan)
+    ctx = build_game_context(plan, state)
+
+    rifts = ctx["v2_floor_definition"]["rifts"]
+    assert len(rifts) == 4

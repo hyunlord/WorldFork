@@ -26,6 +26,7 @@ from ..state_v2 import (
     MonsterGrade,
     SubArea,
 )
+from .floor1_rifts import FLOOR1_RIFTS
 
 # ─── 1층 9등급 몬스터 (★ 7종) ───
 
@@ -229,6 +230,7 @@ FLOOR1_DEFINITION = Floor1Definition(
     is_dark_default=True,
     sub_areas=FLOOR1_SUB_AREAS,
     monsters=FLOOR1_MONSTERS,
+    rifts=FLOOR1_RIFTS,  # ★ Stage 3 (2026-05-07)
 )
 
 

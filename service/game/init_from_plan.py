@@ -325,6 +325,23 @@ def init_floor_definition_from_plan(plan: Plan) -> dict[str, Any]:
                 }
                 for m in f1.monsters
             ],
+            # ★ Stage 3: 균열 4종 진짜 노출
+            "rifts": [
+                {
+                    "rift_id": r.rift_id,
+                    "name": r.name,
+                    "entry_methods": [m.value for m in r.entry_methods],
+                    "intentional_offering_grade": r.intentional_offering_grade,
+                    "description": r.description,
+                    "boss_monster_name": r.boss_monster_name,
+                    "boss_grade": r.boss_grade,
+                    "boss_drop_rate": r.boss_drop_rate,
+                    "boss_is_variant": r.boss_is_variant,
+                    "regular_monster_names": list(r.regular_monster_names),
+                    "hidden_pieces": list(r.hidden_pieces),
+                }
+                for r in f1.rifts
+            ],
         }
 
     # 후속 commit (★ 2-10층) — 현재는 빈

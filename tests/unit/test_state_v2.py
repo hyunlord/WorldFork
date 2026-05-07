@@ -479,3 +479,42 @@ def test_floor1_definition_basic() -> None:
     assert f.base_time_hours == 168
     assert f.base_visibility_meters == 10
     assert f.is_dark_default
+
+
+# ─── Stage 3: RiftDef + Floor1Definition.rifts (★ 2026-05-07) ───
+
+
+def test_rift_entry_method_enum() -> None:
+    from service.game.state_v2 import RiftEntryMethod
+
+    assert RiftEntryMethod.RANDOM_NATURAL.value == "무작위 자연"
+    assert RiftEntryMethod.INTENTIONAL_OFFERING.value == "의도적 공물"
+
+
+def test_rift_def_basic() -> None:
+    from service.game.state_v2 import RiftDef, RiftEntryMethod
+
+    r = RiftDef(
+        rift_id="test",
+        name="테스트 균열",
+        entry_methods=(RiftEntryMethod.RANDOM_NATURAL,),
+        boss_monster_name="테스트 보스",
+    )
+    assert r.boss_drop_rate == 0.33
+    assert RiftEntryMethod.RANDOM_NATURAL in r.entry_methods
+
+
+def test_rift_def_unknown_boss_empty() -> None:
+    """boss_monster_name 빈 문자열 = 자료 X (★ 정직)."""
+    from service.game.state_v2 import RiftDef
+
+    r = RiftDef(rift_id="test", name="X")
+    assert r.boss_monster_name == ""
+
+
+def test_floor1_definition_rifts_default_empty() -> None:
+    """Floor1Definition.rifts 기본 빈 tuple."""
+    from service.game.state_v2 import Floor1Definition
+
+    f = Floor1Definition()
+    assert f.rifts == ()

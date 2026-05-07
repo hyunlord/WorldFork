@@ -276,13 +276,52 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     line += f" → {', '.join(drop_names)}"
                 fd_lines.append(line)
 
+        # ★ Stage 3: 균열 4종 진짜 출력 (★ Layer 4)
+        rifts = floor_def.get("rifts") or []
+        if rifts:
+            fd_lines.append(f"\n균열 ({len(rifts)}):")
+            for r in rifts:
+                line = f"- {r.get('name', '')} ({r.get('rift_id', '')})"
+                if desc := r.get("description"):
+                    line += f": {desc}"
+                # 보스
+                boss = r.get("boss_monster_name", "")
+                if boss:
+                    line += (
+                        f"\n  보스: {boss} "
+                        f"({r.get('boss_grade', 0)}등급"
+                    )
+                else:
+                    line += (
+                        f"\n  보스: (자료 X) "
+                        f"({r.get('boss_grade', 0)}등급"
+                    )
+                if r.get("boss_is_variant"):
+                    line += ", 변종"
+                drop_pct = int(r.get("boss_drop_rate", 0) * 100)
+                line += f", {drop_pct}% 정수 드롭)"
+                if regs := r.get("regular_monster_names"):
+                    line += f"\n  일반: {', '.join(regs)}"
+                if entries := r.get("entry_methods"):
+                    line += f"\n  진입: {', '.join(entries)}"
+                    if grade := r.get("intentional_offering_grade"):
+                        line += f" ({grade}등급 마석 공물)"
+                if hidden := r.get("hidden_pieces"):
+                    line += f"\n  히든: {', '.join(hidden)}"
+                fd_lines.append(line)
+
         v2_block += "\n".join(fd_lines) + "\n\n"
         v2_block += (
             "층 본질 LLM 가이드 (★ 일상/대화/행동 영향):\n"
             "- 빛/어둠: 빛 없으면 가시거리 10m, 일부 몬스터 활성화 X\n"
             "- 영역별 몬스터: 노움은 남쪽, 칼날늑대/레이스는 동쪽 등\n"
             "- 비석 공동: 의도적 균열 진입 (★ 8등급 마석 공물 → 초록색 포탈)\n"
-            "- 시간 한도: 168시간 (★ 1주, 1층 한정)\n\n"
+            "- 시간 한도: 168시간 (★ 1주, 1층 한정)\n"
+            "- 균열 본질 (★ 27/34화):\n"
+            "  * 균열 = 미궁 속 미궁 (인스턴트 던전)\n"
+            "  * 탈출: 수호자 처치 → 포탈\n"
+            "  * 1-5층 균열 = 매번 리셋\n"
+            "  * 추가 인원 무작위 진입 가능 (★ 의도적 진입도 1층 전역 포탈)\n\n"
         )
 
     return (

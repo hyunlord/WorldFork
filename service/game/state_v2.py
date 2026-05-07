@@ -155,6 +155,13 @@ class MonsterArea(StrEnum):
     NEAR_PORTAL = "포탈 근처"
 
 
+class RiftEntryMethod(StrEnum):
+    """균열 진입 방식 (★ 1차 자료 + 본문 27/102/374화)."""
+
+    RANDOM_NATURAL = "무작위 자연"  # ★ 102화: 1일차 자동, 1층 전역 포탈
+    INTENTIONAL_OFFERING = "의도적 공물"  # ★ 374화: 비석 + 8등급 마석
+
+
 # ─── Skill ───
 
 
@@ -558,6 +565,40 @@ class SubArea:
 
 
 @dataclass(frozen=True, slots=True)
+class RiftDef:
+    """균열 정의 — 작품 본질 (★ Stage 3, 2026-05-07).
+
+    1층 4종 (★ 핏빛성채/빙하굴/녹색탄광/강철의 묘):
+    - 일반 8등급 몬스터 + 33% 수호자 정수 드롭
+    - 수호자 처치 → 포탈 → 탈출 (★ 34화)
+    - 1-5층 매번 리셋
+
+    boss_monster_name이 빈 문자열이면 '1차 자료에 명시 X' (정직).
+    """
+
+    rift_id: str  # "bloody_castle" 등
+    name: str  # "핏빛성채" 등
+    floor: int = 1
+
+    # 진입
+    entry_methods: tuple[RiftEntryMethod, ...] = ()
+    intentional_offering_grade: int | None = None  # 1층 균열 = 8
+
+    # 환경
+    description: str = ""
+
+    # 몬스터
+    boss_monster_name: str = ""  # ★ 빈 문자열 = 자료 X (정직)
+    boss_grade: int = 8  # 일반 1층 균열 = 8, 변종은 5
+    boss_drop_rate: float = 0.33
+    boss_is_variant: bool = False  # ★ 핏빛성채 뱀파이어 = 변종
+    regular_monster_names: tuple[str, ...] = ()
+
+    # 보상
+    hidden_pieces: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Floor1Definition:
     """1층 (수정동굴) 풀 정의 — 작품 본질.
 
@@ -576,3 +617,4 @@ class Floor1Definition:
 
     sub_areas: tuple[SubArea, ...] = ()
     monsters: tuple[MonsterDef, ...] = ()
+    rifts: tuple[RiftDef, ...] = ()  # ★ Stage 3 (2026-05-07)

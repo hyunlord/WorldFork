@@ -622,3 +622,62 @@ class TestGMPromptStage2FloorDefinition:
         prompt = _gm_system_prompt(ctx)
         assert "현재 층 정의" not in prompt
         assert "Sub Areas" not in prompt
+
+
+class TestGMPromptStage3Rifts:
+    """Stage 3 — 균열 4종 prompt 진짜 출력 (★ Layer 4)."""
+
+    @staticmethod
+    def _ctx_with_rifts() -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": "비요른",
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_floor_definition": {
+                "name": "수정동굴",
+                "floor_number": 1,
+                "base_time_hours": 168,
+                "base_visibility_meters": 10,
+                "is_dark_default": True,
+                "sub_areas": [],
+                "monsters": [],
+                "rifts": [
+                    {
+                        "rift_id": "bloody_castle",
+                        "name": "핏빛성채",
+                        "entry_methods": ["무작위 자연", "의도적 공물"],
+                        "intentional_offering_grade": 8,
+                        "description": "핏빛 성채 내부",
+                        "boss_monster_name": "뱀파이어 공작 캠브로미어",
+                        "boss_grade": 5,
+                        "boss_drop_rate": 0.33,
+                        "boss_is_variant": True,
+                        "regular_monster_names": ["시체골렘"],
+                        "hidden_pieces": ["네크로노미콘", "여신의 눈물"],
+                    },
+                ],
+            },
+        }
+
+    def test_rifts_in_prompt(self) -> None:
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_with_rifts())
+        # 균열 본문
+        assert "핏빛성채" in prompt
+        assert "뱀파이어 공작 캠브로미어" in prompt
+        assert "변종" in prompt
+        assert "33%" in prompt
+        assert "네크로노미콘" in prompt
+        # 진입
+        assert "8등급 마석" in prompt
+        # 일반 룰
+        assert "수호자 처치" in prompt
+        assert "매번 리셋" in prompt
