@@ -163,13 +163,14 @@ class RiftEntryMethod(StrEnum):
 
 
 class LightSourceType(StrEnum):
-    """빛 자원 종류 (★ 1층 본질, 본문 11/23/24화)."""
+    """빛 자원 종류 (★ 1층 본질, 본문 11/23/24화).
+
+    ★ LIGHT_GEM / PORTAL 등은 자료 추가 검증 + 진짜 사용 시점에 추가 (YAGNI).
+    """
 
     TORCH = "횃불"  # 23화 (3일 / 1만 스톤 마도구)
     SPIRIT = "정령 등불"  # 11화 (10시간 / 회복 2시간 / 요정 한정)
     FLARE = "조명탄"  # 24/419화 (50m 반경, 단발)
-    LIGHT_GEM = "라이트 젬"  # 337화 (★ 본 commit 자료 X면 X)
-    PORTAL = "포탈"  # 자체 빛 발산
 
 
 # ─── Skill ───
