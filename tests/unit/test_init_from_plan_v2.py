@@ -349,3 +349,36 @@ def test_build_game_context_includes_initial_location() -> None:
     assert loc["floor"] == 1
     assert loc["visibility_meters"] == 10
     assert not loc["has_light"]
+
+
+# ─── Stage 2: Floor Definition (★ 2026-05-07) ───
+
+
+def test_init_floor_definition_for_floor1() -> None:
+    """1층 시작 시 v2_floor_definition 진짜 부여."""
+    plan = _make_dungeon_plan("1층 미궁 동굴")
+    from service.game.init_from_plan import init_floor_definition_from_plan
+
+    fd = init_floor_definition_from_plan(plan)
+
+    assert fd["name"] == "수정동굴"
+    assert fd["floor_number"] == 1
+    assert len(fd["sub_areas"]) == 6
+    assert len(fd["monsters"]) == 7
+
+    # ★ 노움 = 남쪽 검증 (27화 본문)
+    noom = next(m for m in fd["monsters"] if m["name"] == "노움")
+    assert noom["area"] == "남쪽"
+
+
+def test_build_game_context_includes_floor_definition() -> None:
+    """build_game_context가 v2_floor_definition 진짜 노출."""
+    plan = _make_dungeon_plan("1층 미궁")
+    state = init_game_state_from_plan(plan)
+    ctx = build_game_context(plan, state)
+
+    assert "v2_floor_definition" in ctx
+    fd = ctx["v2_floor_definition"]
+    assert fd["name"] == "수정동굴"
+    assert len(fd["sub_areas"]) == 6
+    assert len(fd["monsters"]) == 7

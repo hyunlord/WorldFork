@@ -513,3 +513,112 @@ class TestGMPromptStage1WorldLocation:
         prompt = _gm_system_prompt(ctx)
         assert "게임 진행 상태" not in prompt
         assert "시작 위치" not in prompt
+
+
+class TestGMPromptStage2FloorDefinition:
+    """Stage 2 — Floor1Definition prompt 진짜 출력 (★ Layer 4)."""
+
+    @staticmethod
+    def _ctx_stage2() -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": "비요른",
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_floor_definition": {
+                "name": "수정동굴",
+                "floor_number": 1,
+                "base_time_hours": 168,
+                "base_visibility_meters": 10,
+                "is_dark_default": True,
+                "sub_areas": [
+                    {
+                        "name": "비석 공동",
+                        "description": "30m 공동",
+                        "accessible_from": ["북쪽 통로", "남쪽 통로"],
+                        "monster_names": [],
+                        "is_dark": True,
+                        "has_landmark": True,
+                        "landmark_type": "비석",
+                    },
+                    {
+                        "name": "남쪽 통로",
+                        "description": "노움 영역",
+                        "accessible_from": ["포탈 근처"],
+                        "monster_names": ["노움"],
+                        "is_dark": True,
+                        "has_landmark": False,
+                        "landmark_type": None,
+                    },
+                ],
+                "monsters": [
+                    {
+                        "name": "노움",
+                        "grade": 9,
+                        "area": "남쪽",
+                        "behavior": "일체화 액티브",
+                        "requires_light": True,
+                        "drops": [
+                            {
+                                "essence_name": "노움 정수",
+                                "drop_rate": 0.0001,
+                                "color_pool": ["초록"],
+                            }
+                        ],
+                    },
+                    {
+                        "name": "레이스",
+                        "grade": 9,
+                        "area": "전역",
+                        "behavior": "시체불꽃",
+                        "requires_light": False,
+                        "drops": [
+                            {
+                                "essence_name": "레이스 정수",
+                                "drop_rate": 0.0001,
+                                "color_pool": ["검정"],
+                            }
+                        ],
+                    },
+                ],
+            },
+        }
+
+    def test_floor_definition_in_prompt(self) -> None:
+        """Floor1Definition 진짜 prompt 출력."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_stage2())
+        assert "수정동굴" in prompt
+        assert "168시간" in prompt
+        assert "10m" in prompt or "가시거리" in prompt
+        assert "어둠 기본" in prompt
+        # sub_areas
+        assert "비석 공동" in prompt
+        assert "비석" in prompt
+        assert "남쪽 통로" in prompt
+        # monsters
+        assert "노움" in prompt
+        assert "남쪽" in prompt
+        assert "레이스" in prompt
+        # ★ 어둠 활성 가능 명시 (★ requires_light=False)
+        assert "어둠 활성 가능" in prompt
+        # LLM 가이드
+        assert "층 본질" in prompt
+        assert "비석 공동" in prompt
+
+    def test_no_floor_definition_no_block(self) -> None:
+        """v2_floor_definition X면 block 출력 X."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        ctx = self._ctx_stage2()
+        del ctx["v2_floor_definition"]
+        prompt = _gm_system_prompt(ctx)
+        assert "현재 층 정의" not in prompt
+        assert "Sub Areas" not in prompt

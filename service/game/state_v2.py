@@ -129,6 +129,32 @@ class Realm(StrEnum):
     WILDERNESS = "야외"  # 도시 외 야외
 
 
+class MonsterGrade(IntEnum):
+    """몬스터 등급 (★ 정수와 동일 척도)."""
+
+    GRADE_9 = 9
+    GRADE_8 = 8
+    GRADE_7 = 7
+    GRADE_6 = 6
+    GRADE_5 = 5
+    GRADE_4 = 4
+    GRADE_3 = 3
+    GRADE_2 = 2
+    GRADE_1 = 1
+    LAYER_LORD = 0
+
+
+class MonsterArea(StrEnum):
+    """1층 몬스터 등장 영역 본질."""
+
+    NORTH = "북쪽"
+    SOUTH = "남쪽"  # ★ 노움 (27화 본문)
+    EAST = "동쪽"
+    WEST = "서쪽"
+    GENERAL = "전역"  # ★ 일반 고블린 등
+    NEAR_PORTAL = "포탈 근처"
+
+
 # ─── Skill ───
 
 
@@ -473,3 +499,80 @@ class WorldState:
     party_members: list[str] = field(default_factory=list)  # CharacterV2 name
     # "비요른": 0.9 등 (분배 비율)
     party_share_ratios: dict[str, float] = field(default_factory=dict)
+
+
+# ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
+
+
+@dataclass(frozen=True, slots=True)
+class EssenceDrop:
+    """몬스터 정수 드롭 정의.
+
+    1차 자료 본질:
+    - 드롭률 0.01% (★ 일반 9등급)
+    - 등급 ↑ → 드롭률 소폭 ↑
+    - 3등급+ 색 풀 5-6 (★ 색깔별 액티브)
+    """
+
+    essence_name: str  # "고블린 정수"
+    drop_rate: float  # 0.0001 ~ 0.05
+    color_pool: tuple[EssenceColor, ...] = ()  # 9등급 보통 1색
+
+
+@dataclass(frozen=True, slots=True)
+class MonsterDef:
+    """몬스터 정의 (★ 1층 9등급).
+
+    본문 본질:
+    - 빛 없으면 활성화 X (★ 11화 명시)
+    - 영역별 등장 (★ 노움 = 남쪽, 27화)
+    """
+
+    name: str  # "고블린" / "노움" / "슬라임" 등
+    grade: MonsterGrade
+    area: MonsterArea
+    drops: tuple[EssenceDrop, ...] = ()
+    behavior: str = ""  # 본문 본질
+    requires_light: bool = True  # ★ 빛 있어야 활성화 (1층 본질)
+
+
+@dataclass(frozen=True, slots=True)
+class SubArea:
+    """1층 sub_area (★ 본문 본질).
+
+    예:
+    - 수정동굴 진입점 (포탈 근처)
+    - 북쪽 통로 (고블린 영역)
+    - 남쪽 노움 영역
+    - 비석 공동 (★ 374화 — 30m 공동, 의도적 균열 진입)
+    - 동쪽 / 서쪽 통로
+    """
+
+    name: str
+    description: str
+    accessible_from: tuple[str, ...] = ()  # 인접 sub_area 이름
+    monster_names: tuple[str, ...] = ()  # 등장 몬스터 (MonsterDef.name)
+    is_dark: bool = True
+    has_landmark: bool = False  # 비석 / 포탈 / 입구
+    landmark_type: str | None = None  # "비석" / "포탈" / "입구"
+
+
+@dataclass(frozen=True, slots=True)
+class Floor1Definition:
+    """1층 (수정동굴) 풀 정의 — 작품 본질.
+
+    1차 자료:
+    - 168시간 한도 (★ 1주)
+    - 가시거리 10m (★ 빛 없으면)
+    - 어둠 기본 (★ 빛 없으면 몬스터 활성화 X)
+    - 1-5층 매번 리셋
+    """
+
+    name: str = "수정동굴"
+    floor_number: int = 1
+    base_time_hours: int = 168
+    base_visibility_meters: int = 10
+    is_dark_default: bool = True
+
+    sub_areas: tuple[SubArea, ...] = ()
+    monsters: tuple[MonsterDef, ...] = ()

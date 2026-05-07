@@ -409,3 +409,73 @@ def test_world_state_dimension_collapse() -> None:
 def test_world_state_active_rifts() -> None:
     ws = WorldState(active_rifts=["bloody_castle", "glacier_cave"])
     assert len(ws.active_rifts) == 2
+
+
+# ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
+
+
+def test_essence_drop_basic() -> None:
+    from service.game.state_v2 import EssenceDrop
+
+    d = EssenceDrop(
+        essence_name="고블린 정수",
+        drop_rate=0.0001,
+        color_pool=(EssenceColor.GREEN,),
+    )
+    assert d.drop_rate == 0.0001
+    assert EssenceColor.GREEN in d.color_pool
+
+
+def test_monster_def_basic() -> None:
+    from service.game.state_v2 import (
+        EssenceDrop,
+        MonsterArea,
+        MonsterDef,
+        MonsterGrade,
+    )
+
+    m = MonsterDef(
+        name="고블린",
+        grade=MonsterGrade.GRADE_9,
+        area=MonsterArea.GENERAL,
+        drops=(
+            EssenceDrop(
+                essence_name="고블린 정수",
+                drop_rate=0.0001,
+                color_pool=(EssenceColor.GREEN,),
+            ),
+        ),
+        behavior="조각칼 / 그르륵",
+    )
+    assert m.grade == MonsterGrade.GRADE_9
+    assert m.requires_light  # default True
+
+
+def test_sub_area_dark_default() -> None:
+    from service.game.state_v2 import SubArea
+
+    sa = SubArea(name="북쪽 통로", description="...")
+    assert sa.is_dark
+    assert not sa.has_landmark
+
+
+def test_sub_area_with_landmark() -> None:
+    from service.game.state_v2 import SubArea
+
+    sa = SubArea(
+        name="비석 공동",
+        description="30m 공동",
+        has_landmark=True,
+        landmark_type="비석",
+    )
+    assert sa.landmark_type == "비석"
+
+
+def test_floor1_definition_basic() -> None:
+    from service.game.state_v2 import Floor1Definition
+
+    f = Floor1Definition()
+    assert f.name == "수정동굴"
+    assert f.base_time_hours == 168
+    assert f.base_visibility_meters == 10
+    assert f.is_dark_default

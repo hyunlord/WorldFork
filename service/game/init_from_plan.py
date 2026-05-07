@@ -12,6 +12,7 @@ from typing import Any
 
 from service.pipeline.types import CharacterPlan, Plan
 
+from .floors.floor1 import get_floor1_definition
 from .state import Character, GameState, PhaseProgress
 from .state_v2 import BeastkinTribe, Location, Race, Realm, WorldState
 from .state_v2 import Character as CharacterV2
@@ -278,6 +279,58 @@ def init_world_state_from_plan(plan: Plan) -> WorldState:
     )
 
 
+def init_floor_definition_from_plan(plan: Plan) -> dict[str, Any]:
+    """Plan → 시작 층 정의 dict (★ Stage 2, build_game_context 통합).
+
+    현재 1층만 구현 (★ 후속 commit에 2-10층 추가).
+    1층 X면 빈 dict 반환.
+    """
+    floor = _detect_initial_floor_from_plan(plan)
+
+    if floor == 1:
+        f1 = get_floor1_definition()
+        return {
+            "name": f1.name,
+            "floor_number": f1.floor_number,
+            "base_time_hours": f1.base_time_hours,
+            "base_visibility_meters": f1.base_visibility_meters,
+            "is_dark_default": f1.is_dark_default,
+            "sub_areas": [
+                {
+                    "name": sa.name,
+                    "description": sa.description,
+                    "accessible_from": list(sa.accessible_from),
+                    "monster_names": list(sa.monster_names),
+                    "is_dark": sa.is_dark,
+                    "has_landmark": sa.has_landmark,
+                    "landmark_type": sa.landmark_type,
+                }
+                for sa in f1.sub_areas
+            ],
+            "monsters": [
+                {
+                    "name": m.name,
+                    "grade": int(m.grade),
+                    "area": m.area.value,
+                    "behavior": m.behavior,
+                    "requires_light": m.requires_light,
+                    "drops": [
+                        {
+                            "essence_name": d.essence_name,
+                            "drop_rate": d.drop_rate,
+                            "color_pool": [c.value for c in d.color_pool],
+                        }
+                        for d in m.drops
+                    ],
+                }
+                for m in f1.monsters
+            ],
+        }
+
+    # 후속 commit (★ 2-10층) — 현재는 빈
+    return {}
+
+
 def init_initial_location_from_plan(plan: Plan) -> Location:
     """Plan → 초기 Location (★ Stage 1).
 
@@ -320,6 +373,7 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
     v2_chars = init_v2_characters_from_plan(plan)
     v2_world = init_world_state_from_plan(plan)
     v2_loc = init_initial_location_from_plan(plan)
+    v2_floor_def = init_floor_definition_from_plan(plan)
     return {
         "work_name": plan.work_name,
         "work_genre": plan.work_genre,
@@ -422,4 +476,6 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
             "visibility_meters": v2_loc.visibility_meters,
             "has_light": v2_loc.has_light,
         },
+        # ★ Stage 2: Floor1Definition 진짜 노출 (1층 풀 정의)
+        "v2_floor_definition": v2_floor_def,
     }

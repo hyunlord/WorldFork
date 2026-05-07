@@ -227,6 +227,64 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             "- 분배: 9:1 / 6:4 등 사전 합의\n\n"
         )
 
+    # ★ Stage 2 (2026-05-07): Floor1Definition prompt 진짜 출력 (Layer 4)
+    floor_def = ctx.get("v2_floor_definition") or {}
+    if floor_def:
+        fd_lines = ["현재 층 정의 (★ 작품 본질):"]
+        fd_lines.append(
+            f"- 이름: {floor_def.get('name', '')} "
+            f"({floor_def.get('floor_number', 0)}층)"
+        )
+        fd_lines.append(
+            f"- 기본 시간: {floor_def.get('base_time_hours', 0)}시간"
+        )
+        fd_lines.append(
+            f"- 기본 가시거리: {floor_def.get('base_visibility_meters', 0)}m"
+        )
+        if floor_def.get("is_dark_default"):
+            fd_lines.append(
+                "- ★ 어둠 기본: 빛 없으면 몬스터 활성화 X"
+            )
+
+        sub_areas = floor_def.get("sub_areas") or []
+        if sub_areas:
+            fd_lines.append(f"\nSub Areas ({len(sub_areas)}):")
+            for sa in sub_areas:
+                line = f"- {sa.get('name', '')}"
+                if lt := sa.get("landmark_type"):
+                    line += f" ({lt})"
+                line += f": {sa.get('description', '')}"
+                if af := sa.get("accessible_from"):
+                    line += f" → 인접 [{', '.join(af)}]"
+                if mn := sa.get("monster_names"):
+                    line += f", 몬스터 [{', '.join(mn)}]"
+                fd_lines.append(line)
+
+        monsters = floor_def.get("monsters") or []
+        if monsters:
+            fd_lines.append(f"\n등장 몬스터 ({len(monsters)}):")
+            for m in monsters:
+                line = (
+                    f"- {m.get('name', '')} "
+                    f"({m.get('grade', 0)}등급, {m.get('area', '')})"
+                )
+                line += f": {m.get('behavior', '')}"
+                if not m.get("requires_light", True):
+                    line += " (★ 어둠 활성 가능)"
+                if drops := m.get("drops"):
+                    drop_names = [d.get("essence_name", "") for d in drops]
+                    line += f" → {', '.join(drop_names)}"
+                fd_lines.append(line)
+
+        v2_block += "\n".join(fd_lines) + "\n\n"
+        v2_block += (
+            "층 본질 LLM 가이드 (★ 일상/대화/행동 영향):\n"
+            "- 빛/어둠: 빛 없으면 가시거리 10m, 일부 몬스터 활성화 X\n"
+            "- 영역별 몬스터: 노움은 남쪽, 칼날늑대/레이스는 동쪽 등\n"
+            "- 비석 공동: 의도적 균열 진입 (★ 8등급 마석 공물 → 초록색 포탈)\n"
+            "- 시간 한도: 168시간 (★ 1주, 1층 한정)\n\n"
+        )
+
     return (
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"
