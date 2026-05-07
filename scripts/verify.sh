@@ -37,6 +37,8 @@ SCORE=$((SCORE + BUILD_SCORE))
 DETAILS="$DETAILS\n[1/6] Build: $BUILD_SCORE/10"
 
 # [2/6] Lint + Type Check (10점)
+# ★ Tier 2 D12 — AutoFix harness 통합 (★ Made But Never Used 차단):
+# ruff fail 시 AutoFix runner 1 cycle 호출 → ruff --fix 자동 시도 후 재검사
 echo ""
 echo "[2/6] Lint + Type..."
 LINT_SCORE=0
@@ -45,7 +47,17 @@ if ruff check core/ service/ tools/ tests/ --quiet 2>/dev/null; then
     LINT_SCORE=$((LINT_SCORE + 5))
     echo "  ✅ ruff (5/5)"
 else
-    echo "  ❌ ruff failed"
+    echo "  ⚠️  ruff failed → AutoFix runner 1 cycle 호출..."
+    if python scripts/auto_fix_runner.py --check-only 2>&1 | tail -3; then
+        if ruff check core/ service/ tools/ tests/ --quiet 2>/dev/null; then
+            LINT_SCORE=$((LINT_SCORE + 5))
+            echo "  ✅ ruff (AutoFix 후 5/5)"
+        else
+            echo "  ❌ ruff failed (AutoFix 후도 X)"
+        fi
+    else
+        echo "  ❌ ruff failed (AutoFix smoke fail)"
+    fi
 fi
 
 if mypy core/ service/ --strict 2>&1 | tail -1 | grep -q "Success"; then
