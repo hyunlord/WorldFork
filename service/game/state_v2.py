@@ -162,6 +162,14 @@ class RiftEntryMethod(StrEnum):
     INTENTIONAL_OFFERING = "의도적 공물"  # ★ 374화: 비석 + 8등급 마석
 
 
+class BountyKillCondition(StrEnum):
+    """현상금 처리 조건 (★ Stage 7 동적 시스템)."""
+
+    DEAD_OR_ALIVE = "생사 무관"
+    KILL_ONLY = "처치 한정"  # ★ 입막음
+    CAPTURE_ONLY = "생포 한정"  # ★ 정보 추출
+
+
 class LightSourceType(StrEnum):
     """빛 자원 종류 (★ 1층 본질, 본문 11/23/24화).
 
@@ -319,6 +327,22 @@ class Equipment:
 
 
 @dataclass
+class LightStateOnCharacter:
+    """캐릭터의 빛 자원 사용 상태 (★ Stage 7, 게임 진행 중 변동).
+
+    본문 본질:
+    - 횃불: 머리 위 끼움 ('바바리안 캔들 모드' 23화) / 3일 지속
+    - 정령 등불: 요정만, 10시간 후 회복 2시간
+    - 조명탄: 단발
+    """
+
+    active_source_name: str | None = None  # 활성 빛 자원 이름
+    remaining_duration_hours: float = 0.0  # 남은 지속 시간
+    cooldown_remaining_hours: float = 0.0  # 회복 대기 (정령)
+    consumables: dict[str, int] = field(default_factory=dict)  # {"조명탄": 3}
+
+
+@dataclass
 class Character:
     """게임 등장인물.
 
@@ -416,8 +440,18 @@ class Character:
     inventory: Inventory = field(default_factory=Inventory)
     equipment: Equipment = field(default_factory=Equipment)
 
+    # ★ Stage 7: 빛 자원 상태 (1층 어둠 본질)
+    light_state: LightStateOnCharacter = field(default_factory=LightStateOnCharacter)
+
     def is_alive(self) -> bool:
         return self.hp > 0
+
+    def has_active_light(self) -> bool:
+        """현재 활성화된 빛 자원이 있는가 (★ 1층 어둠 = 가시거리 10m 회피)."""
+        return (
+            self.light_state.active_source_name is not None
+            and self.light_state.remaining_duration_hours > 0.0
+        )
 
     def essence_slot_max(self) -> int:
         """종족별 정수 슬롯 (★ 1차 자료: 인간 5개).
@@ -517,6 +551,9 @@ class WorldState:
     party_members: list[str] = field(default_factory=list)  # CharacterV2 name
     # "비요른": 0.9 등 (분배 비율)
     party_share_ratios: dict[str, float] = field(default_factory=dict)
+
+    # ★ Stage 7: 동적 현상금 (약탈자 PvP 진행 중 발령/해제)
+    active_bounties: list[BountyEntry] = field(default_factory=list)
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
@@ -630,6 +667,24 @@ class LightSource:
     cost_stones: int
     is_consumable: bool
     requires_race: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BountyEntry:
+    """현상금 진짜 동적 (★ Stage 7).
+
+    게임 진행 중 동적 생성/삭제:
+    - 약탈자가 메시지 스톤으로 현상금 발령
+    - 표적 처치 시 issuer가 보상 지불
+    """
+
+    target_name: str
+    amount_stones: int
+    issuer_name: str
+    issuer_faction: str | None = None
+    kill_condition: BountyKillCondition = BountyKillCondition.DEAD_OR_ALIVE
+    reason: str = ""
+    issued_at_hours: int = 0  # 미궁 진입 후 N시간차
 
 
 @dataclass(frozen=True, slots=True)

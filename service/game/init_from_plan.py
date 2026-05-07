@@ -515,6 +515,14 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
                 # 슬롯
                 "essence_slot_max": c.essence_slot_max(),
                 "is_player": c.is_player,
+                # ★ Stage 7: 빛 자원 상태 (1층 어둠 본질)
+                "light_state": {
+                    "active_source_name": c.light_state.active_source_name,
+                    "remaining_duration_hours": c.light_state.remaining_duration_hours,
+                    "cooldown_remaining_hours": c.light_state.cooldown_remaining_hours,
+                    "consumables": dict(c.light_state.consumables),
+                    "has_active_light": c.has_active_light(),
+                },
             }
             for name, c in v2_chars.items()
         },
@@ -527,6 +535,19 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
             "is_dark_zone": v2_world.is_dark_zone,
             "party_members": list(v2_world.party_members),
             "party_share_ratios": dict(v2_world.party_share_ratios),
+            # ★ Stage 7: 동적 현상금 (PvP 진행)
+            "active_bounties": [
+                {
+                    "target_name": b.target_name,
+                    "amount_stones": b.amount_stones,
+                    "issuer_name": b.issuer_name,
+                    "issuer_faction": b.issuer_faction,
+                    "kill_condition": b.kill_condition.value,
+                    "reason": b.reason,
+                    "issued_at_hours": b.issued_at_hours,
+                }
+                for b in v2_world.active_bounties
+            ],
         },
         # ★ Stage 1: Location 진짜 노출
         "v2_initial_location": {
