@@ -99,6 +99,49 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 f"민첩 {info.get('agility', 0)} "
                 f"유연성 {info.get('flexibility', 0)}]"
             )
+            # 감각 (★ 7)
+            line += (
+                f", 감각 [시각 {info.get('sight', 0)} "
+                f"후각 {info.get('smell', 0)} "
+                f"청각 {info.get('hearing', 0)} "
+                f"인지 {info.get('cognitive_speed', 0)} "
+                f"명중 {info.get('accuracy', 0)} "
+                f"회피 {info.get('evasion', 0)} "
+                f"도약 {info.get('jump_power', 0)}]"
+            )
+            # 방어 (★ 5 + 5 속성저항)
+            line += (
+                f", 방어 [골강도 {info.get('bone_strength', 0)} "
+                f"골밀도 {info.get('bone_density', 0)} "
+                f"물리내성 {info.get('physical_resistance', 0)} "
+                f"내구 {info.get('durability', 0)} "
+                f"고통 {info.get('pain_resistance', 0)}]"
+            )
+            line += (
+                f", 속성저항 [독 {info.get('poison_resistance', 0)} "
+                f"화염 {info.get('fire_resistance', 0)} "
+                f"냉기 {info.get('cold_resistance', 0)} "
+                f"번개 {info.get('lightning_resistance', 0)} "
+                f"어둠 {info.get('dark_resistance', 0)}]"
+            )
+            # 행운/기술 (★ 6)
+            line += (
+                f", 행운/기술 [행운 {info.get('luck', 0)} "
+                f"손재주 {info.get('dexterity', 0)} "
+                f"절삭 {info.get('cutting_power', 0)} "
+                f"투쟁심 {info.get('fighting_spirit', 0)} "
+                f"인내 {info.get('endurance', 0)} "
+                f"지구력 {info.get('stamina', 0)}]"
+            )
+            # 재생 + 마법
+            line += (
+                f", 재생 [재생력 {info.get('regen_rate', 0)} "
+                f"자연재생 {info.get('natural_regen', 0)}]"
+            )
+            line += (
+                f", 마법 [항마력 {info.get('magic_resistance', 0)} "
+                f"정신력 {info.get('mental_power', 0)}]"
+            )
 
             # ★ 특이 스탯 — 0 초과만 노출 (★ 일상/대화/행동 영향)
             specials: list[str] = []

@@ -261,7 +261,8 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
         "language": "ko",
         "character_response": True,
         # ★ v2 schema 진짜 통합 (★ Made But Never Used 차단)
-        # 일반 30+ + 특이 5 → prompt에 진짜 노출 (Layer 4 본질)
+        # 메인 + 1티어 + 감각 + 방어 + 행운/기술 + 신체 + 마법 + 특이
+        # → prompt에 진짜 노출 (★ Layer 4 본질)
         "v2_characters": {
             name: {
                 "race": c.race.value,
@@ -274,9 +275,40 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
                 "strength": c.strength,
                 "agility": c.agility,
                 "flexibility": c.flexibility,
+                # 감각
+                "sight": c.sight,
+                "smell": c.smell,
+                "hearing": c.hearing,
+                "cognitive_speed": c.cognitive_speed,
+                "accuracy": c.accuracy,
+                "evasion": c.evasion,
+                "jump_power": c.jump_power,
+                # 방어
+                "bone_strength": c.bone_strength,
+                "bone_density": c.bone_density,
+                "physical_resistance": c.physical_resistance,
+                "durability": c.durability,
+                "pain_resistance": c.pain_resistance,
+                "poison_resistance": c.poison_resistance,
+                "fire_resistance": c.fire_resistance,
+                "cold_resistance": c.cold_resistance,
+                "lightning_resistance": c.lightning_resistance,
+                "dark_resistance": c.dark_resistance,
+                # 행운/기술
+                "luck": c.luck,
+                "dexterity": c.dexterity,
+                "cutting_power": c.cutting_power,
+                "fighting_spirit": c.fighting_spirit,
+                "endurance": c.endurance,
+                "stamina": c.stamina,
                 # 신체
                 "height": c.height,
                 "weight": c.weight,
+                "regen_rate": c.regen_rate,
+                "natural_regen": c.natural_regen,
+                # 마법
+                "magic_resistance": c.magic_resistance,
+                "mental_power": c.mental_power,
                 # 자원
                 "hp": c.hp,
                 "hp_max": c.hp_max,
