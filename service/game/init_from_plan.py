@@ -293,7 +293,6 @@ def init_initial_location_from_plan(plan: Plan) -> Location:
         floor=floor if is_dungeon_like else None,
         sub_area=None,
         rift_id=None,
-        coords=None,
         visibility_meters=10 if realm == Realm.DUNGEON else 100,
         has_light=(realm != Realm.DUNGEON),
     )

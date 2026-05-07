@@ -443,7 +443,7 @@ class Location:
     floor: int | None = None  # 1-10 (★ DUNGEON/RIFT/HIDDEN_FIELD)
     sub_area: str | None = None  # "수정동굴 북쪽" / "비석 공동" 등
     rift_id: str | None = None  # "bloody_castle" / "glacier_cave" 등
-    coords: tuple[int, int] | None = None  # 사이드뷰 좌표 (Tier 4)
+    # 사이드뷰 좌표는 Tier 4 시점에 추가 — 현재 사용 X면 추가 X
 
     # ★ 환경
     visibility_meters: int = 10  # 가시거리 (★ 1차 자료 — 어둠 기본 10)
