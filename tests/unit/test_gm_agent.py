@@ -681,3 +681,86 @@ class TestGMPromptStage3Rifts:
         # 일반 룰
         assert "수호자 처치" in prompt
         assert "매번 리셋" in prompt
+
+
+class TestGMPromptStage4LightSources:
+    """Stage 4 — 빛 자원 prompt 진짜 출력 (★ Layer 4)."""
+
+    @staticmethod
+    def _ctx_with_lights() -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": "비요른",
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_floor_definition": {
+                "name": "수정동굴",
+                "floor_number": 1,
+                "base_time_hours": 168,
+                "base_visibility_meters": 10,
+                "is_dark_default": True,
+                "sub_areas": [],
+                "monsters": [],
+                "rifts": [],
+                "light_sources": [
+                    {
+                        "name": "횃불",
+                        "light_type": "횃불",
+                        "duration_hours": 72.0,
+                        "cooldown_hours": None,
+                        "radius_meters": 10.0,
+                        "cost_stones": 10000,
+                        "is_consumable": False,
+                        "requires_race": None,
+                    },
+                    {
+                        "name": "정령 등불",
+                        "light_type": "정령 등불",
+                        "duration_hours": 10.0,
+                        "cooldown_hours": 2.0,
+                        "radius_meters": 10.0,
+                        "cost_stones": 0,
+                        "is_consumable": False,
+                        "requires_race": "요정",
+                    },
+                    {
+                        "name": "조명탄",
+                        "light_type": "조명탄",
+                        "duration_hours": None,
+                        "cooldown_hours": None,
+                        "radius_meters": 50.0,
+                        "cost_stones": 0,
+                        "is_consumable": True,
+                        "requires_race": None,
+                    },
+                ],
+            },
+        }
+
+    def test_light_sources_in_prompt(self) -> None:
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_with_lights())
+        assert "빛 자원" in prompt
+        # 횃불
+        assert "횃불" in prompt
+        assert "72" in prompt
+        assert "10000스톤" in prompt or "10000" in prompt
+        # 정령
+        assert "정령 등불" in prompt
+        assert "요정 한정" in prompt
+        assert "회복 2.0시간" in prompt or "회복 2" in prompt
+        # 조명탄
+        assert "조명탄" in prompt
+        assert "단발" in prompt
+        assert "50.0m" in prompt or "50m" in prompt
+        assert "(소비)" in prompt
+        # ★ 빛/어둠 가이드
+        assert "빛 자원 관리" in prompt
+        assert "칼날늑대/레이스" in prompt

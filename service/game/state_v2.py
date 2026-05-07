@@ -162,6 +162,16 @@ class RiftEntryMethod(StrEnum):
     INTENTIONAL_OFFERING = "의도적 공물"  # ★ 374화: 비석 + 8등급 마석
 
 
+class LightSourceType(StrEnum):
+    """빛 자원 종류 (★ 1층 본질, 본문 11/23/24화)."""
+
+    TORCH = "횃불"  # 23화 (3일 / 1만 스톤 마도구)
+    SPIRIT = "정령 등불"  # 11화 (10시간 / 회복 2시간 / 요정 한정)
+    FLARE = "조명탄"  # 24/419화 (50m 반경, 단발)
+    LIGHT_GEM = "라이트 젬"  # 337화 (★ 본 commit 자료 X면 X)
+    PORTAL = "포탈"  # 자체 빛 발산
+
+
 # ─── Skill ───
 
 
@@ -599,6 +609,29 @@ class RiftDef:
 
 
 @dataclass(frozen=True, slots=True)
+class LightSource:
+    """빛 자원 정의 (★ Stage 4, 1층 본질).
+
+    1차 자료:
+    - 1층 어둠 기본 (가시거리 10m)
+    - 빛 활성 시 몬스터 등장 (★ 11화)
+
+    duration_hours=None = 단발 (조명탄).
+    cooldown_hours=None = 회복 X (소비 / 재사용).
+    requires_race=None = 모든 종족 사용 가능.
+    """
+
+    name: str
+    light_type: LightSourceType
+    duration_hours: float | None
+    cooldown_hours: float | None
+    radius_meters: float
+    cost_stones: int
+    is_consumable: bool
+    requires_race: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Floor1Definition:
     """1층 (수정동굴) 풀 정의 — 작품 본질.
 
@@ -618,3 +651,4 @@ class Floor1Definition:
     sub_areas: tuple[SubArea, ...] = ()
     monsters: tuple[MonsterDef, ...] = ()
     rifts: tuple[RiftDef, ...] = ()
+    light_sources: tuple[LightSource, ...] = ()

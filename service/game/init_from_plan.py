@@ -342,6 +342,19 @@ def _floor_definition_dict_for(floor: int) -> dict[str, Any]:
             }
             for r in f1.rifts
         ],
+        "light_sources": [
+            {
+                "name": ls.name,
+                "light_type": ls.light_type.value,
+                "duration_hours": ls.duration_hours,
+                "cooldown_hours": ls.cooldown_hours,
+                "radius_meters": ls.radius_meters,
+                "cost_stones": ls.cost_stones,
+                "is_consumable": ls.is_consumable,
+                "requires_race": ls.requires_race,
+            }
+            for ls in f1.light_sources
+        ],
     }
 
 

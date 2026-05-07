@@ -412,3 +412,25 @@ def test_build_game_context_includes_rifts() -> None:
 
     rifts = ctx["v2_floor_definition"]["rifts"]
     assert len(rifts) == 4
+
+
+# ─── Stage 4: Light Sources (★ 2026-05-07) ───
+
+
+def test_init_floor_definition_includes_light_sources() -> None:
+    """1층 정의에 light_sources 3종 진짜 포함."""
+    plan = _make_dungeon_plan("1층 미궁")
+    from service.game.init_from_plan import init_floor_definition_from_plan
+
+    fd = init_floor_definition_from_plan(plan)
+    assert "light_sources" in fd
+    assert len(fd["light_sources"]) == 3
+
+    torch = next(ls for ls in fd["light_sources"] if ls["name"] == "횃불")
+    assert torch["duration_hours"] == 72.0
+    assert torch["cost_stones"] == 10000
+
+    spirit = next(
+        ls for ls in fd["light_sources"] if ls["name"] == "정령 등불"
+    )
+    assert spirit["requires_race"] == "요정"

@@ -276,6 +276,27 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     line += f" → {', '.join(drop_names)}"
                 fd_lines.append(line)
 
+        light_sources = floor_def.get("light_sources") or []
+        if light_sources:
+            fd_lines.append(f"\n빛 자원 ({len(light_sources)}):")
+            for ls in light_sources:
+                line = f"- {ls.get('name', '')} ({ls.get('light_type', '')})"
+                duration = ls.get("duration_hours")
+                if duration:
+                    line += f": {duration}시간 지속"
+                else:
+                    line += ": 단발"
+                if cd := ls.get("cooldown_hours"):
+                    line += f", 회복 {cd}시간"
+                line += f", 반경 {ls.get('radius_meters', 0)}m"
+                if cost := ls.get("cost_stones"):
+                    line += f", {cost}스톤"
+                if ls.get("is_consumable"):
+                    line += " (소비)"
+                if race := ls.get("requires_race"):
+                    line += f" — {race} 한정"
+                fd_lines.append(line)
+
         rifts = floor_def.get("rifts") or []
         if rifts:
             fd_lines.append(f"\n균열 ({len(rifts)}):")
@@ -303,6 +324,8 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         v2_block += (
             "층 본질 LLM 가이드 (★ 일상/대화/행동 영향):\n"
             "- 빛/어둠: 빛 없으면 가시거리 10m, 일부 몬스터 활성화 X\n"
+            "- 빛 자원 관리 (★ 11화): 횃불 3일/정령 10시간 한정,\n"
+            "  빛 활성 시 몬스터 등장 위험 ↑, 칼날늑대/레이스는 어둠도 활성\n"
             "- 영역별 몬스터: 노움은 남쪽, 칼날늑대/레이스는 동쪽 등\n"
             "- 비석 공동: 의도적 균열 진입 (★ 8등급 마석 공물 → 초록색 포탈)\n"
             "- 시간 한도: 168시간 (★ 1주, 1층 한정)\n"

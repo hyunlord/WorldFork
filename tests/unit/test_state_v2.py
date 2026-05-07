@@ -518,3 +518,63 @@ def test_floor1_definition_rifts_default_empty() -> None:
 
     f = Floor1Definition()
     assert f.rifts == ()
+
+
+# ─── Stage 4: LightSource (★ 2026-05-07) ───
+
+
+def test_light_source_torch() -> None:
+    from service.game.state_v2 import LightSource, LightSourceType
+
+    ls = LightSource(
+        name="횃불",
+        light_type=LightSourceType.TORCH,
+        duration_hours=72.0,
+        cooldown_hours=None,
+        radius_meters=10.0,
+        cost_stones=10000,
+        is_consumable=False,
+    )
+    assert ls.duration_hours == 72.0
+    assert ls.cost_stones == 10000
+
+
+def test_light_source_spirit_requires_faerie() -> None:
+    from service.game.state_v2 import LightSource, LightSourceType
+
+    ls = LightSource(
+        name="정령 등불",
+        light_type=LightSourceType.SPIRIT,
+        duration_hours=10.0,
+        cooldown_hours=2.0,
+        radius_meters=10.0,
+        cost_stones=0,
+        is_consumable=False,
+        requires_race="요정",
+    )
+    assert ls.requires_race == "요정"
+    assert ls.cooldown_hours == 2.0
+
+
+def test_light_source_flare_consumable() -> None:
+    from service.game.state_v2 import LightSource, LightSourceType
+
+    ls = LightSource(
+        name="조명탄",
+        light_type=LightSourceType.FLARE,
+        duration_hours=None,
+        cooldown_hours=None,
+        radius_meters=50.0,
+        cost_stones=0,
+        is_consumable=True,
+    )
+    assert ls.duration_hours is None
+    assert ls.is_consumable
+    assert ls.radius_meters == 50.0
+
+
+def test_floor1_definition_light_sources_default_empty() -> None:
+    from service.game.state_v2 import Floor1Definition
+
+    f = Floor1Definition()
+    assert f.light_sources == ()
