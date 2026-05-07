@@ -72,6 +72,29 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         )
 
     main_name = ctx["main_character_name"]
+
+    # ★ Tier 2 D12: v2_characters 진짜 사용 (★ Made But Never Used 차단)
+    # build_game_context()가 제공하는 v2 schema 정보를 prompt에 진짜 반영
+    v2_block = ""
+    v2_chars = ctx.get("v2_characters") or {}
+    if v2_chars:
+        v2_lines = []
+        for name, info in v2_chars.items():
+            parts = [f"  - {name}"]
+            race = info.get("race")
+            sub_race = info.get("sub_race")
+            if race:
+                if sub_race:
+                    parts.append(f"종족: {race}/{sub_race}")
+                else:
+                    parts.append(f"종족: {race}")
+            hp = info.get("hp")
+            hp_max = info.get("hp_max")
+            if hp is not None and hp_max:
+                parts.append(f"HP: {hp}/{hp_max}")
+            v2_lines.append(", ".join(parts))
+        v2_block = "캐릭터 스탯 (★ 작품 본질):\n" + "\n".join(v2_lines) + "\n\n"
+
     return (
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"
@@ -82,6 +105,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         f"등장 인물:\n"
         f"- 주인공: {main_name} ({ctx['main_character_role']})\n"
         f"{supporting_line}\n"
+        f"{v2_block}"
         f"현재 위치: {ctx['current_location']}\n"
         f"현재 턴: {ctx['current_turn']}\n\n"
         f"스타일 규칙:\n"
