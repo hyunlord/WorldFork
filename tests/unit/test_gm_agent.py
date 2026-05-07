@@ -357,3 +357,76 @@ class TestGMPromptFindings:
         prompt = GMAgent._build_user_prompt(state, "1")
         assert "결과" in prompt and "반영" in prompt
         assert "단순 반복" in prompt
+
+
+class TestGMPromptV2Stats:
+    """v2 스탯 진짜 prompt 노출 (★ Layer 4 본질, 2026-05-07).
+
+    state_v2 일반 30+ + 특이 5가 _gm_system_prompt에서 진짜 출력되는지 검증.
+    Made But Never Used 차단 진짜.
+    """
+
+    @staticmethod
+    def _ctx_with_v2(name: str = "에르웬") -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": name,
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_characters": {
+                name: {
+                    "race": "요정",
+                    "sub_race": None,
+                    "physical": 8, "mental": 12, "special": 14,
+                    "strength": 8, "agility": 12, "flexibility": 12,
+                    "height": 165, "weight": 50,
+                    "hp": 90, "hp_max": 90,
+                    "soul_power": 60, "soul_power_max": 60,
+                    "obsession": 80,
+                    "sixth_sense": 8,
+                    "support_rating": 0,
+                    "perception_interference": 0,
+                    "essence_slot_max": 5,
+                    "is_player": True,
+                }
+            },
+        }
+
+    def test_v2_stats_in_prompt(self) -> None:
+        """v2 character + 일반 + 특이 진짜 prompt에 나타남."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_with_v2())
+        assert "에르웬" in prompt
+        assert "요정" in prompt
+        # 메인 3대
+        assert "이능 14" in prompt or "이능" in prompt
+        # 1티어
+        assert "민첩 12" in prompt or "근력 8" in prompt
+        # 신체
+        assert "165" in prompt
+        # ★ 특이 스탯 진짜
+        assert "집착 80" in prompt
+        assert "육감 8" in prompt
+        # 0인 특이는 출력 X
+        assert "지지도 0" not in prompt
+        assert "인식방해 0" not in prompt
+        # ★ 본인 가이드 라인
+        assert "특이 스탯은 일상/대화/행동" in prompt
+        assert "강박적 추적" in prompt or "거짓말 감지" in prompt
+
+    def test_v2_no_chars_no_block(self) -> None:
+        """v2_characters X면 v2 block 출력 X (★ 호환)."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        ctx = self._ctx_with_v2()
+        del ctx["v2_characters"]
+        prompt = _gm_system_prompt(ctx)
+        assert "캐릭터 스탯" not in prompt
+        assert "특이 스탯은 일상/대화/행동" not in prompt

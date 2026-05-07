@@ -281,6 +281,39 @@ def test_layer_lord_essence_slot() -> None:
     assert c.layer_lord_essence is layer
 
 
+def test_character_general_stats_default() -> None:
+    """일반 세부 스탯 30+ 기본값 (★ 2차 보강)."""
+    c = Character(name="X", race=Race.HUMAN)
+    assert c.strength == 10
+    assert c.agility == 10
+    assert c.flexibility == 10
+    assert c.bone_strength == 10
+    assert c.fighting_spirit == 10
+    assert c.height == 170  # ★ 인간 기본
+    assert c.weight == 70
+    assert c.magic_resistance == 10
+
+
+def test_character_special_stats_default() -> None:
+    """특이 스탯 5 기본값 (★ 본인 짚은 본질)."""
+    c = Character(name="X", race=Race.HUMAN)
+    assert c.obsession == 0
+    assert c.sixth_sense == 0
+    assert c.support_rating == 0
+    assert c.perception_interference == 0
+
+
+def test_character_special_stats_settable() -> None:
+    """특이 스탯 게임 진행 중 변경 가능 (★ mutable)."""
+    c = Character(name="에르웬", race=Race.FAERIE)
+    c.obsession = 80  # ★ 얀데레 발현
+    c.sixth_sense = 35
+    c.support_rating = 50
+    assert c.obsession == 80
+    assert c.sixth_sense == 35
+    assert c.support_rating == 50
+
+
 def test_layer_lord_only_one() -> None:
     c = Character(name="X", race=Race.HUMAN)
     layer1 = Essence(

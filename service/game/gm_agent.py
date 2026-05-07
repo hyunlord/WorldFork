@@ -74,26 +74,58 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
     main_name = ctx["main_character_name"]
 
     # ★ Tier 2 D12: v2_characters 진짜 사용 (★ Made But Never Used 차단)
-    # build_game_context()가 제공하는 v2 schema 정보를 prompt에 진짜 반영
+    # 일반 30+ + 특이 5 → prompt에 진짜 노출 (★ Layer 4 본질, 2026-05-07)
     v2_block = ""
     v2_chars = ctx.get("v2_characters") or {}
     if v2_chars:
         v2_lines = []
         for name, info in v2_chars.items():
-            parts = [f"  - {name}"]
-            race = info.get("race")
+            race = info.get("race", "")
             sub_race = info.get("sub_race")
-            if race:
-                if sub_race:
-                    parts.append(f"종족: {race}/{sub_race}")
-                else:
-                    parts.append(f"종족: {race}")
-            hp = info.get("hp")
-            hp_max = info.get("hp_max")
-            if hp is not None and hp_max:
-                parts.append(f"HP: {hp}/{hp_max}")
-            v2_lines.append(", ".join(parts))
-        v2_block = "캐릭터 스탯 (★ 작품 본질):\n" + "\n".join(v2_lines) + "\n\n"
+            race_str = f"{race}/{sub_race}" if sub_race else race
+            hp = info.get("hp", 0)
+            hp_max = info.get("hp_max", 0)
+            soul = info.get("soul_power", 0)
+            height = info.get("height", 0)
+
+            line = f"  - **{name}** ({race_str})"
+            line += f": HP {hp}/{hp_max}, 영혼력 {soul}, 신장 {height}cm"
+            line += (
+                f", 메인 [육체 {info.get('physical', 0)} "
+                f"정신 {info.get('mental', 0)} 이능 {info.get('special', 0)}]"
+            )
+            line += (
+                f", 1티어 [근력 {info.get('strength', 0)} "
+                f"민첩 {info.get('agility', 0)} "
+                f"유연성 {info.get('flexibility', 0)}]"
+            )
+
+            # ★ 특이 스탯 — 0 초과만 노출 (★ 일상/대화/행동 영향)
+            specials: list[str] = []
+            if (v := info.get("obsession", 0)) > 0:
+                specials.append(f"집착 {v}")
+            if (v := info.get("sixth_sense", 0)) > 0:
+                specials.append(f"육감 {v}")
+            if (v := info.get("support_rating", 0)) > 0:
+                specials.append(f"지지도 {v}")
+            if (v := info.get("perception_interference", 0)) > 0:
+                specials.append(f"인식방해 {v}")
+            if specials:
+                line += f", 특이 [{', '.join(specials)}]"
+
+            line += f", 정수슬롯 {info.get('essence_slot_max', 5)}"
+            v2_lines.append(line)
+
+        v2_block = (
+            "캐릭터 스탯 (★ 작품 본질):\n"
+            + "\n".join(v2_lines)
+            + "\n\n"
+            "특이 스탯은 일상/대화/행동 본질에 영향:\n"
+            "- 집착: 강박적 추적, 두려움/매료 발산\n"
+            "- 육감: 거짓말 감지, 위험 직감, 함정 직감\n"
+            "- 지지도: 우두머리 권위, 명령 수행률, 부족 충성도\n"
+            "- 인식방해: 빙의 정체 은폐, 현대 지식 발설해도 NPC 인지 왜곡\n\n"
+        )
 
     return (
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"

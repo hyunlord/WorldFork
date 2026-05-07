@@ -9,6 +9,7 @@ from __future__ import annotations
 from service.game.init_from_plan import (
     _detect_race_from_plan,
     _detect_sub_race_from_plan,
+    _race_base_stats,
     build_game_context,
     init_game_state_from_plan,
     init_v2_characters_from_plan,
@@ -137,6 +138,61 @@ def test_init_v2_characters_from_plan_main_and_supporting() -> None:
     assert v2["이름없음"].race == Race.HUMAN  # fallback
 
 
+# ─── _race_base_stats (★ 2차 보강) ───
+
+
+def test_race_base_stats_barbarian() -> None:
+    """바바리안: 신체 강력 (★ 평균 2m 10cm, HP 150)."""
+    base = _race_base_stats(Race.BARBARIAN)
+    assert base["height"] == 210
+    assert base["strength"] == 16
+    assert base["mental"] == 14
+    assert base["hp"] == 150
+
+
+def test_race_base_stats_beastkin() -> None:
+    """수인: 민첩 + 육감 ↑."""
+    base = _race_base_stats(Race.BEASTKIN)
+    assert base["agility"] >= 12
+    assert base["sixth_sense"] >= 10
+
+
+def test_race_base_stats_faerie() -> None:
+    """요정: 마법 ↑ (★ special 14, soul_power 60)."""
+    base = _race_base_stats(Race.FAERIE)
+    assert base["special"] == 14
+    assert base["soul_power"] == 60
+
+
+def test_race_base_stats_human_default() -> None:
+    """인간 기본 (★ 170cm 70kg)."""
+    base = _race_base_stats(Race.HUMAN)
+    assert base["height"] == 170
+    assert base["weight"] == 70
+    assert base["physical"] == 10
+
+
+def test_plan_character_to_v2_barbarian_full_stats() -> None:
+    """바바리안 변환 시 base 진짜 적용."""
+    cp = CharacterPlan(
+        name="비요른", role="바바리안 부족장", description="주인공"
+    )
+    v2 = plan_character_to_v2(cp)
+    assert v2.race == Race.BARBARIAN
+    assert v2.height == 210
+    assert v2.strength == 16
+    assert v2.hp == 150
+    assert v2.hp_max == 150
+
+
+def test_plan_character_to_v2_beastkin_sixth_sense() -> None:
+    """수인 변환 시 sixth_sense 10."""
+    cp = CharacterPlan(name="미샤", role="적묘족 수인", description="동료")
+    v2 = plan_character_to_v2(cp)
+    assert v2.sixth_sense == 10
+    assert v2.agility == 14
+
+
 # ─── build_game_context — v2_characters 진짜 포함 ───
 
 
@@ -151,5 +207,27 @@ def test_build_game_context_includes_v2_characters() -> None:
     assert "투르윈" in v2c
     assert v2c["투르윈"]["race"] == "바바리안"
     assert v2c["투르윈"]["essence_slot_max"] == 5
-    assert v2c["투르윈"]["hp"] == 100
+    assert v2c["투르윈"]["hp"] == 150  # ★ 바바리안 HP
     assert v2c["미샤"]["sub_race"] == "적묘족"
+
+
+def test_build_game_context_includes_general_and_special_stats() -> None:
+    """★ 일반 30+ + 특이 5 진짜 노출 (★ Layer 4 본질)."""
+    plan = _make_barbarian_plan()
+    state = init_game_state_from_plan(plan)
+    ctx = build_game_context(plan, state)
+
+    v2c = ctx["v2_characters"]
+    bar = v2c["투르윈"]
+    # 1티어
+    assert bar["strength"] == 16
+    assert bar["agility"] == 10
+    assert bar["flexibility"] == 8
+    # 신체
+    assert bar["height"] == 210
+    assert bar["weight"] == 110
+    # 특이 스탯 진짜 dict에 (★ 0 시작)
+    assert bar["obsession"] == 0
+    assert bar["sixth_sense"] == 5  # ★ 바바리안 base 5
+    assert bar["support_rating"] == 0
+    assert bar["perception_interference"] == 0

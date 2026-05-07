@@ -120,11 +120,78 @@ def _detect_sub_race_from_plan(role: str) -> BeastkinTribe | None:
     return None
 
 
+def _race_base_stats(race: Race) -> dict[str, int]:
+    """종족별 기본 스탯 (★ 1차 자료 본질).
+
+    바바리안: 신체 강력 (★ 평균 2m 10cm), 멘탈 강함
+    수인: 민첩 + 감각 ↑, 육감 예민
+    드워프: 골강도 ↑, 체구 작음
+    요정: 마법 ↑
+    용인족: 전반 ↑
+    인간: 평균 (★ 170cm 70kg).
+
+    Returns: 종족별 기본값 dict (★ 메인 3대 + 1티어 + 신체 + 자원 + 육감).
+    """
+    if race == Race.BARBARIAN:
+        return {
+            "physical": 14, "mental": 14, "special": 8,
+            "strength": 16, "agility": 10, "flexibility": 8,
+            "height": 210, "weight": 110,
+            "hp": 150, "soul_power": 30,
+            "sixth_sense": 5,
+        }
+    if race == Race.BEASTKIN:
+        return {
+            "physical": 12, "mental": 10, "special": 10,
+            "strength": 12, "agility": 14, "flexibility": 12,
+            "height": 175, "weight": 65,
+            "hp": 110, "soul_power": 40,
+            "sixth_sense": 10,
+        }
+    if race == Race.DWARF:
+        return {
+            "physical": 13, "mental": 11, "special": 9,
+            "strength": 13, "agility": 9, "flexibility": 9,
+            "height": 140, "weight": 70,
+            "hp": 130, "soul_power": 30,
+            "sixth_sense": 5,
+        }
+    if race == Race.FAERIE:
+        return {
+            "physical": 8, "mental": 12, "special": 14,
+            "strength": 8, "agility": 12, "flexibility": 12,
+            "height": 165, "weight": 50,
+            "hp": 90, "soul_power": 60,
+            "sixth_sense": 8,
+        }
+    if race == Race.DRAGONKIN:
+        return {
+            "physical": 14, "mental": 12, "special": 14,
+            "strength": 14, "agility": 12, "flexibility": 12,
+            "height": 185, "weight": 90,
+            "hp": 140, "soul_power": 50,
+            "sixth_sense": 10,
+        }
+    # HUMAN (기본)
+    return {
+        "physical": 10, "mental": 10, "special": 10,
+        "strength": 10, "agility": 10, "flexibility": 10,
+        "height": 170, "weight": 70,
+        "hp": 100, "soul_power": 30,
+        "sixth_sense": 0,
+    }
+
+
 def plan_character_to_v2(cp: CharacterPlan) -> CharacterV2:
     """CharacterPlan → CharacterV2 (★ 진짜 service 통합).
 
-    메인 3대 + 종족 + 기본 자원 채움.
-    일반 세부 스탯 30+ / 특이 스탯 5는 다음 commit (2차 schema 보강).
+    종족별 기본값 적응 (★ ROADMAP V2 1차 자료 본질):
+    - 바바리안: 신체 강력 (★ 평균 2m 10cm)
+    - 수인: 민첩 + 감각 + sixth_sense
+    - 드워프: 골강도 + 체구 작음
+    - 요정: 마법 ↑
+    - 용인족: 전반 ↑
+    - 인간: 평균
     """
     race = _detect_race_from_plan(cp.role) or Race.HUMAN
     sub_race = (
@@ -133,18 +200,26 @@ def plan_character_to_v2(cp: CharacterPlan) -> CharacterV2:
         else None
     )
 
+    base = _race_base_stats(race)
+
     return CharacterV2(
         name=cp.name,
         race=race,
         sub_race=sub_race,
         is_player=(cp.role == "주인공"),
-        physical=10,
-        mental=10,
-        special=10,
-        hp=100,
-        hp_max=100,
-        soul_power=0,
-        soul_power_max=0,
+        physical=base["physical"],
+        mental=base["mental"],
+        special=base["special"],
+        strength=base["strength"],
+        agility=base["agility"],
+        flexibility=base["flexibility"],
+        height=base["height"],
+        weight=base["weight"],
+        hp=base["hp"],
+        hp_max=base["hp"],
+        soul_power=base["soul_power"],
+        soul_power_max=base["soul_power"],
+        sixth_sense=base["sixth_sense"],
     )
 
 
@@ -186,15 +261,33 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
         "language": "ko",
         "character_response": True,
         # ★ v2 schema 진짜 통합 (★ Made But Never Used 차단)
+        # 일반 30+ + 특이 5 → prompt에 진짜 노출 (Layer 4 본질)
         "v2_characters": {
             name: {
                 "race": c.race.value,
                 "sub_race": c.sub_race.value if c.sub_race else None,
+                # 메인 3대
                 "physical": c.physical,
                 "mental": c.mental,
                 "special": c.special,
+                # 1티어
+                "strength": c.strength,
+                "agility": c.agility,
+                "flexibility": c.flexibility,
+                # 신체
+                "height": c.height,
+                "weight": c.weight,
+                # 자원
                 "hp": c.hp,
                 "hp_max": c.hp_max,
+                "soul_power": c.soul_power,
+                "soul_power_max": c.soul_power_max,
+                # ★ 특이 스탯 (★ 본인 짚은 본질)
+                "obsession": c.obsession,
+                "sixth_sense": c.sixth_sense,
+                "support_rating": c.support_rating,
+                "perception_interference": c.perception_interference,
+                # 슬롯
                 "essence_slot_max": c.essence_slot_max(),
                 "is_player": c.is_player,
             }

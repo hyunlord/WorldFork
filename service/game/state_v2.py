@@ -273,9 +273,13 @@ class Character:
     - 정수 슬롯 + 계층군주 정수
     - 인벤토리/장비
 
+    2차 commit (★ 본 단계, 2026-05-07):
+    - 일반 세부 스탯 30+ (★ 1티어 + 감각 + 방어 + 행운/기술 + 신체)
+    - 마법/저항
+    - 특이 스탯 5개 (★ 본인 짚은 본질 — 일상/대화/행동 영향)
+
     다음 commit:
-    - 2차: 일반 세부 스탯 30+ + 특이 5
-    - 3차: 위치 (Location)
+    - 3차: 위치 (Location), World, GameState 통합
     """
 
     # 기본
@@ -291,6 +295,57 @@ class Character:
     physical: int = 10
     mental: int = 10
     special: int = 10
+
+    # ─── 일반 1티어 ───
+    strength: int = 10  # 근력 (데미지 + 무게 한계)
+    agility: int = 10  # 민첩 (이속 + 동체시력 + 반사신경)
+    flexibility: int = 10  # 유연성 (회피 + 곡예 + 추락 흡수)
+
+    # ─── 감각 ───
+    sight: int = 10  # 시각
+    smell: int = 10  # 후각
+    hearing: int = 10  # 청각
+    cognitive_speed: int = 10  # 인지력 (불릿 타임)
+    accuracy: int = 10  # 명중률
+    evasion: int = 10  # 회피율
+    jump_power: int = 10  # 도약력
+
+    # ─── 방어 ───
+    bone_strength: int = 10  # 골강도 (베기/타격 감쇄)
+    bone_density: int = 10  # 골밀도
+    physical_resistance: int = 10  # 물리내성
+    durability: int = 10  # 내구력
+    pain_resistance: int = 10  # 고통저항
+    poison_resistance: int = 10
+    fire_resistance: int = 10
+    cold_resistance: int = 10
+    lightning_resistance: int = 10
+    dark_resistance: int = 10
+
+    # ─── 행운/기술 ───
+    luck: int = 10  # 행운 (드롭률 + 크리)
+    dexterity: int = 10  # 손재주
+    cutting_power: int = 10  # 절삭력
+    fighting_spirit: int = 10  # 투쟁심
+    endurance: int = 10  # 인내심
+    stamina: int = 10  # 지구력
+
+    # ─── 신체 ───
+    height: int = 170  # 신장 cm (★ 1차 자료: 인간 평균 170)
+    weight: int = 70  # 체중 kg
+    regen_rate: int = 10  # 재생력
+    natural_regen: int = 10  # 자연재생력 (★ 5000+ 사실상 불사)
+
+    # ─── 마법/저항 ───
+    magic_resistance: int = 10  # 항마력 (★ 400+ 제압면역, 1500+ 마법면역)
+    mental_power: int = 10  # 정신력 (정신계 마법/상태이상 저항)
+
+    # ─── ★ 특이 스탯 (본인 짚은 본질 — 일상/대화/행동 영향) ───
+    obsession: int = 0  # 집착 (★ 정신 산하, 미스터리, 맹목적 욕구)
+    sixth_sense: int = 0  # 육감 (★ 0~50 시작, 위험 감지)
+    support_rating: int = 0  # 지지도 (★ 우두머리 시 통솔력/부족 스킬)
+    perception_interference: int = 0  # 인식방해 (★ 빙의 정체 은폐)
+    # cognitive_speed는 일반 감각에 이미 포함 (★ 인지력)
 
     # 자원
     hp: int = 100
