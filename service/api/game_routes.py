@@ -25,8 +25,13 @@ from service.api.models import (
 )
 from service.game.game_loop import GameLoop
 from service.game.gm_agent import GMAgent
-from service.game.init_from_plan import init_game_state_from_plan
+from service.game.init_from_plan import (
+    init_game_state_from_plan,
+    init_v2_characters_from_plan,
+    init_world_state_from_plan,
+)
 from service.game.state import GameState
+from service.game.turn_handler_v2 import advance_time
 from service.pipeline.types import CharacterPlan, Plan, WorldSetting
 
 router = APIRouter()
@@ -77,10 +82,16 @@ async def start_game(request: StartGameRequest) -> StartGameResponse:
     plan = _make_default_plan()
     state = init_game_state_from_plan(plan)
 
+    # ★ Tier 2 D12: state_v2 진짜 production track (★ turn_handler_v2 mutate 대상)
+    v2_chars = init_v2_characters_from_plan(plan)
+    v2_world = init_world_state_from_plan(plan)
+
     # 세션 저장 (★ in-memory)
     _sessions[session_id] = {
         "plan": plan,
         "state": state,
+        "v2_chars": v2_chars,
+        "v2_world": v2_world,
     }
 
     return StartGameResponse(
@@ -127,6 +138,15 @@ async def process_turn(request: TurnRequest) -> TurnResponse:
         loop = GameLoop(gm)
 
         result = loop.process_action(plan, state, request.user_action)
+
+        # ★ Tier 2 D12: turn_handler_v2 진짜 production mutate
+        # 성공 턴 시 1시간 미궁 시간 진행 (★ 빛 자원 소진 + cooldown 회복)
+        if result.verify_passed:
+            advance_time(
+                list(session["v2_chars"].values()),
+                session["v2_world"],
+                elapsed_hours=1.0,
+            )
 
         # 잘림 검출 (★ Mechanical 결과 활용)
         truncated = any(

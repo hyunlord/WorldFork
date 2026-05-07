@@ -50,6 +50,22 @@ class TestGameRoutes:
         assert state_resp.status_code == 200
         assert state_resp.json()["turn"] == 0
 
+    def test_start_initializes_v2_session_state(
+        self, client: TestClient
+    ) -> None:
+        """★ Tier 2 D12: /start가 v2 schema 진짜 production track."""
+        from service.api.game_routes import _sessions
+
+        start_resp = client.post("/game/start", json={})
+        session_id = start_resp.json()["session_id"]
+
+        session = _sessions[session_id]
+        assert "v2_chars" in session
+        assert "v2_world" in session
+        assert session["v2_world"].hours_in_dungeon == 0
+        # 주인공 진짜 v2 character로 등록
+        assert "용감한 모험가" in session["v2_chars"]
+
 
 class TestStaticFiles:
     """정적 파일 라우트 (★ Tier 2 D8)."""

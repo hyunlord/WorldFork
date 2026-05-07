@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum, StrEnum
-from typing import ClassVar
 
 # ─── Enum 본질 ───
 
@@ -504,17 +503,6 @@ class Character:
             self.essences.append(essence)
         return True
 
-    def consume_essence_at_position(
-        self, essence: Essence, can_reach: bool
-    ) -> bool:
-        """살이 닿은 정수 흡수 (★ 13/14화 본문 — 살이 닿으면 자동).
-
-        can_reach=False면 거리 미달 → 흡수 X.
-        """
-        if not can_reach:
-            return False
-        return self.absorb_essence(essence)
-
 
 # ─── Location / WorldState (★ Stage 1, 2026-05-07) ───
 
@@ -566,30 +554,6 @@ class WorldState:
 
     # ★ Stage 7: 동적 현상금 (약탈자 PvP 진행 중 발령/해제)
     active_bounties: list[BountyEntry] = field(default_factory=list)
-
-
-# ─── Stage 7+: FloatingEssence (★ 13/14화 본문 — 30분 자연 소멸) ───
-
-
-@dataclass(frozen=True, slots=True)
-class FloatingEssence:
-    """미궁에 남은 정수 (★ 13/14화 본문, 살이 닿으면 흡수, 30분 후 자연 소멸).
-
-    spawned_at_hours = 등장 시점 (★ WorldState.hours_in_dungeon 기준).
-    분 단위 미궁 시계는 turn_handler 호출 시 current_minutes로 별도 전달.
-    """
-
-    DECAY_MINUTES: ClassVar[int] = 30  # ★ 본문 30분 자연 소멸
-
-    essence: Essence
-    spawned_at_hours: int
-    location_sub_area: str
-
-    def is_decayed(self, current_hours: int, current_minutes: int) -> bool:
-        """현재 미궁 시계 (hour, minute)에 자연 소멸 여부."""
-        spawned_total_min = self.spawned_at_hours * 60
-        current_total_min = current_hours * 60 + current_minutes
-        return current_total_min - spawned_total_min >= self.DECAY_MINUTES
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
