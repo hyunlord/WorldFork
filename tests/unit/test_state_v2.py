@@ -18,9 +18,12 @@ from service.game.state_v2 import (
     Inventory,
     Item,
     ItemCategory,
+    Location,
     Race,
+    Realm,
     Skill,
     SkillType,
+    WorldState,
 )
 
 # ─── Skill ───
@@ -336,3 +339,73 @@ def test_layer_lord_only_one() -> None:
     )
     assert c.absorb_essence(layer1) is True
     assert c.absorb_essence(layer2) is False  # 1캐릭 1개 한정
+
+
+# ─── Realm / Location / WorldState (★ Stage 1, 2026-05-07) ───
+
+
+def test_realm_enum() -> None:
+    assert Realm.DUNGEON.value == "미궁"
+    assert Realm.RIFT.value == "균열"
+    assert Realm.HIDDEN_FIELD.value == "히든 필드"
+    assert Realm.UNDERGROUND.value == "지하"
+    assert Realm.CITY.value == "도시"
+    assert Realm.WILDERNESS.value == "야외"
+
+
+def test_location_default_dark() -> None:
+    """1층 어둠 기본 가시거리 10m (★ 1차 자료)."""
+    loc = Location(realm=Realm.DUNGEON, floor=1)
+    assert loc.visibility_meters == 10
+    assert not loc.has_light
+
+
+def test_location_with_light() -> None:
+    loc = Location(
+        realm=Realm.DUNGEON,
+        floor=1,
+        sub_area="수정동굴 북쪽",
+        visibility_meters=50,
+        has_light=True,
+    )
+    assert loc.has_light
+    assert loc.sub_area == "수정동굴 북쪽"
+
+
+def test_location_rift() -> None:
+    loc = Location(
+        realm=Realm.RIFT,
+        floor=1,
+        rift_id="bloody_castle",
+    )
+    assert loc.realm == Realm.RIFT
+    assert loc.rift_id == "bloody_castle"
+
+
+def test_world_state_default() -> None:
+    ws = WorldState()
+    assert ws.current_round == 1
+    assert ws.hours_in_dungeon == 0
+    assert ws.is_dark_zone  # ★ 1층 기본
+    assert not ws.is_dimension_collapse
+
+
+def test_world_state_with_party() -> None:
+    ws = WorldState(
+        current_round=5,
+        hours_in_dungeon=72,
+        party_members=["비요른", "에르웬"],
+        party_share_ratios={"비요른": 0.9, "에르웬": 0.1},
+    )
+    assert "비요른" in ws.party_members
+    assert ws.party_share_ratios["비요른"] == 0.9
+
+
+def test_world_state_dimension_collapse() -> None:
+    ws = WorldState(is_dimension_collapse=True)
+    assert ws.is_dimension_collapse
+
+
+def test_world_state_active_rifts() -> None:
+    ws = WorldState(active_rifts=["bloody_castle", "glacier_cave"])
+    assert len(ws.active_rifts) == 2

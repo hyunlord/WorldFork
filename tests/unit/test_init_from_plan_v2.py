@@ -7,15 +7,19 @@
 from __future__ import annotations
 
 from service.game.init_from_plan import (
+    _detect_initial_floor_from_plan,
+    _detect_initial_realm_from_plan,
     _detect_race_from_plan,
     _detect_sub_race_from_plan,
     _race_base_stats,
     build_game_context,
     init_game_state_from_plan,
+    init_initial_location_from_plan,
     init_v2_characters_from_plan,
+    init_world_state_from_plan,
     plan_character_to_v2,
 )
-from service.game.state_v2 import BeastkinTribe, Race
+from service.game.state_v2 import BeastkinTribe, Race, Realm
 from service.pipeline.types import CharacterPlan, Plan, WorldSetting
 
 
@@ -231,3 +235,117 @@ def test_build_game_context_includes_general_and_special_stats() -> None:
     assert bar["sixth_sense"] == 5  # ★ 바바리안 base 5
     assert bar["support_rating"] == 0
     assert bar["perception_interference"] == 0
+
+
+# ─── Stage 1: Realm / Location / WorldState (★ 2026-05-07) ───
+
+
+def _make_dungeon_plan(opening: str = "1층 미궁") -> Plan:
+    return Plan(
+        work_name="dungeon_test",
+        work_genre="판타지",
+        main_character=CharacterPlan(
+            name="비요른", role="바바리안 부족장", description="주인공"
+        ),
+        supporting_characters=[
+            CharacterPlan(name="에르웬", role="요정 동료", description="동료"),
+        ],
+        world=WorldSetting(
+            setting_name="라스카니아",
+            genre="판타지",
+            tone="진지",
+            rules=["미궁 존재"],
+        ),
+        opening_scene=opening,
+        initial_choices=["진입"],
+        ip_masking_applied=True,
+    )
+
+
+def test_detect_realm_dungeon() -> None:
+    plan = _make_dungeon_plan("비요른은 미궁 1층 동굴에서 깨어난다")
+    assert _detect_initial_realm_from_plan(plan) == Realm.DUNGEON
+
+
+def test_detect_realm_city() -> None:
+    plan = _make_dungeon_plan("라프도니아 도시 광장에서 출발한다")
+    assert _detect_initial_realm_from_plan(plan) == Realm.CITY
+
+
+def test_detect_realm_rift() -> None:
+    plan = _make_dungeon_plan("균열 입구에 들어선다")
+    assert _detect_initial_realm_from_plan(plan) == Realm.RIFT
+
+
+def test_detect_initial_floor() -> None:
+    plan = _make_dungeon_plan("3층 마녀의 숲에서")
+    assert _detect_initial_floor_from_plan(plan) == 3
+
+
+def test_detect_initial_floor_default_1() -> None:
+    plan = _make_dungeon_plan("미궁 진입")
+    assert _detect_initial_floor_from_plan(plan) == 1
+
+
+def test_init_world_state_dungeon_dark() -> None:
+    """1층 시작 시 is_dark_zone 진짜 True."""
+    plan = _make_dungeon_plan("1층 동굴에서 시작")
+    ws = init_world_state_from_plan(plan)
+    assert ws.is_dark_zone
+    assert "비요른" in ws.party_members
+    assert "에르웬" in ws.party_members
+
+
+def test_init_world_state_city_no_dark() -> None:
+    """도시 시작 시 is_dark_zone False."""
+    plan = _make_dungeon_plan("라프도니아 도시")
+    ws = init_world_state_from_plan(plan)
+    assert not ws.is_dark_zone
+
+
+def test_init_initial_location_dungeon_default_dark() -> None:
+    """미궁 시작 시 어둠 + 가시거리 10m."""
+    plan = _make_dungeon_plan("1층 미궁")
+    loc = init_initial_location_from_plan(plan)
+    assert loc.realm == Realm.DUNGEON
+    assert loc.floor == 1
+    assert not loc.has_light
+    assert loc.visibility_meters == 10
+
+
+def test_init_initial_location_city_with_light() -> None:
+    """도시 시작 시 빛 활성 + 가시거리 100m."""
+    plan = _make_dungeon_plan("라프도니아 도시 광장")
+    loc = init_initial_location_from_plan(plan)
+    assert loc.realm == Realm.CITY
+    assert loc.has_light
+    assert loc.visibility_meters == 100
+    assert loc.floor is None  # 도시는 층 X
+
+
+# ─── build_game_context — Stage 1 진짜 노출 ───
+
+
+def test_build_game_context_includes_world_state() -> None:
+    plan = _make_dungeon_plan("1층 미궁")
+    state = init_game_state_from_plan(plan)
+    ctx = build_game_context(plan, state)
+
+    assert "v2_world_state" in ctx
+    ws = ctx["v2_world_state"]
+    assert ws["current_round"] == 1
+    assert ws["is_dark_zone"]
+    assert "비요른" in ws["party_members"]
+
+
+def test_build_game_context_includes_initial_location() -> None:
+    plan = _make_dungeon_plan("1층 미궁")
+    state = init_game_state_from_plan(plan)
+    ctx = build_game_context(plan, state)
+
+    assert "v2_initial_location" in ctx
+    loc = ctx["v2_initial_location"]
+    assert loc["realm"] == "미궁"
+    assert loc["floor"] == 1
+    assert loc["visibility_meters"] == 10
+    assert not loc["has_light"]

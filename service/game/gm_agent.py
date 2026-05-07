@@ -170,6 +170,63 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             "- 인식방해: 빙의 정체 은폐, 현대 지식 발설해도 NPC 인지 왜곡\n\n"
         )
 
+    # ★ Stage 1 (2026-05-07): WorldState + Location 진짜 출력 (★ Layer 4 본질)
+    world_state = ctx.get("v2_world_state") or {}
+    if world_state:
+        ws_lines = ["게임 진행 상태 (★ 작품 본질):"]
+        ws_lines.append(
+            f"- 라운드: {world_state.get('current_round', 1)} "
+            "(★ 라프도니아 N번째 도전)"
+        )
+        ws_lines.append(
+            f"- 미궁 시간: {world_state.get('hours_in_dungeon', 0)}시간"
+        )
+        if world_state.get("is_dimension_collapse"):
+            ws_lines.append(
+                "- ★ 차원 붕괴 진행 중 (★ 100판 1번 재앙)"
+            )
+        if world_state.get("is_dark_zone"):
+            ws_lines.append(
+                "- ★ 어둠 영역: 빛 없으면 가시거리 10m, "
+                "몬스터 비활성화 가능"
+            )
+        if rifts := world_state.get("active_rifts"):
+            ws_lines.append(f"- 활성 균열: {', '.join(rifts)}")
+        if party := world_state.get("party_members"):
+            ws_lines.append(f"- 파티원: {', '.join(party)}")
+        if shares := world_state.get("party_share_ratios"):
+            shares_str = ", ".join(
+                f"{n} {int(r * 100)}%" for n, r in shares.items()
+            )
+            ws_lines.append(f"- 분배 룰: {shares_str}")
+        v2_block += "\n".join(ws_lines) + "\n\n"
+
+    loc = ctx.get("v2_initial_location") or {}
+    if loc:
+        loc_lines = ["시작 위치:"]
+        loc_lines.append(f"- 영역: {loc.get('realm', '')}")
+        if loc.get("floor"):
+            loc_lines.append(f"- 층: {loc['floor']}층")
+        if loc.get("sub_area"):
+            loc_lines.append(f"- 세부 위치: {loc['sub_area']}")
+        if loc.get("rift_id"):
+            loc_lines.append(f"- 균열 ID: {loc['rift_id']}")
+        loc_lines.append(
+            f"- 가시거리: {loc.get('visibility_meters', 10)}m "
+            "(★ 빛 없으면 10m)"
+        )
+        loc_lines.append(
+            f"- 빛: {'활성' if loc.get('has_light') else '비활성 (★ 어둠)'}"
+        )
+        v2_block += "\n".join(loc_lines) + "\n\n"
+        v2_block += (
+            "환경은 일상/대화/행동에 진짜 영향:\n"
+            "- 어둠: 빛 없이 시야 10m 한도, 몬스터 활성화 X (★ 빛 자원 필수)\n"
+            "- 균열: 미궁 속 미궁 (★ 추가 인원 무작위 진입 가능)\n"
+            "- 차원 붕괴: 진짜 재앙 (★ 100판 1번)\n"
+            "- 분배: 9:1 / 6:4 등 사전 합의\n\n"
+        )
+
     return (
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"

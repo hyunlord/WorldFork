@@ -13,7 +13,7 @@ from typing import Any
 from service.pipeline.types import CharacterPlan, Plan
 
 from .state import Character, GameState, PhaseProgress
-from .state_v2 import BeastkinTribe, Race
+from .state_v2 import BeastkinTribe, Location, Race, Realm, WorldState
 from .state_v2 import Character as CharacterV2
 
 
@@ -223,6 +223,82 @@ def plan_character_to_v2(cp: CharacterPlan) -> CharacterV2:
     )
 
 
+def _detect_initial_realm_from_plan(plan: Plan) -> Realm:
+    """Plan opening_scene → 초기 Realm 추정 (★ Stage 1).
+
+    예: 미궁/동굴/N층 → DUNGEON
+        도시/라프도니아/노아르크 → CITY
+        균열 → RIFT
+        지하 → UNDERGROUND
+    기본: DUNGEON (★ 작품 본질, 시작 시 미궁 진입).
+    """
+    scene = plan.opening_scene or ""
+    if "미궁" in scene or "동굴" in scene:
+        return Realm.DUNGEON
+    if any(f"{f}층" in scene for f in range(1, 11)):
+        return Realm.DUNGEON
+    if "도시" in scene or "라프도니아" in scene or "노아르크" in scene:
+        return Realm.CITY
+    if "균열" in scene:
+        return Realm.RIFT
+    if "지하" in scene:
+        return Realm.UNDERGROUND
+    return Realm.DUNGEON
+
+
+def _detect_initial_floor_from_plan(plan: Plan) -> int | None:
+    """Plan opening_scene → 초기 층 추정 (1-10)."""
+    scene = plan.opening_scene or ""
+    for f in range(1, 11):
+        if f"{f}층" in scene:
+            return f
+    return 1  # ★ 작품 시작 = 1층 진입
+
+
+def init_world_state_from_plan(plan: Plan) -> WorldState:
+    """Plan → 초기 WorldState (★ Stage 1).
+
+    - current_round 1
+    - is_dark_zone = True (★ DUNGEON일 때만)
+    - party_members = main + supporting
+    """
+    realm = _detect_initial_realm_from_plan(plan)
+    party = [plan.main_character.name]
+    for sc in plan.supporting_characters:
+        party.append(sc.name)
+
+    return WorldState(
+        current_round=1,
+        hours_in_dungeon=0,
+        is_dimension_collapse=False,
+        active_rifts=[],
+        is_dark_zone=(realm == Realm.DUNGEON),
+        party_members=party,
+        party_share_ratios={},
+    )
+
+
+def init_initial_location_from_plan(plan: Plan) -> Location:
+    """Plan → 초기 Location (★ Stage 1).
+
+    - 1차 자료: DUNGEON 시작 = 어둠 + 가시거리 10m
+    - CITY/UNDERGROUND = 빛 활성, 가시거리 100m
+    """
+    realm = _detect_initial_realm_from_plan(plan)
+    floor = _detect_initial_floor_from_plan(plan)
+
+    is_dungeon_like = realm in (Realm.DUNGEON, Realm.RIFT, Realm.HIDDEN_FIELD)
+    return Location(
+        realm=realm,
+        floor=floor if is_dungeon_like else None,
+        sub_area=None,
+        rift_id=None,
+        coords=None,
+        visibility_meters=10 if realm == Realm.DUNGEON else 100,
+        has_light=(realm != Realm.DUNGEON),
+    )
+
+
 def init_v2_characters_from_plan(plan: Plan) -> dict[str, CharacterV2]:
     """Plan → v2 Character dict (★ state_v2 진짜 사용).
 
@@ -240,8 +316,11 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
     """GM Agent용 Plan + State 컨텍스트.
 
     ★ Tier 2 D12: v2_characters 포함 (★ state_v2 진짜 service 사용).
+    ★ Stage 1 (2026-05-07): v2_world_state + v2_initial_location 진짜 포함.
     """
     v2_chars = init_v2_characters_from_plan(plan)
+    v2_world = init_world_state_from_plan(plan)
+    v2_loc = init_initial_location_from_plan(plan)
     return {
         "work_name": plan.work_name,
         "work_genre": plan.work_genre,
@@ -324,5 +403,24 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
                 "is_player": c.is_player,
             }
             for name, c in v2_chars.items()
+        },
+        # ★ Stage 1: WorldState 진짜 노출 (★ Layer 4 본질)
+        "v2_world_state": {
+            "current_round": v2_world.current_round,
+            "hours_in_dungeon": v2_world.hours_in_dungeon,
+            "is_dimension_collapse": v2_world.is_dimension_collapse,
+            "active_rifts": list(v2_world.active_rifts),
+            "is_dark_zone": v2_world.is_dark_zone,
+            "party_members": list(v2_world.party_members),
+            "party_share_ratios": dict(v2_world.party_share_ratios),
+        },
+        # ★ Stage 1: Location 진짜 노출
+        "v2_initial_location": {
+            "realm": v2_loc.realm.value,
+            "floor": v2_loc.floor,
+            "sub_area": v2_loc.sub_area,
+            "rift_id": v2_loc.rift_id,
+            "visibility_meters": v2_loc.visibility_meters,
+            "has_light": v2_loc.has_light,
         },
     }

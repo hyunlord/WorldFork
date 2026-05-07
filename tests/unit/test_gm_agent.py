@@ -430,3 +430,86 @@ class TestGMPromptV2Stats:
         prompt = _gm_system_prompt(ctx)
         assert "캐릭터 스탯" not in prompt
         assert "특이 스탯은 일상/대화/행동" not in prompt
+
+
+class TestGMPromptStage1WorldLocation:
+    """Stage 1 — WorldState + Location prompt 진짜 출력 검증.
+
+    Layer 4 본질: schema 추가 → context → prompt → LLM.
+    """
+
+    @staticmethod
+    def _ctx_stage1() -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": "비요른",
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_world_state": {
+                "current_round": 5,
+                "hours_in_dungeon": 72,
+                "is_dimension_collapse": False,
+                "active_rifts": ["bloody_castle"],
+                "is_dark_zone": True,
+                "party_members": ["비요른", "에르웬"],
+                "party_share_ratios": {"비요른": 0.9, "에르웬": 0.1},
+            },
+            "v2_initial_location": {
+                "realm": "미궁",
+                "floor": 1,
+                "sub_area": "수정동굴",
+                "rift_id": None,
+                "visibility_meters": 10,
+                "has_light": False,
+            },
+        }
+
+    def test_world_state_in_prompt(self) -> None:
+        """WorldState 필드 진짜 prompt 출력."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_stage1())
+        assert "라운드" in prompt
+        assert "5" in prompt
+        assert "72" in prompt or "미궁 시간" in prompt
+        # ★ 어둠 진짜 출력
+        assert "어둠" in prompt
+        # 균열
+        assert "bloody_castle" in prompt
+        # 파티
+        assert "비요른" in prompt
+        assert "에르웬" in prompt
+        # ★ 분배 (90% / 10%)
+        assert "90%" in prompt or "9:1" in prompt or "0.9" in prompt
+
+    def test_location_in_prompt(self) -> None:
+        """Location 필드 진짜 prompt 출력."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_stage1())
+        assert "시작 위치" in prompt
+        assert "미궁" in prompt
+        assert "1층" in prompt
+        assert "수정동굴" in prompt
+        # 가시거리 10m + 어둠
+        assert "10m" in prompt or "가시거리" in prompt
+        assert "비활성" in prompt or "어둠" in prompt
+        # ★ 본인 가이드
+        assert "환경은 일상/대화/행동에 진짜 영향" in prompt
+
+    def test_no_world_state_no_block(self) -> None:
+        """v2_world_state X면 block 출력 X."""
+        from service.game.gm_agent import _gm_system_prompt
+
+        ctx = self._ctx_stage1()
+        del ctx["v2_world_state"]
+        del ctx["v2_initial_location"]
+        prompt = _gm_system_prompt(ctx)
+        assert "게임 진행 상태" not in prompt
+        assert "시작 위치" not in prompt

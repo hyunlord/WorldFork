@@ -118,6 +118,17 @@ class ItemCategory(StrEnum):
     MAGIC_TOOL = "마도구"
 
 
+class Realm(StrEnum):
+    """게임 영역 (★ 작품 본질, V4 분석 결과)."""
+
+    DUNGEON = "미궁"  # 1-10층 일반
+    RIFT = "균열"  # 균열 차원 (★ 미궁 속 미궁)
+    HIDDEN_FIELD = "히든 필드"  # 라르카즈 / 불의 거울 등
+    UNDERGROUND = "지하"  # 지하 1층 (무지개섬 / 도서관섬)
+    CITY = "도시"  # 라프도니아 / 노아르크 / 카루이
+    WILDERNESS = "야외"  # 도시 외 야외
+
+
 # ─── Skill ───
 
 
@@ -413,3 +424,52 @@ class Character:
         else:
             self.essences.append(essence)
         return True
+
+
+# ─── Location / WorldState (★ Stage 1, 2026-05-07) ───
+
+
+@dataclass
+class Location:
+    """캐릭터 위치 + 환경.
+
+    1차 자료 본질 (★ V4 분석):
+    - 1층 = 어둠 기본 (★ 본문 11화 명시, 빛 없으면 가시거리 10m)
+    - 빛 있으면 몬스터 활성화
+    - 균열 = 별개 차원 (★ 27화 정의, 미궁 속 미궁)
+    """
+
+    realm: Realm
+    floor: int | None = None  # 1-10 (★ DUNGEON/RIFT/HIDDEN_FIELD)
+    sub_area: str | None = None  # "수정동굴 북쪽" / "비석 공동" 등
+    rift_id: str | None = None  # "bloody_castle" / "glacier_cave" 등
+    coords: tuple[int, int] | None = None  # 사이드뷰 좌표 (Tier 4)
+
+    # ★ 환경
+    visibility_meters: int = 10  # 가시거리 (★ 1차 자료 — 어둠 기본 10)
+    has_light: bool = False  # 빛 활성 (★ 횃불/정령/포탈)
+
+
+@dataclass
+class WorldState:
+    """게임 진행 상태 (★ 작품 본질, V4 분석).
+
+    - current_round: 라프도니아 차원광장 N번째 도전
+    - hours_in_dungeon: 1층 168시간 한도 (★ 1차 자료)
+    - is_dimension_collapse: 100판 1번 진짜 재앙
+    """
+
+    current_round: int = 1
+    hours_in_dungeon: int = 0
+    is_dimension_collapse: bool = False  # ★ 100판 1번 (1차 자료)
+
+    # ★ 균열 시스템
+    active_rifts: list[str] = field(default_factory=list)  # rift_id list
+
+    # ★ 환경 본질
+    is_dark_zone: bool = True  # ★ 1층 기본 True (어둠)
+
+    # ★ 파티 / 분배
+    party_members: list[str] = field(default_factory=list)  # CharacterV2 name
+    # "비요른": 0.9 등 (분배 비율)
+    party_share_ratios: dict[str, float] = field(default_factory=dict)
