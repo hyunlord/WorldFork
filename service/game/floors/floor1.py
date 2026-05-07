@@ -233,21 +233,5 @@ FLOOR1_DEFINITION = Floor1Definition(
 
 
 def get_floor1_definition() -> Floor1Definition:
-    """1층 풀 정의 진짜 반환."""
+    """1층 풀 정의 진짜 반환 (★ init_from_plan에서 사용)."""
     return FLOOR1_DEFINITION
-
-
-def get_monster_by_name(name: str) -> MonsterDef | None:
-    """1층 몬스터 이름으로 검색."""
-    for m in FLOOR1_MONSTERS:
-        if m.name == name:
-            return m
-    return None
-
-
-def get_sub_area_by_name(name: str) -> SubArea | None:
-    """sub_area 이름으로 검색."""
-    for sa in FLOOR1_SUB_AREAS:
-        if sa.name == name:
-            return sa
-    return None
