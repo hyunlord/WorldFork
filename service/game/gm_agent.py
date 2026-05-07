@@ -157,16 +157,6 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 line += f", 특이 [{', '.join(specials)}]"
 
             line += f", 정수슬롯 {info.get('essence_slot_max', 5)}"
-
-            # ★ Stage 7: 빛 자원 활성 시만 노출 (★ 1층 어둠 본질)
-            light_state = info.get("light_state") or {}
-            if light_state.get("has_active_light"):
-                src = light_state.get("active_source_name", "")
-                dur = light_state.get("remaining_duration_hours", 0.0)
-                line += f", 빛 [{src} {dur}h 남음]"
-                cd = light_state.get("cooldown_remaining_hours", 0.0)
-                if cd > 0.0:
-                    line += f" 회복 대기 {cd}h"
             v2_lines.append(line)
 
         v2_block = (
@@ -209,20 +199,6 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 f"{n} {int(r * 100)}%" for n, r in shares.items()
             )
             ws_lines.append(f"- 분배 룰: {shares_str}")
-        # ★ Stage 7: 동적 현상금 (PvP 진행 중)
-        if bounties := world_state.get("active_bounties"):
-            ws_lines.append(f"- 활성 현상금 ({len(bounties)}):")
-            for b in bounties:
-                target = b.get("target_name", "")
-                amount = b.get("amount_stones", 0)
-                issuer = b.get("issuer_name", "")
-                faction = b.get("issuer_faction")
-                cond = b.get("kill_condition", "")
-                fac_str = f"/{faction}" if faction else ""
-                ws_lines.append(
-                    f"  * {target}: {amount:,}스톤 "
-                    f"(발령 {issuer}{fac_str}, {cond})"
-                )
         v2_block += "\n".join(ws_lines) + "\n\n"
 
     loc = ctx.get("v2_initial_location") or {}
