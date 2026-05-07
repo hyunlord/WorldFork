@@ -633,6 +633,48 @@ class LightSource:
 
 
 @dataclass(frozen=True, slots=True)
+class MessageStoneSpec:
+    """메시지 스톤 마도구 정의 (★ 10화 본문).
+
+    1차 자료 + 본문:
+    - 반경 300m 통신
+    - 미리 공명시켜 둔 스톤끼리만 대화 가능
+    - 약탈자 집단의 정보 전달 핵심 도구
+    """
+
+    range_meters: int = 300  # ★ 10화 본문
+    requires_pre_resonance: bool = True  # ★ 미리 공명
+
+
+@dataclass(frozen=True, slots=True)
+class RaiderFaction:
+    """약탈자 집단 정의 (★ 본문 발견).
+
+    예: '수정 연합' (★ 10화 — 1층 주 무대).
+    """
+
+    name: str
+    primary_floors: tuple[int, ...] = ()  # 1층 등
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class BountyConfig:
+    """층 PvP / 현상금 시스템 (★ 1층).
+
+    1차 자료:
+    - 메시지 스톤 300m
+    - 약탈자 집단 활동 (수정 연합 등)
+    - 표준 1만 / 강화 2만 스톤 (★ 11화 본문)
+    """
+
+    message_stone: MessageStoneSpec = field(default_factory=MessageStoneSpec)
+    known_factions: tuple[RaiderFaction, ...] = ()
+    standard_bounty_stones: int = 10000  # ★ 11화 표준
+    escalated_bounty_stones: int = 20000  # ★ 11화 강화
+
+
+@dataclass(frozen=True, slots=True)
 class Floor1Definition:
     """1층 (수정동굴) 풀 정의 — 작품 본질.
 
@@ -653,3 +695,4 @@ class Floor1Definition:
     monsters: tuple[MonsterDef, ...] = ()
     rifts: tuple[RiftDef, ...] = ()
     light_sources: tuple[LightSource, ...] = ()
+    bounty_config: BountyConfig | None = None

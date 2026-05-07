@@ -434,3 +434,24 @@ def test_init_floor_definition_includes_light_sources() -> None:
         ls for ls in fd["light_sources"] if ls["name"] == "정령 등불"
     )
     assert spirit["requires_race"] == "요정"
+
+
+# ─── Stage 5: Bounty Config (★ 2026-05-08) ───
+
+
+def test_init_floor_definition_includes_bounty_config() -> None:
+    """1층 정의에 bounty_config 진짜 포함."""
+    plan = _make_dungeon_plan("1층 미궁")
+    from service.game.init_from_plan import init_floor_definition_from_plan
+
+    fd = init_floor_definition_from_plan(plan)
+    assert "bounty_config" in fd
+    bc = fd["bounty_config"]
+    assert bc is not None
+    assert bc["message_stone"]["range_meters"] == 300
+    assert bc["message_stone"]["requires_pre_resonance"]
+    assert bc["standard_bounty_stones"] == 10000
+    assert bc["escalated_bounty_stones"] == 20000
+    assert any(
+        fac["name"] == "수정 연합" for fac in bc["known_factions"]
+    )

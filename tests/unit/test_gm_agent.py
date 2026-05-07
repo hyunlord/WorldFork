@@ -764,3 +764,66 @@ class TestGMPromptStage4LightSources:
         # ★ 빛/어둠 가이드
         assert "빛 자원 관리" in prompt
         assert "칼날늑대/레이스" in prompt
+
+
+class TestGMPromptStage5BountyConfig:
+    """Stage 5 — PvP / 약탈자 prompt 진짜 출력 (★ Layer 4)."""
+
+    @staticmethod
+    def _ctx_with_bounty() -> dict[str, Any]:
+        return {
+            "work_name": "겜바바",
+            "work_genre": "판타지",
+            "world_setting": "라스카니아",
+            "world_tone": "진지",
+            "world_rules": ["미궁"],
+            "main_character_name": "비요른",
+            "main_character_role": "주인공",
+            "supporting_characters": [],
+            "current_location": "1층",
+            "current_turn": 0,
+            "v2_floor_definition": {
+                "name": "수정동굴",
+                "floor_number": 1,
+                "base_time_hours": 168,
+                "base_visibility_meters": 10,
+                "is_dark_default": True,
+                "sub_areas": [],
+                "monsters": [],
+                "rifts": [],
+                "light_sources": [],
+                "bounty_config": {
+                    "message_stone": {
+                        "range_meters": 300,
+                        "requires_pre_resonance": True,
+                    },
+                    "known_factions": [
+                        {
+                            "name": "수정 연합",
+                            "primary_floors": [1],
+                            "description": "1층 주 무대 약탈자",
+                        }
+                    ],
+                    "standard_bounty_stones": 10000,
+                    "escalated_bounty_stones": 20000,
+                },
+            },
+        }
+
+    def test_bounty_in_prompt(self) -> None:
+        from service.game.gm_agent import _gm_system_prompt
+
+        prompt = _gm_system_prompt(self._ctx_with_bounty())
+        assert "PvP" in prompt or "약탈자" in prompt
+        # 메시지 스톤
+        assert "메시지 스톤" in prompt
+        assert "300m" in prompt or "300" in prompt
+        assert "공명" in prompt
+        # 약탈자 집단
+        assert "수정 연합" in prompt
+        # 현상금
+        assert "10,000" in prompt
+        assert "20,000" in prompt
+        # 가이드
+        assert "PvP 본질" in prompt
+        assert "강탈" in prompt

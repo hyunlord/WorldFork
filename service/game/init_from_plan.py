@@ -355,6 +355,32 @@ def _floor_definition_dict_for(floor: int) -> dict[str, Any]:
             }
             for ls in f1.light_sources
         ],
+        "bounty_config": (
+            {
+                "message_stone": {
+                    "range_meters": f1.bounty_config.message_stone.range_meters,
+                    "requires_pre_resonance": (
+                        f1.bounty_config.message_stone.requires_pre_resonance
+                    ),
+                },
+                "known_factions": [
+                    {
+                        "name": fac.name,
+                        "primary_floors": list(fac.primary_floors),
+                        "description": fac.description,
+                    }
+                    for fac in f1.bounty_config.known_factions
+                ],
+                "standard_bounty_stones": (
+                    f1.bounty_config.standard_bounty_stones
+                ),
+                "escalated_bounty_stones": (
+                    f1.bounty_config.escalated_bounty_stones
+                ),
+            }
+            if f1.bounty_config is not None
+            else None
+        ),
     }
 
 

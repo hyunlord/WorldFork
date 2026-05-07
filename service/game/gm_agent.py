@@ -297,6 +297,36 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     line += f" — {race} 한정"
                 fd_lines.append(line)
 
+        bounty = floor_def.get("bounty_config")
+        if bounty:
+            fd_lines.append("\nPvP / 약탈자 시스템:")
+            ms = bounty.get("message_stone") or {}
+            if ms:
+                ms_line = (
+                    f"- 메시지 스톤: 반경 {ms.get('range_meters', 0)}m 통신"
+                )
+                if ms.get("requires_pre_resonance"):
+                    ms_line += " (★ 미리 공명 필수)"
+                fd_lines.append(ms_line)
+            factions = bounty.get("known_factions") or []
+            if factions:
+                fd_lines.append(f"- 알려진 약탈자 집단 ({len(factions)}):")
+                for fac in factions:
+                    fac_line = f"  - {fac.get('name', '')}"
+                    primary = fac.get("primary_floors") or []
+                    if primary:
+                        floors_str = ", ".join(f"{n}층" for n in primary)
+                        fac_line += f" ({floors_str} 주 무대)"
+                    if desc := fac.get("description"):
+                        fac_line += f": {desc}"
+                    fd_lines.append(fac_line)
+            std = bounty.get("standard_bounty_stones", 0)
+            esc = bounty.get("escalated_bounty_stones", 0)
+            if std and esc:
+                fd_lines.append(
+                    f"- 현상금: 표준 {std:,}스톤 → 강화 {esc:,}스톤"
+                )
+
         rifts = floor_def.get("rifts") or []
         if rifts:
             fd_lines.append(f"\n균열 ({len(rifts)}):")
@@ -333,7 +363,12 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             "  * 균열 = 미궁 속 미궁 (인스턴트 던전)\n"
             "  * 탈출: 수호자 처치 → 포탈\n"
             "  * 1-5층 균열 = 매번 리셋\n"
-            "  * 추가 인원 무작위 진입 가능 (★ 의도적 진입도 1층 전역 포탈)\n\n"
+            "  * 추가 인원 무작위 진입 가능 (★ 의도적 진입도 1층 전역 포탈)\n"
+            "- PvP 본질 (★ 10/11화):\n"
+            "  * 메시지 스톤으로 약탈자 정보 전달 (★ 위치/추적/현상금)\n"
+            "  * 약탈자 집단은 입막음/강탈/보복 목적\n"
+            "  * 정수 보이면 강탈 시도 위험 ↑\n"
+            "  * 위치 노출 시 즉각 이동 또는 대처\n\n"
         )
 
     return (

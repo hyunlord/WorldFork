@@ -27,6 +27,7 @@ from ..state_v2 import (
     SubArea,
 )
 from .floor1_light import FLOOR1_LIGHT_SOURCES
+from .floor1_pvp import FLOOR1_BOUNTY_CONFIG
 from .floor1_rifts import FLOOR1_RIFTS
 
 # ─── 1층 9등급 몬스터 (★ 7종) ───
@@ -233,6 +234,7 @@ FLOOR1_DEFINITION = Floor1Definition(
     monsters=FLOOR1_MONSTERS,
     rifts=FLOOR1_RIFTS,
     light_sources=FLOOR1_LIGHT_SOURCES,
+    bounty_config=FLOOR1_BOUNTY_CONFIG,
 )
 
 

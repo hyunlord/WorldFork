@@ -578,3 +578,42 @@ def test_floor1_definition_light_sources_default_empty() -> None:
 
     f = Floor1Definition()
     assert f.light_sources == ()
+
+
+# ─── Stage 5: PvP / Bounty (★ 2026-05-08) ───
+
+
+def test_message_stone_spec_default() -> None:
+    from service.game.state_v2 import MessageStoneSpec
+
+    ms = MessageStoneSpec()
+    assert ms.range_meters == 300
+    assert ms.requires_pre_resonance
+
+
+def test_raider_faction_basic() -> None:
+    from service.game.state_v2 import RaiderFaction
+
+    f = RaiderFaction(
+        name="수정 연합",
+        primary_floors=(1,),
+        description="1층 약탈자",
+    )
+    assert 1 in f.primary_floors
+
+
+def test_bounty_config_default() -> None:
+    from service.game.state_v2 import BountyConfig
+
+    bc = BountyConfig()
+    assert bc.message_stone.range_meters == 300
+    assert bc.standard_bounty_stones == 10000
+    assert bc.escalated_bounty_stones == 20000
+
+
+def test_floor1_definition_bounty_default_none() -> None:
+    """Floor1Definition.bounty_config 기본 None."""
+    from service.game.state_v2 import Floor1Definition
+
+    f = Floor1Definition()
+    assert f.bounty_config is None
