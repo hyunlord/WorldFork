@@ -276,7 +276,6 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     line += f" → {', '.join(drop_names)}"
                 fd_lines.append(line)
 
-        # ★ Stage 3: 균열 4종 진짜 출력 (★ Layer 4)
         rifts = floor_def.get("rifts") or []
         if rifts:
             fd_lines.append(f"\n균열 ({len(rifts)}):")
@@ -284,18 +283,8 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 line = f"- {r.get('name', '')} ({r.get('rift_id', '')})"
                 if desc := r.get("description"):
                     line += f": {desc}"
-                # 보스
-                boss = r.get("boss_monster_name", "")
-                if boss:
-                    line += (
-                        f"\n  보스: {boss} "
-                        f"({r.get('boss_grade', 0)}등급"
-                    )
-                else:
-                    line += (
-                        f"\n  보스: (자료 X) "
-                        f"({r.get('boss_grade', 0)}등급"
-                    )
+                boss_label = r.get("boss_monster_name") or "(자료 X)"
+                line += f"\n  보스: {boss_label} ({r.get('boss_grade', 0)}등급"
                 if r.get("boss_is_variant"):
                     line += ", 변종"
                 drop_pct = int(r.get("boss_drop_rate", 0) * 100)

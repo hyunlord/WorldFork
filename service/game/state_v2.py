@@ -617,4 +617,4 @@ class Floor1Definition:
 
     sub_areas: tuple[SubArea, ...] = ()
     monsters: tuple[MonsterDef, ...] = ()
-    rifts: tuple[RiftDef, ...] = ()  # ★ Stage 3 (2026-05-07)
+    rifts: tuple[RiftDef, ...] = ()

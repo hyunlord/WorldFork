@@ -8,6 +8,7 @@ state_v2 진짜 service 통합 (Made But Never Used 차단).
 build_game_context()가 v2 character 정보를 GM context에 포함.
 """
 
+from functools import cache
 from typing import Any
 
 from service.pipeline.types import CharacterPlan, Plan
@@ -279,73 +280,77 @@ def init_world_state_from_plan(plan: Plan) -> WorldState:
     )
 
 
+@cache
+def _floor_definition_dict_for(floor: int) -> dict[str, Any]:
+    """층 번호 → 정의 dict. 호출당 동일 출력이라 캐시 (★ 매 턴 호출되는 hot path).
+
+    1층 X면 빈 dict.
+    """
+    if floor != 1:
+        return {}
+
+    f1 = get_floor1_definition()
+    return {
+        "name": f1.name,
+        "floor_number": f1.floor_number,
+        "base_time_hours": f1.base_time_hours,
+        "base_visibility_meters": f1.base_visibility_meters,
+        "is_dark_default": f1.is_dark_default,
+        "sub_areas": [
+            {
+                "name": sa.name,
+                "description": sa.description,
+                "accessible_from": list(sa.accessible_from),
+                "monster_names": list(sa.monster_names),
+                "is_dark": sa.is_dark,
+                "has_landmark": sa.has_landmark,
+                "landmark_type": sa.landmark_type,
+            }
+            for sa in f1.sub_areas
+        ],
+        "monsters": [
+            {
+                "name": m.name,
+                "grade": int(m.grade),
+                "area": m.area.value,
+                "behavior": m.behavior,
+                "requires_light": m.requires_light,
+                "drops": [
+                    {
+                        "essence_name": d.essence_name,
+                        "drop_rate": d.drop_rate,
+                        "color_pool": [c.value for c in d.color_pool],
+                    }
+                    for d in m.drops
+                ],
+            }
+            for m in f1.monsters
+        ],
+        "rifts": [
+            {
+                "rift_id": r.rift_id,
+                "name": r.name,
+                "entry_methods": [m.value for m in r.entry_methods],
+                "intentional_offering_grade": r.intentional_offering_grade,
+                "description": r.description,
+                "boss_monster_name": r.boss_monster_name,
+                "boss_grade": r.boss_grade,
+                "boss_drop_rate": r.boss_drop_rate,
+                "boss_is_variant": r.boss_is_variant,
+                "regular_monster_names": list(r.regular_monster_names),
+                "hidden_pieces": list(r.hidden_pieces),
+            }
+            for r in f1.rifts
+        ],
+    }
+
+
 def init_floor_definition_from_plan(plan: Plan) -> dict[str, Any]:
     """Plan → 시작 층 정의 dict (★ Stage 2, build_game_context 통합).
 
     현재 1층만 구현 (★ 후속 commit에 2-10층 추가).
-    1층 X면 빈 dict 반환.
     """
-    floor = _detect_initial_floor_from_plan(plan)
-
-    if floor == 1:
-        f1 = get_floor1_definition()
-        return {
-            "name": f1.name,
-            "floor_number": f1.floor_number,
-            "base_time_hours": f1.base_time_hours,
-            "base_visibility_meters": f1.base_visibility_meters,
-            "is_dark_default": f1.is_dark_default,
-            "sub_areas": [
-                {
-                    "name": sa.name,
-                    "description": sa.description,
-                    "accessible_from": list(sa.accessible_from),
-                    "monster_names": list(sa.monster_names),
-                    "is_dark": sa.is_dark,
-                    "has_landmark": sa.has_landmark,
-                    "landmark_type": sa.landmark_type,
-                }
-                for sa in f1.sub_areas
-            ],
-            "monsters": [
-                {
-                    "name": m.name,
-                    "grade": int(m.grade),
-                    "area": m.area.value,
-                    "behavior": m.behavior,
-                    "requires_light": m.requires_light,
-                    "drops": [
-                        {
-                            "essence_name": d.essence_name,
-                            "drop_rate": d.drop_rate,
-                            "color_pool": [c.value for c in d.color_pool],
-                        }
-                        for d in m.drops
-                    ],
-                }
-                for m in f1.monsters
-            ],
-            # ★ Stage 3: 균열 4종 진짜 노출
-            "rifts": [
-                {
-                    "rift_id": r.rift_id,
-                    "name": r.name,
-                    "entry_methods": [m.value for m in r.entry_methods],
-                    "intentional_offering_grade": r.intentional_offering_grade,
-                    "description": r.description,
-                    "boss_monster_name": r.boss_monster_name,
-                    "boss_grade": r.boss_grade,
-                    "boss_drop_rate": r.boss_drop_rate,
-                    "boss_is_variant": r.boss_is_variant,
-                    "regular_monster_names": list(r.regular_monster_names),
-                    "hidden_pieces": list(r.hidden_pieces),
-                }
-                for r in f1.rifts
-            ],
-        }
-
-    # 후속 commit (★ 2-10층) — 현재는 빈
-    return {}
+    return _floor_definition_dict_for(_detect_initial_floor_from_plan(plan) or 0)
 
 
 def init_initial_location_from_plan(plan: Plan) -> Location:

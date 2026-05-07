@@ -230,7 +230,7 @@ FLOOR1_DEFINITION = Floor1Definition(
     is_dark_default=True,
     sub_areas=FLOOR1_SUB_AREAS,
     monsters=FLOOR1_MONSTERS,
-    rifts=FLOOR1_RIFTS,  # ★ Stage 3 (2026-05-07)
+    rifts=FLOOR1_RIFTS,
 )
 
 
