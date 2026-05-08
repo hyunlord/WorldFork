@@ -38,3 +38,27 @@ def make_player_llm_client(
         base_url=base_url,
         timeout=timeout,
     )
+
+
+# ─── qwen36_27b_q2 (★ SimGMAgent 본격, 8082포트) ───
+
+QWEN36_27B_Q2_BASE_URL = "http://localhost:8082"
+QWEN36_27B_Q2_MODEL_KEY = "qwen36_27b_q2"
+
+
+def make_gm_llm_client(
+    base_url: str = QWEN36_27B_Q2_BASE_URL,
+    model_key: str = QWEN36_27B_Q2_MODEL_KEY,
+    timeout: int = 120,
+) -> LLMClient:
+    """SimGMAgent용 LLM client 생성 — qwen36_27b_q2 default.
+
+    본 commit (★ C 본격) production caller:
+    - tools/run_sim_real.py
+    - tests/integration/test_sim_real_gm_player.py
+    """
+    return LocalLLMClient(
+        model_key=model_key,
+        base_url=base_url,
+        timeout=timeout,
+    )

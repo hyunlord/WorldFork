@@ -37,9 +37,12 @@ from service.sim.json_export import (
 )
 from service.sim.llm_factory import (
     QWEN35_9B_Q3_BASE_URL,
+    QWEN36_27B_Q2_BASE_URL,
+    make_gm_llm_client,
     make_player_llm_client,
 )
 from service.sim.player_agent import PlayerAgent
+from service.sim.sim_gm_agent import SimGMAgent
 from service.sim.sim_runner import SimRunner
 from service.sim.types import SimConfig
 
@@ -125,28 +128,32 @@ def _build_game_context() -> dict[str, Any]:
     }
 
 
-def _check_llm_server() -> bool:
+def _check_server(url: str) -> bool:
     try:
-        resp = requests.get(
-            f"{QWEN35_9B_Q3_BASE_URL}/v1/models",
-            timeout=5,
-        )
+        resp = requests.get(f"{url}/v1/models", timeout=5)
         return resp.status_code == 200
     except requests.RequestException:
         return False
 
 
 def main() -> int:
-    print("=== AI Playtester 50턴 진짜 LLM 시뮬 (★ qwen35_9b_q3) ===\n")
+    print(
+        "=== AI Playtester 50턴 GM+Player 진짜 LLM 시뮬 "
+        "(★ C commit) ===\n"
+    )
 
-    if not _check_llm_server():
-        print(f"[ERROR] LLM 서버 X ({QWEN35_9B_Q3_BASE_URL})")
+    if not _check_server(QWEN35_9B_Q3_BASE_URL):
+        print(f"[ERROR] Player LLM X ({QWEN35_9B_Q3_BASE_URL})")
+        return 1
+    if not _check_server(QWEN36_27B_Q2_BASE_URL):
+        print(f"[ERROR] GM LLM X ({QWEN36_27B_Q2_BASE_URL})")
         return 1
 
-    print(f"[INFO] LLM 서버 작동 OK ({QWEN35_9B_Q3_BASE_URL})\n")
+    print(f"[INFO] Player 9B Q3 작동 OK ({QWEN35_9B_Q3_BASE_URL})")
+    print(f"[INFO] GM 27B Q2 작동 OK ({QWEN36_27B_Q2_BASE_URL})\n")
 
-    llm_client = make_player_llm_client()
-    player_agent = PlayerAgent(llm_client=llm_client)
+    player_agent = PlayerAgent(llm_client=make_player_llm_client())
+    gm_agent = SimGMAgent(llm_client=make_gm_llm_client())
 
     config = SimConfig(
         max_turns=50,
@@ -154,7 +161,9 @@ def main() -> int:
         player_llm_model="qwen35_9b_q3",
         gm_llm_model="qwen36_27b_q2",
     )
-    runner = SimRunner(config=config, player_agent=player_agent)
+    runner = SimRunner(
+        config=config, player_agent=player_agent, gm_agent=gm_agent
+    )
 
     party = _make_test_party()
     world = _make_test_world()
@@ -207,6 +216,16 @@ def main() -> int:
             f"{log.action.action_type.value:>16} → "
             f"{log.action.rationale[:60]}"
         )
+
+    print("\n[★ C commit 본격 입증]")
+    print("  baseline (★ 59f9a31): diversity 2/13 (ctx encounter 부재)")
+    print("  A commit (★ f86de40): diversity 3/13 (prompt 보강 ceiling)")
+    print(f"  C commit (★ 본 commit): diversity {analysis.diversity_score}/13")
+    ceiling_resolved = analysis.diversity_score >= 8
+    print(
+        f"  ceiling 해소: "
+        f"{'O' if ceiling_resolved else 'X (★ 정직 보고, 후속 보강 필요)'}"
+    )
 
     return 0
 

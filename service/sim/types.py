@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 
 class PlayerActionType(StrEnum):
@@ -48,6 +49,47 @@ class PlayerAction:
     actor_name: str                        # "비요른" / "에르웬"
     target: str | None = None              # "횃불" / "고블린" / "북쪽 통로" 등
     rationale: str = ""                    # LLM 선택 이유 (★ 분석용)
+
+
+class EncounterType(StrEnum):
+    """GM이 spawn하는 encounter 종류 (★ 1층 본문 본질).
+
+    1차 자료:
+    - 11화: 빛 / 메시지 스톤 / 약탈자
+    - 13/14화: 정수 흡수 자동 / 30분 자연 소멸
+    - 22화: 노움 (★ 1층 남쪽)
+    - 27화: 균열 정의 / 휴식 4시간
+    - 374화: 비석 공물
+    """
+
+    ESSENCE = "essence"      # 떠다니는 정수 (★ 13/14화)
+    MONSTER = "monster"      # 몬스터 등장 (★ 22화 노움)
+    RIFT = "rift"            # 균열 발견 (★ 핏빛성채 등)
+    ITEM = "item"            # 아이템 발견
+    EVENT = "event"          # 일반 이벤트
+    NARRATIVE = "narrative"  # narrative만 (★ encounter X)
+
+
+@dataclass(frozen=True, slots=True)
+class Encounter:
+    """GM이 spawn한 encounter (★ ctx에 통합)."""
+
+    type: EncounterType
+    name: str                        # "고블린" / "청록색 정수" / "핏빛성채 균열"
+    location: str                    # sub_area 이름
+    description: str = ""            # 본문 분위기
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GMResponse:
+    """GM 단일 턴 응답 (★ structured output)."""
+
+    encounters: list[Encounter] = field(default_factory=list)
+    narrative: str = ""              # 분위기 묘사 (★ 옵션)
+    raw_text: str = ""
+    cost_usd: float = 0.0
+    latency_ms: int = 0
 
 
 @dataclass

@@ -30,7 +30,9 @@ from service.game.turn_handler_v2 import (
 )
 
 from .player_agent import MockPlayerAgent, PlayerAgent
+from .sim_gm_agent import MockSimGMAgent, SimGMAgent
 from .types import (
+    Encounter,
     PlayerAction,
     PlayerActionType,
     SimConfig,
@@ -156,11 +158,12 @@ def _refresh_context(
     world: WorldState,
     location: Location,
     base_ctx: dict[str, Any] | None,
+    active_encounters: list[Encounter] | None = None,
 ) -> dict[str, Any]:
     """매 턴 LLM 호출 전 ctx의 동적 필드를 현재 state로 갱신.
 
     base_ctx가 floor_definition 등 정적 자료를 가질 수 있어 그대로 보존하고,
-    캐릭터/월드/위치의 dynamic 필드만 덮어쓴다.
+    캐릭터/월드/위치/encounters의 dynamic 필드만 덮어쓴다.
     """
     ctx: dict[str, Any] = dict(base_ctx) if base_ctx else {}
 
@@ -207,6 +210,18 @@ def _refresh_context(
     )
     ctx["v2_initial_location"] = loc_ctx
 
+    # ★ C commit 본격: GM이 spawn한 encounters를 ctx에 통합
+    ctx["active_encounters"] = [
+        {
+            "type": e.type.value,
+            "name": e.name,
+            "location": e.location,
+            "description": e.description,
+            "details": dict(e.details),
+        }
+        for e in (active_encounters or [])
+    ]
+
     return ctx
 
 
@@ -245,9 +260,13 @@ class SimRunner:
         self,
         config: SimConfig,
         player_agent: MockPlayerAgent | PlayerAgent | None = None,
+        gm_agent: MockSimGMAgent | SimGMAgent | None = None,
     ) -> None:
         self.config = config
         self.player_agent = player_agent or MockPlayerAgent()
+        # ★ C commit: GM agent 주입 (★ default mock, real은 caller 지정)
+        self.gm_agent = gm_agent or MockSimGMAgent()
+        self._active_encounters: list[Encounter] = []
 
     def run_single_turn(
         self,
@@ -261,14 +280,17 @@ class SimRunner:
         """단일 턴 진짜 실행 (★ 13 ActionType).
 
         ★ ctx의 동적 필드를 매 턴 현재 state로 새로 갱신
-        (★ has_active_light / hp / essence_slots / hours / sub_area).
+        (★ has_active_light / hp / essence_slots / hours / sub_area
+        + active_encounters from GM).
         """
         actor = party.get(actor_name)
         if actor is None:
             raise ValueError(f"actor_name not in party: {actor_name}")
 
         hp_before = actor.hp
-        ctx = _refresh_context(party, world, location, game_context)
+        ctx = _refresh_context(
+            party, world, location, game_context, self._active_encounters
+        )
 
         response = self.player_agent.generate_action(actor_name, ctx)
         action = response.action
@@ -317,6 +339,7 @@ class SimRunner:
         start_time = time.monotonic()
         turn_logs: list[TurnLog] = []
         latency_total_seconds = 0.0
+        gm_cost_total = 0.0
 
         actor_names = list(party.keys())
         completed = 0
@@ -328,6 +351,17 @@ class SimRunner:
             actor = party.get(actor_name)
             if actor is None or not actor.is_alive():
                 continue
+
+            # ★ C commit: GM이 매 턴 encounter spawn (★ ctx 통합 본격)
+            gm_ctx = _refresh_context(
+                party, world, location, game_context, self._active_encounters
+            )
+            gm_response = self.gm_agent.generate_encounters(
+                turn_number=turn_idx + 1,
+                game_context=gm_ctx,
+            )
+            self._active_encounters = gm_response.encounters
+            gm_cost_total += gm_response.cost_usd
 
             log = self.run_single_turn(
                 turn_number=turn_idx + 1,
@@ -363,6 +397,7 @@ class SimRunner:
             essences_absorbed_by_actor=essences_count,
             final_hours_in_dungeon=world.hours_in_dungeon,
             total_latency_seconds=latency_total_seconds,
+            total_gm_llm_cost=gm_cost_total,
         )
 
     def _config_summary(self) -> str:

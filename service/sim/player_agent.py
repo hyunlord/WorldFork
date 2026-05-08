@@ -251,12 +251,36 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
         hints.append("⚠️ 빛 자원 X — ACTIVATE_LIGHT 우선 권장")
     if hp_pct < 30:
         hints.append("⚠️ HP 30% 미만 — REST 권장")
+    if has_light and location.get("sub_area") == "진입점":
+        hints.append(
+            "💡 진입점 정체 — MOVE 권장 (★ 북쪽 통로 / 남쪽 통로)"
+        )
     if essence_slots < 3 and hours > 5:
         hints.append("💡 정수 슬롯 빔 — EXPLORE/ABSORB_ESSENCE 권장")
     if hours > 24 and essence_slots >= 5:
         hints.append("💡 자원 충분 — OFFER_TO_STONE/ENTER_RIFT 권장 (★ 1층 탈출)")
     if hours > 100:
         hints.append("⚠️ 168h 한도 임박 — 균열 진입 우선")
+
+    # ★ C commit: encounter type별 힌트 (★ GM이 spawn한 결과 인식)
+    encounters = ctx.get("active_encounters") or []
+    for e in encounters:
+        etype = e.get("type", "")
+        ename = e.get("name", "?")
+        if etype == "essence":
+            hints.append(
+                f"💎 정수 발견 ({ename}) — ABSORB_ESSENCE 우선 (30분 자연 소멸)"
+            )
+        elif etype == "monster":
+            hints.append(f"⚔️ 몬스터 발견 ({ename}) — ATTACK 또는 FLEE")
+        elif etype == "rift":
+            hints.append(
+                f"🌀 균열 발견 ({ename}) — ENTER_RIFT 또는 OFFER_TO_STONE"
+            )
+        elif etype == "item":
+            hints.append(f"🎁 아이템 발견 ({ename}) — USE_ITEM 검토")
+        elif etype == "event":
+            hints.append(f"⚠️ 이벤트 ({ename}) — 상황 평가 후 결정")
 
     hint_text = "\n".join(hints) if hints else "(★ 진행 단계 자유 결정)"
 
@@ -285,6 +309,19 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
         lines.append("**Sub Areas (★ 1층)**")
         for sa in sub_areas[:6]:
             lines.append(f"- {sa['name']}: {sa.get('description', '')[:50]}")
+
+    # ★ C commit: GM이 spawn한 active encounters 본격 출력
+    if encounters:
+        lines.append("")
+        lines.append("**현재 encounter (★ GM 출력)**")
+        for e in encounters:
+            etype = e.get("type", "?")
+            ename = e.get("name", "?")
+            eloc = e.get("location", "?")
+            edesc = e.get("description", "")
+            lines.append(f"- [{etype}] {ename} @ {eloc}")
+            if edesc:
+                lines.append(f"  설명: {edesc}")
 
     lines.extend(
         [
