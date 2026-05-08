@@ -72,13 +72,37 @@ class EncounterType(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Encounter:
-    """GM이 spawn한 encounter (★ ctx에 통합)."""
+    """GM이 spawn한 encounter (★ ctx에 통합).
+
+    본 commit (★ A. encounter 보강):
+    - spawned_at_turn: 누적 본격 (★ TTL 계산)
+    - ttl_turns: 자연 소멸 (★ ESSENCE 30분 = 30턴)
+    """
 
     type: EncounterType
     name: str                        # "고블린" / "청록색 정수" / "핏빛성채 균열"
     location: str                    # sub_area 이름
     description: str = ""            # 본문 분위기
     details: dict[str, Any] = field(default_factory=dict)
+
+    # ★ A. encounter 보강 본격: TTL
+    spawned_at_turn: int = 0
+    ttl_turns: int = 30  # default ESSENCE 30분
+
+    def is_expired(self, current_turn: int) -> bool:
+        """TTL 만료 검증."""
+        return (current_turn - self.spawned_at_turn) >= self.ttl_turns
+
+
+# EncounterType별 default TTL (★ 본문 본질):
+ENCOUNTER_TTL: dict[EncounterType, int] = {
+    EncounterType.ESSENCE: 30,    # ★ 30분 자연 소멸 (13/14화)
+    EncounterType.MONSTER: 5,     # ★ 처치/도주 (단순화)
+    EncounterType.RIFT: 100,      # ★ 균열 안정 (★ 진입까지)
+    EncounterType.ITEM: 50,       # ★ 아이템 길게
+    EncounterType.EVENT: 3,       # ★ 이벤트 짧음
+    EncounterType.NARRATIVE: 1,   # ★ 즉시 만료
+}
 
 
 @dataclass

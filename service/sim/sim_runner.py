@@ -32,6 +32,7 @@ from service.game.turn_handler_v2 import (
 from .player_agent import MockPlayerAgent, PlayerAgent
 from .sim_gm_agent import MockSimGMAgent, SimGMAgent
 from .types import (
+    ENCOUNTER_TTL,
     Encounter,
     PlayerAction,
     PlayerActionType,
@@ -159,11 +160,13 @@ def _refresh_context(
     location: Location,
     base_ctx: dict[str, Any] | None,
     active_encounters: list[Encounter] | None = None,
+    current_turn: int = 0,
 ) -> dict[str, Any]:
     """매 턴 LLM 호출 전 ctx의 동적 필드를 현재 state로 갱신.
 
-    base_ctx가 floor_definition 등 정적 자료를 가질 수 있어 그대로 보존하고,
-    캐릭터/월드/위치/encounters의 dynamic 필드만 덮어쓴다.
+    본 commit (★ A. encounter 보강):
+    - active_encounters의 spawned_at_turn / ttl_remaining 본격 출력
+    - TTL 만료 검증은 caller (★ runner.run)이 처리
     """
     ctx: dict[str, Any] = dict(base_ctx) if base_ctx else {}
 
@@ -210,7 +213,8 @@ def _refresh_context(
     )
     ctx["v2_initial_location"] = loc_ctx
 
-    # ★ C commit 본격: GM이 spawn한 encounters를 ctx에 통합
+    # ★ C/A commit 본격: GM이 spawn한 encounters를 ctx에 통합
+    # ★ A. encounter 보강: spawned_at_turn / ttl_remaining 추가
     ctx["active_encounters"] = [
         {
             "type": e.type.value,
@@ -218,6 +222,10 @@ def _refresh_context(
             "location": e.location,
             "description": e.description,
             "details": dict(e.details),
+            "spawned_at_turn": e.spawned_at_turn,
+            "ttl_remaining": max(
+                0, e.ttl_turns - (current_turn - e.spawned_at_turn)
+            ),
         }
         for e in (active_encounters or [])
     ]
@@ -289,7 +297,12 @@ class SimRunner:
 
         hp_before = actor.hp
         ctx = _refresh_context(
-            party, world, location, game_context, self._active_encounters
+            party,
+            world,
+            location,
+            game_context,
+            self._active_encounters,
+            current_turn=turn_number,
         )
 
         response = self.player_agent.generate_action(actor_name, ctx)
@@ -341,6 +354,11 @@ class SimRunner:
         latency_total_seconds = 0.0
         gm_cost_total = 0.0
 
+        # ★ A. encounter 보강: 시뮬 시작 시 history reset
+        if hasattr(self.gm_agent, "reset_history"):
+            self.gm_agent.reset_history()
+        self._active_encounters = []
+
         actor_names = list(party.keys())
         completed = 0
         end_reason = "max_turns"
@@ -352,15 +370,43 @@ class SimRunner:
             if actor is None or not actor.is_alive():
                 continue
 
-            # ★ C commit: GM이 매 턴 encounter spawn (★ ctx 통합 본격)
+            current_turn = turn_idx + 1
+
+            # ★ A. encounter 보강: TTL 만료 자동 제거
+            self._active_encounters = [
+                e
+                for e in self._active_encounters
+                if not e.is_expired(current_turn)
+            ]
+
+            # GM이 매 턴 encounter spawn (★ ctx 통합 + 직전 type tracking)
             gm_ctx = _refresh_context(
-                party, world, location, game_context, self._active_encounters
+                party,
+                world,
+                location,
+                game_context,
+                self._active_encounters,
+                current_turn=current_turn,
             )
             gm_response = self.gm_agent.generate_encounters(
-                turn_number=turn_idx + 1,
+                turn_number=current_turn,
                 game_context=gm_ctx,
             )
-            self._active_encounters = gm_response.encounters
+            # ★ A. encounter 보강: 신규 encounter에 spawned_at_turn / TTL 부여
+            new_encounters = [
+                Encounter(
+                    type=e.type,
+                    name=e.name,
+                    location=e.location,
+                    description=e.description,
+                    details=dict(e.details),
+                    spawned_at_turn=current_turn,
+                    ttl_turns=ENCOUNTER_TTL.get(e.type, 30),
+                )
+                for e in gm_response.encounters
+            ]
+            # 누적 (★ 직전 active + 신규)
+            self._active_encounters.extend(new_encounters)
             gm_cost_total += gm_response.cost_usd
 
             log = self.run_single_turn(

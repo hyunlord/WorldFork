@@ -93,8 +93,9 @@ def test_system_prompt_contains_floor1_essentials() -> None:
     assert "30분 자연 소멸" in p  # 13/14화
     assert "핏빛성채" in p  # 균열
     assert "9등급" in p
-    # spawn 가이드
-    assert "narrative만" in p
+    # spawn 가이드 (★ A. encounter 보강 본격)
+    assert "encounter spawn 빈도" in p
+    assert "다양 강제" in p
 
 
 def test_mock_gm_returns_predefined() -> None:
