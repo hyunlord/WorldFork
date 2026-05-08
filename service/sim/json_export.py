@@ -29,6 +29,8 @@ def sim_result_to_dict(result: SimResult) -> dict[str, Any]:
         "total_player_llm_cost": result.total_player_llm_cost,
         "total_gm_llm_cost": result.total_gm_llm_cost,
         "total_latency_seconds": result.total_latency_seconds,
+        "gm_retry_count": result.gm_retry_count,
+        "gm_fallback_count": result.gm_fallback_count,
         "turn_logs": [
             {
                 "turn_number": log.turn_number,

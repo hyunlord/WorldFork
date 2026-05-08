@@ -245,6 +245,9 @@ def main() -> int:
             f"  완료 턴: {analysis.completed_turns}/{analysis.total_turns}"
         )
         print(f"  생존: {'O' if analysis.survived_to_end else 'X'}")
+        # ★ A.6 본격 enforcement metrics
+        print(f"  GM retry: {result.gm_retry_count}회")
+        print(f"  GM fallback: {result.gm_fallback_count}회")
         print(
             f"  균열 시도: "
             f"{'O' if analysis.floor_exit_attempted else 'X'}"

@@ -160,6 +160,10 @@ class SimResult:
     total_gm_llm_cost: float = 0.0
     total_latency_seconds: float = 0.0
 
+    # ★ A.6 server-side enforcement metrics
+    gm_retry_count: int = 0
+    gm_fallback_count: int = 0
+
 
 @dataclass
 class SimConfig:

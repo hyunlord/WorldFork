@@ -432,6 +432,14 @@ class SimRunner:
             name: c.essence_slots_used() for name, c in party.items()
         }
 
+        # ★ A.6 본격: GM enforcement stats 수집
+        gm_retry = 0
+        gm_fallback = 0
+        stats_attr = getattr(self.gm_agent, "enforcement_stats", None)
+        if isinstance(stats_attr, dict):
+            gm_retry = int(stats_attr.get("retry_count", 0))
+            gm_fallback = int(stats_attr.get("fallback_count", 0))
+
         return SimResult(
             sim_id=f"sim_{self.config.scenario_id}",
             config_summary=self._config_summary(),
@@ -444,6 +452,8 @@ class SimRunner:
             final_hours_in_dungeon=world.hours_in_dungeon,
             total_latency_seconds=latency_total_seconds,
             total_gm_llm_cost=gm_cost_total,
+            gm_retry_count=gm_retry,
+            gm_fallback_count=gm_fallback,
         )
 
     def _config_summary(self) -> str:

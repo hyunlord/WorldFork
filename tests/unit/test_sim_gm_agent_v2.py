@@ -57,7 +57,9 @@ def test_build_prompt_includes_last_types() -> None:
     assert "직전 spawn types" in p
     assert "essence" in p
     assert "monster" in p
-    assert "절대 금지" in p
+    # ★ A.6: 본 turn 동적 forbidden section (★ 직전 = monster)
+    assert "spawn 금지" in p
+    assert "직전 turn과 같음" in p
 
 
 def test_build_prompt_no_last_types() -> None:
