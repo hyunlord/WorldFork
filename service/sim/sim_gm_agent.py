@@ -35,8 +35,7 @@ log = logging.getLogger(__name__)
 
 # ─── 본 commit 본격 본질 ───
 
-# 직전 type 연속 검증 (★ Step A)
-MAX_CONSECUTIVE_SAME_TYPE = 1  # 직전 1턴과 같은 type 본격 X
+# Step A 본격: 직전 1턴과 같은 type 본격 X (★ _is_violation last_type 직접 검증)
 
 # dominance 검증 (★ Step B)
 DOMINANCE_WINDOW = 5            # 직전 5턴
