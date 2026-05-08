@@ -1,22 +1,23 @@
-"""AI Playtester — 진짜 LLM 호출 시뮬.
+"""AI Playtester — 진짜 LLM 호출 50턴 시뮬.
 
-본 commit 본격:
+본 commit 본격 (★ 5턴 → 50턴):
 - qwen35_9b_q3 9B Q3 (★ 8083포트) 진짜 호출
-- 5턴 짧은 시뮬 (★ 비용/지연 검증, 50턴은 후속)
-- LLM 응답 → JSON parsing → PlayerAction
-- turn_handler 진짜 mutate
+- 50턴 본격 시뮬 (★ 1층 풀 진행)
+- 진행 시간 측정 + 작품 매칭 검증 출력
 - SimResult + 분석 + JSON 저장
 
 실행: python -m tools.run_sim_real
+출력: /tmp/sim_real_50turn_result.json + analysis.json
 
 요구:
 - qwen35_9b_q3 8083포트 진짜 작동 (★ DGX Spark)
-- 진짜 호출 X면 connection error (★ 자연스러운 fallback)
+- 예상 시간 ~64s (★ 50 X 1.28s, 직전 5턴 입증)
 """
 
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -86,10 +87,6 @@ def _make_test_location() -> Location:
 
 
 def _build_game_context() -> dict[str, Any]:
-    """게임 컨텍스트 mock — 본 commit 단순.
-
-    후속 commit이 진짜 init_from_plan + build_game_context 통합.
-    """
     return {
         "v2_characters": {
             "비요른": {
@@ -129,7 +126,6 @@ def _build_game_context() -> dict[str, Any]:
 
 
 def _check_llm_server() -> bool:
-    """8083포트 진짜 작동 검증."""
     try:
         resp = requests.get(
             f"{QWEN35_9B_Q3_BASE_URL}/v1/models",
@@ -141,11 +137,10 @@ def _check_llm_server() -> bool:
 
 
 def main() -> int:
-    print("=== AI Playtester 진짜 LLM 시뮬 (★ qwen35_9b_q3 9B Q3) ===\n")
+    print("=== AI Playtester 50턴 진짜 LLM 시뮬 (★ qwen35_9b_q3) ===\n")
 
     if not _check_llm_server():
         print(f"[ERROR] LLM 서버 X ({QWEN35_9B_Q3_BASE_URL})")
-        print("[INFO] DGX Spark에서 qwen35_9b_q3 8083포트 시작 필요")
         return 1
 
     print(f"[INFO] LLM 서버 작동 OK ({QWEN35_9B_Q3_BASE_URL})\n")
@@ -154,8 +149,8 @@ def main() -> int:
     player_agent = PlayerAgent(llm_client=llm_client)
 
     config = SimConfig(
-        max_turns=5,
-        scenario_id="floor1_real_5turn",
+        max_turns=50,
+        scenario_id="floor1_real_50turn",
         player_llm_model="qwen35_9b_q3",
         gm_llm_model="qwen36_27b_q2",
     )
@@ -166,35 +161,52 @@ def main() -> int:
     location = _make_test_location()
     game_ctx = _build_game_context()
 
-    print("[시뮬] 5턴 시작...\n")
+    print("[시뮬] 50턴 시작 (예상 ~64s)...")
+    start = time.monotonic()
     result = runner.run(
         party=party,
         world=world,
         location=location,
         game_context=game_ctx,
     )
+    elapsed = time.monotonic() - start
+    per_turn = elapsed / max(result.completed_turns, 1)
+    print(
+        f"[시뮬] 완료 — {elapsed:.1f}s ({per_turn:.2f}s/turn)\n"
+    )
 
     analysis = analyze_sim_result(result)
     print(format_analysis_text(analysis))
 
     output_dir = Path("/tmp")
-    save_sim_result_json(result, output_dir / "sim_real_result.json")
-    save_sim_analysis_json(analysis, output_dir / "sim_real_analysis.json")
-    print(f"\n[저장] {output_dir}/sim_real_result.json")
-    print(f"[저장] {output_dir}/sim_real_analysis.json")
+    save_sim_result_json(result, output_dir / "sim_real_50turn_result.json")
+    save_sim_analysis_json(
+        analysis, output_dir / "sim_real_50turn_analysis.json"
+    )
+    print(f"\n[저장] {output_dir}/sim_real_50turn_result.json")
+    print(f"[저장] {output_dir}/sim_real_50turn_analysis.json")
 
-    print("\n[LLM 호출 검증]")
-    print(f"  지연: {result.total_latency_seconds:.2f}s")
-    print(f"  완료 턴: {result.completed_turns}/{result.total_turns}")
-    print(f"  종료: {result.end_reason}")
+    print("\n[작품 매칭 검증]")
+    print(f"  생존 (영구사망 X): {'O' if analysis.survived_to_end else 'X'}")
+    print(f"  균열 시도: {'O' if analysis.floor_exit_attempted else 'X'}")
+    print(f"  빛 관리: {'O' if analysis.light_management_used else 'X'}")
+    print(f"  diversity: {analysis.diversity_score}/13 ActionType")
+    most = (
+        analysis.most_used_action.value if analysis.most_used_action else "X"
+    )
+    print(f"  최다 행동: {most}")
+    print(
+        f"  미궁 시간: {analysis.final_hours_in_dungeon}h / 168h"
+    )
 
-    if result.turn_logs:
-        print("\n[첫 턴 진짜 응답]")
-        first = result.turn_logs[0]
-        print(f"  actor: {first.actor_name}")
-        print(f"  action: {first.action.action_type.value}")
-        print(f"  target: {first.action.target}")
-        print(f"  rationale: {first.action.rationale[:100]}")
+    print("\n[샘플 turn_logs (처음 5개)]")
+    for log in result.turn_logs[:5]:
+        status = "OK" if log.success else "X"
+        print(
+            f"  [{status}] 턴 {log.turn_number} [{log.actor_name}] "
+            f"{log.action.action_type.value:>16} → "
+            f"{log.action.rationale[:60]}"
+        )
 
     return 0
 
