@@ -1,15 +1,14 @@
-"""AI Playtester smoke runner — 50턴 자동 시뮬 진짜 실행.
+"""AI Playtester smoke runner — 50턴 시뮬 + 분석 + JSON 저장 + 다중 비교.
 
-본 commit 3차: production caller (★ MBNU 차단 — 13 ActionType 모두 진짜 호출 가능).
+본 commit 4차: 통계 분석 + JSON 출력 진짜 실행 (★ MBNU 차단).
 실행: python -m tools.run_sim_smoke
-
-본 CLI = MockPlayerAgent로 다양 ActionType 진짜 mutate 검증.
-LLM 통합 시뮬은 PlayerAgent 인스턴스 교체로 가능 (★ get_qwen35_9b_q3 + PlayerAgent).
+출력: /tmp/sim_smoke_result.json + /tmp/sim_smoke_analysis.json
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from service.game.state_v2 import (
     Character,
@@ -17,6 +16,12 @@ from service.game.state_v2 import (
     Race,
     Realm,
     WorldState,
+)
+from service.sim.analyzer import analyze_sim_result, format_analysis_text
+from service.sim.comparator import compare_sims, format_comparison_text
+from service.sim.json_export import (
+    save_sim_analysis_json,
+    save_sim_result_json,
 )
 from service.sim.player_agent import MockPlayerAgent
 from service.sim.sim_runner import SimRunner
@@ -32,6 +37,7 @@ def _make_test_party() -> dict[str, Character]:
             hp_max=150,
             physical=14,
             strength=16,
+            bone_strength=12,
             is_player=True,
         ),
         "에르웬": Character(
@@ -65,7 +71,7 @@ def _make_test_location() -> Location:
 
 
 def _make_mock_actions() -> list[PlayerAction]:
-    """1층 시나리오 mock — 다양 ActionType (★ 13 모두 커버)."""
+    """1층 시나리오 mock — 다양 ActionType."""
     return [
         PlayerAction(
             action_type=PlayerActionType.ACTIVATE_LIGHT,
@@ -113,6 +119,7 @@ def _make_mock_actions() -> list[PlayerAction]:
 def main() -> int:
     config = SimConfig(max_turns=50, scenario_id="floor1_smoke")
 
+    # ─── 단일 시뮬 + 분석 ───
     runner = SimRunner(
         config=config,
         player_agent=MockPlayerAgent(mock_actions=_make_mock_actions()),
@@ -122,23 +129,39 @@ def main() -> int:
     world = _make_test_world()
     location = _make_test_location()
 
-    print("=== AI Playtester 50턴 smoke (★ Mock) ===")
+    print("=== AI Playtester 50턴 smoke + 분석 (★ 4차 commit) ===\n")
     result = runner.run(party=party, world=world, location=location)
 
-    print(f"\nsim_id: {result.sim_id}")
-    print(f"completed: {result.completed_turns}/{result.total_turns}")
-    print(f"end_reason: {result.end_reason}")
-    print(f"final HP: {result.final_hp_by_actor}")
-    print(f"essences: {result.essences_absorbed_by_actor}")
-    print(f"final hours: {result.final_hours_in_dungeon}h / 168h")
-    print(f"latency: {result.total_latency_seconds:.2f}s")
-    print("\nturn_logs (★ 처음 10):")
-    for log in result.turn_logs[:10]:
-        status = "OK" if log.success else "X"
-        print(
-            f"  [{status}] 턴 {log.turn_number} [{log.actor_name}] "
-            f"{log.action.action_type.value} → {log.message[:80]}"
+    # 분석
+    analysis = analyze_sim_result(result)
+    print(format_analysis_text(analysis))
+
+    # JSON 저장
+    output_dir = Path("/tmp")
+    save_sim_result_json(result, output_dir / "sim_smoke_result.json")
+    save_sim_analysis_json(analysis, output_dir / "sim_smoke_analysis.json")
+    print(f"\n[저장] {output_dir}/sim_smoke_result.json")
+    print(f"[저장] {output_dir}/sim_smoke_analysis.json")
+
+    # ─── 다중 시뮬 비교 (★ 5회) ───
+    print("\n\n=== 5회 시뮬 비교 ===")
+    analyses = [analysis]
+    for i in range(2, 6):
+        runner_i = SimRunner(
+            config=SimConfig(
+                max_turns=50, scenario_id=f"floor1_smoke_{i}"
+            ),
+            player_agent=MockPlayerAgent(mock_actions=_make_mock_actions()),
         )
+        result_i = runner_i.run(
+            party=_make_test_party(),
+            world=_make_test_world(),
+            location=_make_test_location(),
+        )
+        analyses.append(analyze_sim_result(result_i))
+
+    comp = compare_sims(analyses)
+    print(format_comparison_text(comp))
 
     return 0
 
