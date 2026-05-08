@@ -48,7 +48,9 @@ from service.sim.llm_factory import (
     QWEN35_9B_Q3_MODEL_KEY,
     QWEN36_27B_Q2_BASE_URL,
     QWEN36_27B_Q2_MODEL_KEY,
+    make_gm_9b,
     make_gm_llm_client,
+    make_player_27b,
     make_player_llm_client,
 )
 from service.sim.player_agent import PlayerAgent
@@ -98,21 +100,13 @@ def _check_servers() -> bool:
 
 def _make_player_for(model_key: str) -> LLMClient:
     if model_key == QWEN36_27B_Q2_MODEL_KEY:
-        return make_player_llm_client(
-            base_url=QWEN36_27B_Q2_BASE_URL,
-            model_key=QWEN36_27B_Q2_MODEL_KEY,
-            timeout=120,
-        )
+        return make_player_27b()
     return make_player_llm_client()
 
 
 def _make_gm_for(model_key: str) -> LLMClient:
     if model_key == QWEN35_9B_Q3_MODEL_KEY:
-        return make_gm_llm_client(
-            base_url=QWEN35_9B_Q3_BASE_URL,
-            model_key=QWEN35_9B_Q3_MODEL_KEY,
-            timeout=60,
-        )
+        return make_gm_9b()
     return make_gm_llm_client()
 
 
