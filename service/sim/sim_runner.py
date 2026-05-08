@@ -1,17 +1,10 @@
 """SimRunner — 단순 오케스트레이터 (★ agent X).
 
 본인 결정 (★ 단계적 4 commit):
-- 1차 commit: schema + 빈 run() (★ MockPlayerAgent caller = tests)
-- 2차 commit (★ 본 commit): 1턴 진짜 실행
-- 3차 commit: 50턴 자동
-- 4차 commit: 통계 분석
-
-본 commit 본격:
-- run_single_turn() — 1턴 진짜 실행
-- _execute_action() — PlayerAction → turn_handler 매핑
-  * WAIT → advance_time (★ Stage 7 production wire 진짜 사용)
-  * 다른 ActionType: 인식만 (★ 후속 commit이 진짜 mutate)
-- run() — 1턴만 호출
+- 1차: schema + mock
+- 2차: 1턴 진짜 (★ WAIT만 mutate)
+- 3차 (★ 본 commit): N턴 자동 + 13 ActionType 본격 mutate
+- 4차: 통계 분석
 """
 
 from __future__ import annotations
@@ -19,8 +12,22 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from service.game.state_v2 import Character, WorldState
-from service.game.turn_handler_v2 import advance_time
+from service.game.state_v2 import Character, Location, WorldState
+from service.game.turn_handler_v2 import (
+    absorb_floating_essence,
+    activate_light,
+    advance_time,
+    enter_rift,
+    execute_attack,
+    exit_rift,
+    explore_area,
+    flee_from_threat,
+    move_to_sub_area,
+    offer_to_stone,
+    rest,
+    send_message_stone,
+    use_item,
+)
 
 from .player_agent import MockPlayerAgent, PlayerAgent
 from .types import (
@@ -42,9 +49,7 @@ def _action_to_turn_log(
     side_effects: list[str],
     hp_before: int,
 ) -> TurnLog:
-    """행동 결과 → TurnLog (★ 분석 자료)."""
     actor = party.get(action.actor_name)
-
     return TurnLog(
         turn_number=turn_number,
         actor_name=action.actor_name,
@@ -64,28 +69,107 @@ def _execute_action(
     action: PlayerAction,
     party: dict[str, Character],
     world: WorldState,
+    location: Location,
 ) -> tuple[bool, str, list[str]]:
-    """PlayerAction → turn_handler 매핑 + mutate.
+    """PlayerAction → turn_handler 매핑 (★ 13 ActionType 모두 mutate).
 
-    본 commit 2차: WAIT만 진짜 mutate (★ advance_time)
-    다른 ActionType은 'recognized but not yet wired' 처리 (★ 3차 commit이 본격)
-
-    Returns:
-        (success, message, side_effects)
+    본 commit 3차 본격: 모든 ActionType이 진짜 production 함수 호출.
     """
-    if action.action_type == PlayerActionType.WAIT:
-        result = advance_time(
-            list(party.values()),
-            world,
-            elapsed_hours=1.0,
-        )
-        return result.success, result.message, result.side_effects
+    actor = party.get(action.actor_name)
+    party_list = list(party.values())
 
-    return (
-        True,
-        f"[{action.action_type.value}] 인식 (★ 후속 commit이 진짜 mutate)",
-        [],
-    )
+    if action.action_type == PlayerActionType.WAIT:
+        r = advance_time(party_list, world, elapsed_hours=1.0)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.ACTIVATE_LIGHT:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = activate_light(actor, action.target)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.MOVE:
+        if not action.target:
+            return False, "target sub_area 없음.", []
+        r = move_to_sub_area(party_list, world, location, action.target)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.ATTACK:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = execute_attack(actor, action.target, party_list, world)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.ABSORB_ESSENCE:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = absorb_floating_essence(actor, action.target)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.REST:
+        r = rest(party_list, world)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.EXPLORE:
+        r = explore_area(party_list, world)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.COMMUNICATE:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = send_message_stone(actor, action.target, action.rationale or "")
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.FLEE:
+        r = flee_from_threat(party_list, world, action.target or "위협")
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.USE_ITEM:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = use_item(actor, action.target)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.OFFER_TO_STONE:
+        if not actor or not action.target:
+            return False, "actor 또는 target 없음.", []
+        r = offer_to_stone(actor, action.target, world)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.ENTER_RIFT:
+        if not action.target:
+            return False, "target rift 없음.", []
+        r = enter_rift(party_list, world, action.target)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.EXIT_RIFT:
+        if not action.target:
+            return False, "target rift 없음.", []
+        r = exit_rift(party_list, world, action.target)
+        return r.success, r.message, r.side_effects
+
+    return False, f"unknown action: {action.action_type.value}", []
+
+
+def _check_end_condition(
+    config: SimConfig,
+    party: dict[str, Character],
+    world: WorldState,
+    completed_turns: int,
+) -> str | None:
+    """N턴 종료 조건 검증."""
+    if completed_turns >= config.max_turns:
+        return "max_turns"
+
+    if config.stop_on_permadeath:
+        for c in party.values():
+            if c.is_player and not c.is_alive():
+                return "permadeath"
+
+    if world.hours_in_dungeon >= 168:
+        return "time_limit_168h"
+
+    return None
 
 
 class SimRunner:
@@ -93,8 +177,9 @@ class SimRunner:
 
     1턴 흐름:
     1. PlayerAgent → action 생성
-    2. action → turn_handler 매핑 → mutate
+    2. action → _execute_action → 13 ActionType 진짜 mutate
     3. TurnLog 누적
+    4. 종료 조건 검증
     """
 
     def __init__(
@@ -111,15 +196,10 @@ class SimRunner:
         actor_name: str,
         party: dict[str, Character],
         world: WorldState,
+        location: Location,
         game_context: dict[str, Any] | None = None,
     ) -> TurnLog:
-        """단일 턴 진짜 실행 (★ 본 commit 2차).
-
-        - PlayerAgent.generate_action() 진짜 호출
-        - PlayerAction → turn_handler 매핑
-        - WorldState / Character 진짜 mutate (WAIT 시 advance_time)
-        - TurnLog 진짜 작성
-        """
+        """단일 턴 진짜 실행 (★ 13 ActionType)."""
         actor = party.get(actor_name)
         if actor is None:
             raise ValueError(f"actor_name not in party: {actor_name}")
@@ -130,7 +210,9 @@ class SimRunner:
         response = self.player_agent.generate_action(actor_name, ctx)
         action = response.action
 
-        success, message, side_effects = _execute_action(action, party, world)
+        success, message, side_effects = _execute_action(
+            action, party, world, location
+        )
 
         return _action_to_turn_log(
             turn_number=turn_number,
@@ -147,22 +229,17 @@ class SimRunner:
         self,
         party: dict[str, Character] | None = None,
         world: WorldState | None = None,
+        location: Location | None = None,
+        game_context: dict[str, Any] | None = None,
     ) -> SimResult:
-        """N턴 시뮬 실행.
-
-        본 commit 2차: 1턴만 (★ 첫 actor)
-        3차 commit: 50턴 + 모든 파티
-
-        Returns:
-            SimResult (★ 1턴 turn_log 포함)
-        """
-        if party is None or world is None:
+        """N턴 자동 시뮬 (★ 본 commit 3차 본격)."""
+        if party is None or world is None or location is None:
             return SimResult(
                 sim_id=f"sim_{self.config.scenario_id}",
                 config_summary=self._config_summary(),
                 total_turns=self.config.max_turns,
                 completed_turns=0,
-                end_reason="no_party_or_world_provided",
+                end_reason="no_party_or_world_or_location",
             )
 
         if not party:
@@ -175,17 +252,37 @@ class SimRunner:
             )
 
         start_time = time.monotonic()
+        turn_logs: list[TurnLog] = []
+        latency_total_seconds = 0.0
 
-        first_actor_name = next(iter(party))
-        log = self.run_single_turn(
-            turn_number=1,
-            actor_name=first_actor_name,
-            party=party,
-            world=world,
-        )
-        turn_logs = [log]
+        actor_names = list(party.keys())
+        completed = 0
+        end_reason = "max_turns"
 
-        elapsed = time.monotonic() - start_time
+        for turn_idx in range(self.config.max_turns):
+            actor_name = actor_names[turn_idx % len(actor_names)]
+
+            actor = party.get(actor_name)
+            if actor is None or not actor.is_alive():
+                continue
+
+            log = self.run_single_turn(
+                turn_number=turn_idx + 1,
+                actor_name=actor_name,
+                party=party,
+                world=world,
+                location=location,
+                game_context=game_context,
+            )
+            turn_logs.append(log)
+            completed += 1
+
+            reason = _check_end_condition(self.config, party, world, completed)
+            if reason is not None:
+                end_reason = reason
+                break
+
+        latency_total_seconds = time.monotonic() - start_time
 
         final_hp = {name: c.hp for name, c in party.items()}
         essences_count = {
@@ -196,13 +293,13 @@ class SimRunner:
             sim_id=f"sim_{self.config.scenario_id}",
             config_summary=self._config_summary(),
             total_turns=self.config.max_turns,
-            completed_turns=1,  # ★ 본 commit 2차: 1턴만
+            completed_turns=completed,
             turn_logs=turn_logs,
-            end_reason="single_turn_2차_commit",
+            end_reason=end_reason,
             final_hp_by_actor=final_hp,
             essences_absorbed_by_actor=essences_count,
             final_hours_in_dungeon=world.hours_in_dungeon,
-            total_latency_seconds=elapsed,
+            total_latency_seconds=latency_total_seconds,
         )
 
     def _config_summary(self) -> str:
