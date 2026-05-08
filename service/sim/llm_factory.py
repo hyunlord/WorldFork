@@ -38,22 +38,3 @@ def make_player_llm_client(
         base_url=base_url,
         timeout=timeout,
     )
-
-
-# ─── qwen36_27b_q2 (★ GM 후보, 비교 본격) ───
-
-QWEN36_27B_Q2_BASE_URL = "http://localhost:8082"
-QWEN36_27B_Q2_MODEL_KEY = "qwen36_27b_q2"
-
-
-def make_gm_llm_client(
-    base_url: str = QWEN36_27B_Q2_BASE_URL,
-    model_key: str = QWEN36_27B_Q2_MODEL_KEY,
-    timeout: int = 120,
-) -> LLMClient:
-    """GMAgent용 LLM client (★ 후속 commit 본격, 27B 권장)."""
-    return LocalLLMClient(
-        model_key=model_key,
-        base_url=base_url,
-        timeout=timeout,
-    )
