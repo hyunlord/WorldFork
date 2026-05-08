@@ -11,20 +11,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 from .types import PlayerAction, PlayerActionType
-
-
-class PlayerLLMClient(Protocol):
-    """PlayerAgent용 LLM client 인터페이스 (★ 2차 commit 통합)."""
-
-    @property
-    def model_name(self) -> str:
-        ...
-
-    def generate(self, prompt: Any, **kwargs: Any) -> Any:
-        ...
 
 
 @dataclass

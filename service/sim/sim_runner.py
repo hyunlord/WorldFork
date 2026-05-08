@@ -14,23 +14,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
-from service.game.state_v2 import Character, WorldState
+from service.game.state_v2 import Character
 
 from .player_agent import MockPlayerAgent
-from .types import SimConfig, SimResult, TurnLog
-
-
-@dataclass
-class SimContext:
-    """시뮬 진행 상태 (★ 2차 commit 활용)."""
-
-    config: SimConfig
-    party: dict[str, Character]
-    world: WorldState
-
-    turn_logs: list[TurnLog] = field(default_factory=list)
+from .types import SimConfig, SimResult
 
 
 class SimRunner:
