@@ -13,8 +13,8 @@ def test_sim_runner_init_default() -> None:
     assert runner.player_agent is not None  # mock 자동
 
 
-def test_sim_runner_run_returns_result() -> None:
-    """run() schema 반환 (★ 1차 commit, 진짜 시뮬 X)."""
+def test_sim_runner_run_no_party_returns_empty_schema() -> None:
+    """run() 인자 없이 호출 → 빈 결과 schema (★ 2차 commit 갱신)."""
     config = SimConfig(max_turns=5)
     runner = SimRunner(config=config)
 
@@ -23,16 +23,7 @@ def test_sim_runner_run_returns_result() -> None:
     assert isinstance(result, SimResult)
     assert result.total_turns == 5
     assert result.completed_turns == 0
-    assert "not_yet_implemented_1차" in result.end_reason
-
-
-def test_sim_runner_initialize_party_empty() -> None:
-    """initialize_party — 1차 commit은 빈 dict (★ 2차 commit이 본격)."""
-    config = SimConfig()
-    runner = SimRunner(config=config)
-
-    party = runner.initialize_party()
-    assert party == {}
+    assert "no_party_or_world" in result.end_reason
 
 
 def test_sim_runner_config_summary_in_result() -> None:
