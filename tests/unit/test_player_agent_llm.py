@@ -120,7 +120,8 @@ def test_build_player_prompt_includes_actor() -> None:
     assert "바바리안" in prompt
     assert "150" in prompt
     assert "미궁" in prompt
-    assert "어둠" in prompt
+    # ★ v2 prompt 본격 보강 (★ 빛 X 진입 시 ACTIVATE_LIGHT 힌트)
+    assert "ACTIVATE_LIGHT" in prompt
 
 
 # ─── PlayerAgent ───

@@ -70,34 +70,111 @@ class MockPlayerAgent:
 PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 주어진 게임 상황을 보고 다음 행동을 결정해야 합니다.
 
-응답 규칙 (★ 절대 준수):
+## 응답 규칙 (★ 절대 준수)
 - 응답은 반드시 JSON 1개만. 설명/주석/코드블록 X.
 - JSON 형식: {"action_type": "...", "target": "...", "rationale": "..."}
+- rationale은 한국어 1-2문장 짧게.
 
-action_type 가능 값 (13 종류):
-- "activate_light": 빛 자원 활성 (target = 빛 자원 이름, 예: "횃불")
-- "move": 이동 (target = sub_area 이름)
-- "explore": 탐색
-- "attack": 전투 (target = 몬스터 이름)
-- "absorb_essence": 정수 흡수 (target = 정수 이름)
-- "use_item": 아이템 사용 (target = 아이템 이름)
-- "offer_to_stone": 비석 공물 (★ 균열 진입, target = 마석 등급)
-- "enter_rift": 균열 포탈 진입 (target = 균열 이름)
-- "exit_rift": 균열 탈출
-- "rest": 휴식 (★ 4시간)
-- "wait": 시간 흐름
-- "communicate": 메시지 스톤 통신 (target = 받는 자)
-- "flee": 도주
+## 1층 진행 단계 (★ 어둠 미궁 본질)
 
-작품 본질 (★ 1층):
+**1단계: 빛 확보 (★ 가시거리 10m → 50m+)**
+- 현재 has_active_light=false 면 ACTIVATE_LIGHT 우선
+- target: "횃불" 또는 "정령 등불" (★ 종족 한정)
+- 빛 X면 약탈자/몬스터 인지 X = 매우 위험
+
+**2단계: 탐색 + 이동 (★ sub_areas)**
+- 빛 확보 후 EXPLORE → 정수/몬스터/통로 발견
+- MOVE → 인접 sub_area 이동 (★ accessible_from)
+- target: sub_area 이름 (예: "북쪽 통로", "비석 공동")
+
+**3단계: 정수 / 마석 / 자원 수집**
+- ABSORB_ESSENCE: 떠다니는 정수 흡수 (★ 30분 자연 소멸)
+- 정수 흡수 = 능력 강화 (★ 13/14화 본문)
+- target: 정수 이름 (예: "고블린 정수")
+
+**4단계: 전투 / 도주 결정**
+- ATTACK: 약한 몬스터 (★ 9등급)
+- FLEE: 강한 적 / HP 낮을 때
+- target: 몬스터 이름
+
+**5단계: 휴식 (★ HP 회복)**
+- REST: 4시간 교대 (★ 27화 본문)
+- 빛 자원 OFF 후 휴식 권장
+
+**6단계: 균열 진입 (★ 1층 탈출 / 보상)**
+- OFFER_TO_STONE: 비석 공물 (★ 마석 → 의도적 균열, 374화)
+- ENTER_RIFT: 균열 포탈 진입
+- EXIT_RIFT: 균열 탈출
+- target: 균열 이름 (예: "green_mine") 또는 마석 등급
+
+## action_type 가능 값 (13 종류 — 다양 사용 본격)
+
+| action_type | 사용 시점 | target |
+|---|---|---|
+| activate_light | 빛 X 진입 시 우선 | "횃불"/"정령 등불" |
+| move | sub_area 이동 | sub_area 이름 |
+| explore | 빛 확보 후 정탐 | null |
+| attack | 약한 몬스터 발견 | 몬스터 이름 |
+| absorb_essence | 정수 떠다님 | 정수 이름 |
+| use_item | 아이템 사용 | 아이템 이름 |
+| offer_to_stone | 균열 진입 직전 | 마석 등급 |
+| enter_rift | 균열 발견 | 균열 이름 |
+| exit_rift | 균열 안에서 | 균열 이름 |
+| rest | HP/MP 낮을 때 | null |
+| wait | 시간 흘려야 할 때 | null |
+| communicate | 파티원 소식 | 받는 자 |
+| flee | 강한 적 만남 | 위협 이름 |
+
+## 절대 금지 (★ 본 prompt 본격)
+- ❌ **빛 활성: O 인데 ACTIVATE_LIGHT 출력 X** (★ 이미 빛 켜짐, 다음 단계 진행)
+- ❌ 같은 action_type 3회 연속 반복 X (★ 다양 사용 본격)
+- ❌ EXPLORE만 반복 (★ 1층 진행 X)
+- ❌ MOVE만 반복 (★ 빛 X면 위험)
+- ❌ rationale 영어 (★ 한국어만)
+- ❌ JSON 외 출력 (★ 설명 X / 코드블록 X)
+
+## 단계 결정 알고리즘 (★ 직접 적용)
+
+```
+if 빛 활성 == X and 미궁 시간 == 0:
+    → activate_light, target="횃불"
+elif HP < 30%:
+    → rest
+elif 정수 슬롯 < 3 and 미궁 시간 > 5:
+    → explore (★ 정수 발견) or move (★ 새 영역) or absorb_essence (★ 발견 시)
+elif 자원 충분 (정수 5+):
+    → offer_to_stone or enter_rift (★ 1층 탈출)
+else:
+    → explore / move / attack / communicate / wait 중 1개 (★ 단계별 다양)
+```
+
+## 작품 본질
+- 미궁 시간 한도: 168시간 (★ 7일)
+- HP 0 = 영구사망 (★ 부활 X)
 - 어둠 기본 (★ 가시거리 10m)
-- 빛 활성 시 몬스터 등장 위험
-- 정수는 살이 닿으면 자동 흡수, 30분 자연 소멸
+- 빛 활성 시 몬스터 등장 위험도 ↑
+- 정수 흡수: 살이 닿으면 자동, 30분 자연 소멸
 - 약탈자 (★ 수정 연합) 위험
-- 168시간 한도
 
-target은 상황에 맞는 값 (예: "북쪽 통로", "고블린", "횃불"). target 없는 경우 null.
-rationale은 짧게 (★ 1-2문장).
+## few-shot 예시
+
+### 예시 1 (★ 진입 직후)
+상황: 비요른, HP 150, has_active_light=false, hours_in_dungeon=0
+출력:
+{"action_type": "activate_light", "target": "횃불",
+ "rationale": "어둠 속 가시거리 10m. 횃불 활성으로 시야 확보 우선."}
+
+### 예시 2 (★ 정수 발견)
+상황: 에르웬, HP 90, 정수 슬롯 0/9, 떠다니는 청록색 정수 발견
+출력:
+{"action_type": "absorb_essence", "target": "청록색 정수",
+ "rationale": "30분 안 자연 소멸. 살이 닿아 자동 흡수."}
+
+### 예시 3 (★ HP 낮음)
+상황: 비요른, HP 40/150, 미궁 시간 12h, has_active_light=true
+출력:
+{"action_type": "rest", "target": null,
+ "rationale": "HP 27% 낮음. 4시간 휴식으로 회복 필요."}
 """
 
 
@@ -149,55 +226,76 @@ class PlayerAgent:
 
 
 def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
-    """게임 컨텍스트 → user prompt (★ 캐릭터/위치/진행/sub_areas)."""
-    lines = [f"[캐릭터] {actor_name}"]
+    """게임 컨텍스트 → user prompt (★ 본 commit 본격 보강).
 
-    if v2_chars := ctx.get("v2_characters"):
-        if char := v2_chars.get(actor_name):
-            lines.append(f"종족: {char.get('race', '?')}")
-            lines.append(
-                f"HP: {char.get('hp', '?')}/{char.get('hp_max', '?')}"
-            )
-            lines.append(
-                f"메인: 육체 {char.get('physical', '?')} "
-                f"정신 {char.get('mental', '?')} "
-                f"이능 {char.get('special', '?')}"
-            )
-            lines.append(
-                f"근력 {char.get('strength', '?')} "
-                f"민첩 {char.get('agility', '?')}"
-            )
+    - 진행 상태 명확 (★ HP / 빛 / 정수 / 시간)
+    - 추천 다음 행동 힌트 (★ rule-based 5종)
+    - 13 ActionType 다양 유도
+    """
+    chars = ctx.get("v2_characters") or {}
+    actor = chars.get(actor_name) or {}
+    world = ctx.get("v2_world_state") or {}
+    location = ctx.get("v2_initial_location") or {}
+    floor_def = ctx.get("v2_floor_definition") or {}
 
-    if loc := ctx.get("v2_initial_location"):
-        lines.append(
-            f"\n[위치] {loc.get('realm', '?')} "
-            f"{loc.get('floor', '')}층 {loc.get('sub_area', '')}"
-        )
-        lines.append(f"가시거리: {loc.get('visibility_meters', '?')}m")
-        lines.append(
-            f"빛: {'활성' if loc.get('has_light') else '비활성 (★ 어둠)'}"
-        )
+    hp = actor.get("hp", 0)
+    hp_max = actor.get("hp_max", 1)
+    hp_pct = (hp / hp_max * 100) if hp_max > 0 else 0
+    has_light = bool(actor.get("has_active_light", False))
+    essence_slots = int(actor.get("essence_slots_used", 0))
+    hours = int(world.get("hours_in_dungeon", 0))
 
-    if ws := ctx.get("v2_world_state"):
-        lines.append(
-            f"\n[진행] 미궁 시간 {ws.get('hours_in_dungeon', 0)}h / 168h"
-        )
-        if ws.get("is_dark_zone"):
-            lines.append("★ 어둠 영역")
-        if rifts := ws.get("active_rifts"):
-            lines.append(f"활성 균열: {', '.join(rifts)}")
+    # ─── 추천 다음 행동 힌트 (★ rule-based) ───
+    hints: list[str] = []
+    if not has_light and hours == 0:
+        hints.append("⚠️ 빛 자원 X — ACTIVATE_LIGHT 우선 권장")
+    if hp_pct < 30:
+        hints.append("⚠️ HP 30% 미만 — REST 권장")
+    if essence_slots < 3 and hours > 5:
+        hints.append("💡 정수 슬롯 빔 — EXPLORE/ABSORB_ESSENCE 권장")
+    if hours > 24 and essence_slots >= 5:
+        hints.append("💡 자원 충분 — OFFER_TO_STONE/ENTER_RIFT 권장 (★ 1층 탈출)")
+    if hours > 100:
+        hints.append("⚠️ 168h 한도 임박 — 균열 진입 우선")
 
-    if fd := ctx.get("v2_floor_definition"):
-        if sub_areas := fd.get("sub_areas"):
-            lines.append("\n[Sub Areas]")
-            for sa in sub_areas[:6]:
-                lines.append(
-                    f"- {sa['name']}: {sa.get('description', '')[:50]}"
-                )
+    hint_text = "\n".join(hints) if hints else "(★ 진행 단계 자유 결정)"
 
-    lines.append(
-        f"\n위 상황에서 {actor_name}의 다음 행동을 JSON 1개로 답하시오."
+    lines = [
+        "## 현재 상황",
+        "",
+        f"**플레이어**: {actor_name} ({actor.get('race', '?')})",
+        f"- HP: {hp}/{hp_max} ({hp_pct:.0f}%)",
+        f"- 빛 활성: {'O' if has_light else 'X'}",
+        f"- 정수 슬롯 사용: {essence_slots}",
+        "",
+        f"**위치**: {location.get('realm', '?')} "
+        f"{location.get('floor', '?')}층 {location.get('sub_area', '?')}",
+        f"- 가시거리: {location.get('visibility_meters', 10)}m",
+        f"- 빛 자원 있음: {'O' if location.get('has_light', False) else 'X'}",
+        "",
+        f"**미궁 시간**: {hours}h / 168h",
+    ]
+    if active_rifts := world.get("active_rifts"):
+        lines.append(f"**활성 균열**: {', '.join(active_rifts)}")
+    if party_members := world.get("party_members"):
+        lines.append(f"**파티**: {', '.join(party_members)}")
+
+    if sub_areas := floor_def.get("sub_areas"):
+        lines.append("")
+        lines.append("**Sub Areas (★ 1층)**")
+        for sa in sub_areas[:6]:
+            lines.append(f"- {sa['name']}: {sa.get('description', '')[:50]}")
+
+    lines.extend(
+        [
+            "",
+            "## 추천 힌트",
+            hint_text,
+            "",
+            "## 출력 (★ JSON 1개만)",
+        ]
     )
+
     return "\n".join(lines)
 
 

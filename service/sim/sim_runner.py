@@ -151,6 +151,65 @@ def _execute_action(
     return False, f"unknown action: {action.action_type.value}", []
 
 
+def _refresh_context(
+    party: dict[str, Character],
+    world: WorldState,
+    location: Location,
+    base_ctx: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """매 턴 LLM 호출 전 ctx의 동적 필드를 현재 state로 갱신.
+
+    base_ctx가 floor_definition 등 정적 자료를 가질 수 있어 그대로 보존하고,
+    캐릭터/월드/위치의 dynamic 필드만 덮어쓴다.
+    """
+    ctx: dict[str, Any] = dict(base_ctx) if base_ctx else {}
+
+    chars_ctx = dict(ctx.get("v2_characters") or {})
+    for name, c in party.items():
+        existing = dict(chars_ctx.get(name) or {})
+        existing.update(
+            {
+                "race": c.race.value,
+                "hp": c.hp,
+                "hp_max": c.hp_max,
+                "physical": c.physical,
+                "mental": c.mental,
+                "special": c.special,
+                "strength": c.strength,
+                "agility": c.agility,
+                "has_active_light": c.has_active_light(),
+                "essence_slots_used": c.essence_slots_used(),
+            }
+        )
+        chars_ctx[name] = existing
+    ctx["v2_characters"] = chars_ctx
+
+    world_ctx = dict(ctx.get("v2_world_state") or {})
+    world_ctx.update(
+        {
+            "hours_in_dungeon": world.hours_in_dungeon,
+            "is_dark_zone": world.is_dark_zone,
+            "active_rifts": list(world.active_rifts),
+            "party_members": list(world.party_members),
+        }
+    )
+    ctx["v2_world_state"] = world_ctx
+
+    loc_ctx = dict(ctx.get("v2_initial_location") or {})
+    loc_ctx.update(
+        {
+            "realm": location.realm.value,
+            "floor": location.floor,
+            "sub_area": location.sub_area,
+            "visibility_meters": location.visibility_meters,
+            "has_light": location.has_light,
+        }
+    )
+    ctx["v2_initial_location"] = loc_ctx
+
+    return ctx
+
+
 def _check_end_condition(
     config: SimConfig,
     party: dict[str, Character],
@@ -199,13 +258,17 @@ class SimRunner:
         location: Location,
         game_context: dict[str, Any] | None = None,
     ) -> TurnLog:
-        """단일 턴 진짜 실행 (★ 13 ActionType)."""
+        """단일 턴 진짜 실행 (★ 13 ActionType).
+
+        ★ ctx의 동적 필드를 매 턴 현재 state로 새로 갱신
+        (★ has_active_light / hp / essence_slots / hours / sub_area).
+        """
         actor = party.get(actor_name)
         if actor is None:
             raise ValueError(f"actor_name not in party: {actor_name}")
 
         hp_before = actor.hp
-        ctx = game_context or {}
+        ctx = _refresh_context(party, world, location, game_context)
 
         response = self.player_agent.generate_action(actor_name, ctx)
         action = response.action
