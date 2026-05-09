@@ -213,9 +213,12 @@ def submit_workflow(workflow: dict[str, Any]) -> str:
 
 
 def wait_for_completion(
-    prompt_id: str, timeout: int = 180
+    prompt_id: str, timeout: int = 300
 ) -> dict[str, Any]:
-    """ComfyUI 완료 대기 (★ history API)."""
+    """ComfyUI 완료 대기 (★ history API).
+
+    Phase 2 본격 fix: timeout 180→300s (★ Flux dev 25-step 안전).
+    """
     start = time.monotonic()
     while time.monotonic() - start < timeout:
         history = requests.get(
