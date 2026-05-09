@@ -49,12 +49,20 @@ SUB_AREAS: dict[str, dict[str, str]] = {
         "mood": "tense, danger lurking, monster territory",
     },
     "남쪽_통로": {
-        "english": "southern passage",
-        "atmosphere": "earthen corridor with mounds, gnome territory",
-        "details": (
-            "small earth mounds, dirt piles, gnome holes, scattered tools"
+        "english": "southern passage gnome warren",
+        "atmosphere": (
+            "dark underground tunnel, dim torch light only, "
+            "gnome territory"
         ),
-        "mood": "rustic dangerous, gnome warren feeling",
+        "details": (
+            "small earth mounds, gnome holes in walls, "
+            "scattered crude tools, dirt piles, narrow tunnel, "
+            "dungeon underground, no daylight, no plants"
+        ),
+        "mood": (
+            "claustrophobic dangerous, gnome warren feeling, "
+            "lurking unseen creatures"
+        ),
     },
     "수정_동굴": {
         "english": "crystal cavern",
@@ -77,16 +85,22 @@ SUB_AREAS: dict[str, dict[str, str]] = {
         "mood": "sacred ritualistic, threshold to something greater",
     },
     "포탈_영역": {
-        "english": "portal zone",
+        "english": "portal zone with four rifts",
         "atmosphere": (
-            "convergence point of four rifts, swirling energies"
+            "convergence chamber with FOUR distinct rifts "
+            "arranged in a row"
         ),
         "details": (
-            "four shimmering portals "
-            "(blood crimson, ice blue, toxic green, steel grey), "
-            "reality distortion, energy crackling"
+            "exactly four equally prominent portals side by side: "
+            "blood crimson rift on far left, "
+            "ice blue rift center-left, "
+            "toxic green rift center-right, "
+            "steel grey rift on far right, "
+            "all four rifts equally visible and equally sized, "
+            "swirling energies, reality distortion, "
+            "energy crackling between portals"
         ),
-        "mood": "powerful liminal, gateway to deeper realms",
+        "mood": "powerful liminal, gateway to four different realms",
     },
 }
 

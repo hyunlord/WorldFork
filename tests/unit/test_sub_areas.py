@@ -34,12 +34,18 @@ def test_sub_area_required_fields() -> None:
 
 
 def test_portal_zone_mentions_four_rifts() -> None:
-    """포탈 영역 4 균열 본문 정합 (★ 핏빛/빙하/녹색/강철)."""
+    """포탈 영역 4 균열 본문 정합 (★ Phase 3 보강).
+
+    핏빛성채/빙하굴/녹색탄광/강철의_묘 본격 4색 모두 명시.
+    """
     data = SUB_AREAS["포탈_영역"]
     details = data["details"].lower()
     assert "four" in details
+    # 4색 본격 (★ blood/ice/green/steel)
     assert "blood" in details or "crimson" in details
     assert "blue" in details or "ice" in details
+    assert "green" in details
+    assert "steel" in details or "grey" in details
 
 
 def test_southern_passage_mentions_gnome() -> None:
