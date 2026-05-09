@@ -363,8 +363,14 @@ class SimRunner:
             self.player_agent.reset_history()
         self._active_encounters = []
 
+        # ★ H commit 본격: 시작 시 initial_hours 적용 (★ COMBAT phase 시작)
+        # 기존 world.hours_in_dungeon이 더 작으면만 override (★ caller 선언적)
+        initial = int(self.config.initial_hours_in_dungeon)
+        if world.hours_in_dungeon < initial:
+            world.hours_in_dungeon = initial
+
         # ★ G commit 본격: float 시간 누적기 (★ 0.1h 본격 보존)
-        # WorldState.hours_in_dungeon은 int이지만 G의 delta는 float
+        # WorldState.hours_in_dungeon은 int이지만 delta는 float
         # → 누적 후 int(buffer)로 sync
         hours_float = float(world.hours_in_dungeon)
 
@@ -430,9 +436,13 @@ class SimRunner:
             completed += 1
 
             # ★ G commit 본격: time advancement 통합
-            # 매 turn ActionType별 hours_delta 본격 누적
-            # turn_handler 내부 advance_time/rest 본격 영향 X (★ 본 commit override)
-            delta = action_hours_delta(log.action.action_type)
+            # ★ H commit 본격: time_scale 적용 (★ default 2.0 RIFT 도달)
+            # 매 turn ActionType별 hours_delta × scale 본격 누적
+            # turn_handler 내부 advance_time/rest 영향 X (★ 본 commit override)
+            delta = action_hours_delta(
+                log.action.action_type,
+                time_scale=self.config.time_scale,
+            )
             hours_float += delta
             world.hours_in_dungeon = int(hours_float)
 

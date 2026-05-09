@@ -40,12 +40,15 @@ def _loc() -> Location:
 
 
 def test_run_50_turns_completes() -> None:
-    """50턴 WAIT — max_turns 도달 (50h < 168h)."""
+    """50턴 WAIT — max_turns 도달 (★ G semantics, 50h < 168h)."""
     actions = [
         PlayerAction(action_type=PlayerActionType.WAIT, actor_name="X")
     ]
+    # ★ G semantics: explicit initial=0, scale=1.0 (★ H default override)
     runner = SimRunner(
-        config=SimConfig(max_turns=50),
+        config=SimConfig(
+            max_turns=50, initial_hours_in_dungeon=0.0, time_scale=1.0
+        ),
         player_agent=MockPlayerAgent(mock_actions=actions),
     )
 

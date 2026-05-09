@@ -169,16 +169,29 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
 }
 
 
-def action_hours_delta(action_type: PlayerActionType) -> float:
-    """ActionType → 미궁 시간 진행 (★ G commit 본격).
+def action_hours_delta(
+    action_type: PlayerActionType,
+    time_scale: float = 1.0,
+) -> float:
+    """ActionType → 미궁 시간 진행 (★ G commit 본격 + H scale).
 
     1차 자료:
     - 27화: 휴식 4시간 교대
     - 13/14화: 정수 흡수 살이 닿으면 자동 (★ 즉시)
     - 11화: 빛 활성 즉시
     - 374화: 비석 공물 본격
+
+    Args:
+        action_type: ActionType
+        time_scale: 시간 진행 배율 (★ H commit, default 1.0)
+            * 1.0 = G commit base 본격
+            * 2.0 = H commit RIFT 도달 본격 (★ 50턴에 78h+)
+
+    Returns:
+        시간 진행 시간 (★ scale 적용 본격)
     """
-    return ACTION_HOURS_DELTA.get(action_type, 0.5)  # default 0.5h
+    base = ACTION_HOURS_DELTA.get(action_type, 0.5)
+    return base * time_scale
 
 
 # phase별 권장 type 분포 (★ F commit, 본격 본질, sum ~1.0)
@@ -337,3 +350,7 @@ class SimConfig:
     # 분석 자료 저장
     save_turn_logs: bool = True
     output_path: str | None = None         # JSON 저장 경로
+
+    # ★ H commit 본격: RIFT 도달 본격 답
+    initial_hours_in_dungeon: float = 48.0  # ★ EXPLORE 후반/COMBAT 시작
+    time_scale: float = 2.0                 # ★ delta 2배 본격 (★ RIFT 도달)

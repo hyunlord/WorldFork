@@ -110,12 +110,15 @@ def test_sim_runner_run_invalid_actor() -> None:
 
 
 def test_sim_runner_run_with_party_and_world() -> None:
-    """run() N턴 진짜 실행 (★ 3차 commit max_turns 도달)."""
+    """run() N턴 진짜 실행 (★ 3차 commit max_turns 도달, G semantics)."""
     actions = [
         PlayerAction(action_type=PlayerActionType.WAIT, actor_name="비요른")
     ]
+    # ★ G semantics: explicit initial=0, scale=1.0 (★ H default override)
     runner = SimRunner(
-        config=SimConfig(max_turns=5),
+        config=SimConfig(
+            max_turns=5, initial_hours_in_dungeon=0.0, time_scale=1.0
+        ),
         player_agent=MockPlayerAgent(mock_actions=actions),
     )
 
@@ -128,7 +131,7 @@ def test_sim_runner_run_with_party_and_world() -> None:
     assert len(result.turn_logs) == 5
     assert result.end_reason == "max_turns"
     assert result.final_hp_by_actor["비요른"] == 150
-    # ★ G commit: WAIT delta=2h × 5 turn = 10h (★ A.5의 advance_time 1h overridden)
+    # ★ G commit: WAIT delta=2h × 5 turn = 10h
     assert result.final_hours_in_dungeon == 10
 
 

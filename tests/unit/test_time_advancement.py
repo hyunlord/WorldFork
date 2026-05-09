@@ -162,7 +162,7 @@ def _setup() -> tuple[
 
 
 def test_explore_advances_time_per_turn() -> None:
-    """EXPLORE 매 turn 1h 본격."""
+    """EXPLORE 매 turn 1h 본격 (★ G semantics: scale=1.0, initial=0)."""
     actions = [
         PlayerAction(
             action_type=PlayerActionType.EXPLORE,
@@ -173,7 +173,10 @@ def test_explore_advances_time_per_turn() -> None:
     ]
     player_agent = MockPlayerAgent(mock_actions=actions)
     gm_agent = MockSimGMAgent()
-    config = SimConfig(max_turns=10)
+    # ★ G semantics: explicit initial=0, scale=1.0 (★ H default override)
+    config = SimConfig(
+        max_turns=10, initial_hours_in_dungeon=0.0, time_scale=1.0
+    )
     runner = SimRunner(
         config=config, player_agent=player_agent, gm_agent=gm_agent
     )
@@ -190,7 +193,7 @@ def test_explore_advances_time_per_turn() -> None:
 
 
 def test_rest_advances_4h() -> None:
-    """REST 4h 본격 (★ 27화 본문)."""
+    """REST 4h 본격 (★ 27화 본문, G semantics)."""
     actions = [
         PlayerAction(
             action_type=PlayerActionType.REST,
@@ -201,7 +204,9 @@ def test_rest_advances_4h() -> None:
     ]
     player_agent = MockPlayerAgent(mock_actions=actions)
     gm_agent = MockSimGMAgent()
-    config = SimConfig(max_turns=1)
+    config = SimConfig(
+        max_turns=1, initial_hours_in_dungeon=0.0, time_scale=1.0
+    )
     runner = SimRunner(
         config=config, player_agent=player_agent, gm_agent=gm_agent
     )
@@ -238,7 +243,9 @@ def test_50_turns_diverse_actions_reach_combat_or_rift() -> None:
     ]
     player_agent = MockPlayerAgent(mock_actions=diverse_actions)
     gm_agent = MockSimGMAgent()
-    config = SimConfig(max_turns=50)
+    config = SimConfig(
+        max_turns=50, initial_hours_in_dungeon=0.0, time_scale=1.0
+    )
     runner = SimRunner(
         config=config, player_agent=player_agent, gm_agent=gm_agent
     )
@@ -256,7 +263,7 @@ def test_50_turns_diverse_actions_reach_combat_or_rift() -> None:
 
 
 def test_absorb_only_still_advances_slowly() -> None:
-    """ABSORB만 50턴 → 5h 본격 (★ 0.1×50, EXPLORE 본격 도달)."""
+    """ABSORB만 50턴 → 5h 본격 (★ 0.1×50, EXPLORE 본격 도달, G semantics)."""
     actions = [
         PlayerAction(
             action_type=PlayerActionType.ABSORB_ESSENCE,
@@ -267,7 +274,9 @@ def test_absorb_only_still_advances_slowly() -> None:
     ]
     player_agent = MockPlayerAgent(mock_actions=actions)
     gm_agent = MockSimGMAgent()
-    config = SimConfig(max_turns=50)
+    config = SimConfig(
+        max_turns=50, initial_hours_in_dungeon=0.0, time_scale=1.0
+    )
     runner = SimRunner(
         config=config, player_agent=player_agent, gm_agent=gm_agent
     )
