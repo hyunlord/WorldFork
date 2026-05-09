@@ -63,3 +63,7 @@ docs/sessions/*.json
 
 # 시나리오 자료 (★ 저작권, 개인 use case)
 docs/scenarios/
+
+
+# Visual generated assets (★ git X, 자료 본격 보존만)
+/tmp/visual/
