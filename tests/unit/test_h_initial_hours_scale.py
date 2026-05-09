@@ -55,10 +55,14 @@ def test_action_hours_delta_scale_arbitrary() -> None:
     assert action_hours_delta(PlayerActionType.REST, time_scale=3.0) == 12.0
 
 
-def test_simconfig_default_initial_hours_48() -> None:
-    """SimConfig default initial_hours=48.0 (★ H commit)."""
+def test_simconfig_default_initial_hours_72() -> None:
+    """SimConfig default initial_hours=72.0 (★ I commit, RIFT 시작).
+
+    H commit (★ 9498338): 48.0 (★ 1-3h 미달)
+    I commit (★ 본 commit): 72.0 (★ 첫 turn RIFT phase 본격)
+    """
     config = SimConfig()
-    assert config.initial_hours_in_dungeon == 48.0
+    assert config.initial_hours_in_dungeon == 72.0
 
 
 def test_simconfig_default_time_scale_2() -> None:
@@ -137,7 +141,7 @@ def _setup() -> tuple[
 
 
 def test_sim_runner_applies_initial_hours_default() -> None:
-    """default config 본격 시 시작 hours=48 본격."""
+    """default config 시 시작 hours=72 본격 (★ I commit RIFT)."""
     actions = [
         PlayerAction(
             action_type=PlayerActionType.WAIT,
@@ -148,7 +152,7 @@ def test_sim_runner_applies_initial_hours_default() -> None:
     ]
     player_agent = MockPlayerAgent(mock_actions=actions)
     gm_agent = MockSimGMAgent()
-    config = SimConfig(max_turns=5)  # ★ default initial=48, scale=2.0
+    config = SimConfig(max_turns=5)  # ★ I default: initial=72, scale=2.0
     runner = SimRunner(
         config=config, player_agent=player_agent, gm_agent=gm_agent
     )
@@ -159,9 +163,9 @@ def test_sim_runner_applies_initial_hours_default() -> None:
         party=party, world=world, location=location, game_context=ctx
     )
 
-    # 시작 48 + 5 × WAIT(2 × 2 scale = 4h) = 48 + 20 = 68h
-    assert world.hours_in_dungeon >= 48
-    assert 60 <= world.hours_in_dungeon <= 75
+    # I default: 시작 72 + 5 × WAIT(2 × 2 = 4h) = 72 + 20 = 92h (RIFT)
+    assert world.hours_in_dungeon >= 72
+    assert 85 <= world.hours_in_dungeon <= 100
 
 
 def test_sim_runner_no_override_if_already_higher() -> None:
@@ -196,6 +200,33 @@ def test_sim_runner_no_override_if_already_higher() -> None:
     assert world.hours_in_dungeon >= 60
 
 
+def test_sim_runner_starts_at_rift_phase_default() -> None:
+    """I commit default: SimRunner 첫 turn RIFT phase (★ h>=72)."""
+    actions = [
+        PlayerAction(
+            action_type=PlayerActionType.WAIT,
+            actor_name="비요른",
+            target=None,
+            rationale="",
+        )
+    ]
+    player_agent = MockPlayerAgent(mock_actions=actions)
+    gm_agent = MockSimGMAgent()
+    config = SimConfig(max_turns=1)  # ★ I default
+    runner = SimRunner(
+        config=config, player_agent=player_agent, gm_agent=gm_agent
+    )
+
+    party, world, location, ctx = _setup()
+
+    runner.run(
+        party=party, world=world, location=location, game_context=ctx
+    )
+
+    # 시작 72h 본격 적용 (★ 1 turn 진행 후 76h 본격)
+    assert world.hours_in_dungeon >= 72
+
+
 def test_50_turns_h_default_reaches_rift_phase() -> None:
     """H default config 50턴 → RIFT phase (h≥72) 본격 도달."""
     diverse_actions = [
@@ -227,10 +258,10 @@ def test_50_turns_h_default_reaches_rift_phase() -> None:
         party=party, world=world, location=location, game_context=ctx
     )
 
-    # 시작 48 + 50 × 평균 0.6h × 2 scale = 48 + 60 = 108h → RIFT 본격
-    assert world.hours_in_dungeon >= 72, (
+    # 시작 72 + 50 × 평균 0.6h × 2 scale = 72 + 60 = 132h → RIFT 깊숙히
+    assert world.hours_in_dungeon >= 90, (
         f"50턴 후 미궁 시간 {world.hours_in_dungeon}h "
-        "— RIFT phase 도달 X (★ H 회귀)"
+        "— RIFT phase 본격 X (★ I 회귀)"
     )
 
 

@@ -351,6 +351,7 @@ class SimConfig:
     save_turn_logs: bool = True
     output_path: str | None = None         # JSON 저장 경로
 
-    # ★ H commit 본격: RIFT 도달 본격 답
-    initial_hours_in_dungeon: float = 48.0  # ★ EXPLORE 후반/COMBAT 시작
-    time_scale: float = 2.0                 # ★ delta 2배 본격 (★ RIFT 도달)
+    # ★ H commit base + I commit (1-3h 미달 직접 답):
+    # H 48.0 → I 72.0 (★ 첫 turn부터 RIFT phase 본격)
+    initial_hours_in_dungeon: float = 72.0  # ★ I: RIFT phase 시작
+    time_scale: float = 2.0                 # ★ H delta 2배 본격
