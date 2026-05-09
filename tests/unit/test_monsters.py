@@ -55,6 +55,19 @@ def test_wraith_is_ethereal() -> None:
     assert "ethereal" in text or "ghostly" in text or "shadow" in text
 
 
+def test_gnome_is_hostile() -> None:
+    """노움 22화 적대 mood 본격 (★ Phase 4 보강)."""
+    data = MONSTERS["노움"]
+    text = (
+        data["physical"] + " " + data["weapon"] + " " + data["behavior"]
+    ).lower()
+    assert (
+        "hostile" in text
+        or "snarling" in text
+        or "aggressive" in text
+    )
+
+
 def test_witchlamp_has_flame() -> None:
     """위치스램프 지능형 본문 정합."""
     data = MONSTERS["위치스램프"]

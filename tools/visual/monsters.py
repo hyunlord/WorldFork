@@ -47,13 +47,18 @@ MONSTERS: dict[str, dict[str, str]] = {
         "behavior": "alert focused expression, aiming",
     },
     "노움": {
-        "english": "gnome",
+        "english": "hostile gnome",
         "physical": (
-            "small earthy humanoid, brown wrinkled skin, large nose, "
-            "simple cloth tunic"
+            "small earthy humanoid, brown wrinkled skin, large ugly nose, "
+            "dirty rough tunic, dirt-stained skin"
         ),
-        "weapon": "crude pickaxe or digging tool",
-        "behavior": "cautious cunning expression, dirt-stained",
+        "weapon": (
+            "wielding crude sharpened pickaxe aggressively, threatening pose"
+        ),
+        "behavior": (
+            "hostile snarling expression, malicious eyes, baring yellowed teeth, "
+            "aggressive territorial stance, ready to attack"
+        ),
     },
     "슬라임": {
         "english": "slime",
