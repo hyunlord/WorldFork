@@ -357,6 +357,9 @@ class SimRunner:
         # ★ A. encounter 보강: 시뮬 시작 시 history reset
         if hasattr(self.gm_agent, "reset_history"):
             self.gm_agent.reset_history()
+        # ★ E commit: Player history도 reset (★ A.6 mirror)
+        if hasattr(self.player_agent, "reset_history"):
+            self.player_agent.reset_history()
         self._active_encounters = []
 
         actor_names = list(party.keys())
@@ -435,10 +438,18 @@ class SimRunner:
         # ★ A.6 본격: GM enforcement stats 수집
         gm_retry = 0
         gm_fallback = 0
-        stats_attr = getattr(self.gm_agent, "enforcement_stats", None)
-        if isinstance(stats_attr, dict):
-            gm_retry = int(stats_attr.get("retry_count", 0))
-            gm_fallback = int(stats_attr.get("fallback_count", 0))
+        gm_stats = getattr(self.gm_agent, "enforcement_stats", None)
+        if isinstance(gm_stats, dict):
+            gm_retry = int(gm_stats.get("retry_count", 0))
+            gm_fallback = int(gm_stats.get("fallback_count", 0))
+
+        # ★ E commit 본격: Player enforcement stats 수집 (A.6 mirror)
+        player_retry = 0
+        player_fallback = 0
+        player_stats = getattr(self.player_agent, "enforcement_stats", None)
+        if isinstance(player_stats, dict):
+            player_retry = int(player_stats.get("retry_count", 0))
+            player_fallback = int(player_stats.get("fallback_count", 0))
 
         return SimResult(
             sim_id=f"sim_{self.config.scenario_id}",
@@ -454,6 +465,8 @@ class SimRunner:
             total_gm_llm_cost=gm_cost_total,
             gm_retry_count=gm_retry,
             gm_fallback_count=gm_fallback,
+            player_retry_count=player_retry,
+            player_fallback_count=player_fallback,
         )
 
     def _config_summary(self) -> str:

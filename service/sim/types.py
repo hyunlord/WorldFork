@@ -160,9 +160,13 @@ class SimResult:
     total_gm_llm_cost: float = 0.0
     total_latency_seconds: float = 0.0
 
-    # ★ A.6 server-side enforcement metrics
+    # ★ A.6 server-side enforcement metrics (GM)
     gm_retry_count: int = 0
     gm_fallback_count: int = 0
+
+    # ★ E commit server-side enforcement metrics (Player, A.6 mirror)
+    player_retry_count: int = 0
+    player_fallback_count: int = 0
 
 
 @dataclass

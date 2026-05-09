@@ -6,19 +6,68 @@
 - 비용 ↓ (★ 9B Q3)
 
 1차 commit: MockPlayerAgent schema 본격 (★ 단위 테스트 caller)
-2차 commit (★ 본 commit): 진짜 LLM PlayerAgent class + JSON parsing
+2차 commit: 진짜 LLM PlayerAgent class + JSON parsing
+A.5 commit (b8ee50b): encounter type별 hint + active encounters 출력
+E commit (★ 본 commit, A.6 mirror): server-side ActionType enforcement
+- prompt-only enforcement = LLM 본격 X 따른다 (★ A.6 4-way 입증)
+- A.6가 GM에 적용한 패턴을 Player에 동일 본격 적용
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from core.llm.client import LLMClient, Prompt
+from core.llm.client import LLMClient, LLMResponse, Prompt
 
 from .types import PlayerAction, PlayerActionType
+
+log = logging.getLogger(__name__)
+
+
+# ─── 본 commit 본격 본질 (★ A.6 mirror) ───
+
+# 직전 ActionType 연속 검증 (★ Step A)
+# (★ history 길이 N 모두 같음 → 새로 같은 action 시도하면 N+1 연속 → 위반)
+MAX_CONSECUTIVE_SAME_ACTION = 3
+
+# dominance 검증 (★ Step B)
+ACTION_DOMINANCE_WINDOW = 8       # 직전 8턴
+ACTION_DOMINANCE_THRESHOLD = 0.5  # 50%+ 시 dominance
+ACTION_DOMINANCE_COUNT = 5        # 직전 8턴 중 같은 ActionType 5+
+
+# retry 본격
+MAX_PLAYER_RETRY_COUNT = 2
+
+# tracking 본격 (★ 50턴 × 2 actor 본격)
+LAST_ACTIONS_WINDOW = 15
+
+# encounter type별 required ActionType (★ Step C)
+ENCOUNTER_REQUIRED_ACTIONS: dict[str, tuple[str, ...]] = {
+    "essence": ("absorb_essence",),
+    "monster": ("attack", "flee", "use_item"),
+    "rift": ("enter_rift", "offer_to_stone", "exit_rift"),
+    "item": ("use_item",),
+    "event": ("communicate", "wait", "explore"),
+    # narrative는 자유
+}
+
+# fallback rule-based ActionType (★ Step D 안전)
+FALLBACK_ACTIONS_BY_PRIORITY: tuple[str, ...] = (
+    "absorb_essence",
+    "attack",
+    "explore",
+    "move",
+    "rest",
+    "wait",
+)
+
+# parse failure marker (★ _parse_action_json 본격 호환)
+PARSE_FAILED_MARKER = "[parse_failed]"
 
 
 @dataclass
@@ -65,7 +114,7 @@ class MockPlayerAgent:
         )
 
 
-# ─── 진짜 LLM PlayerAgent (★ 2차 commit) ───
+# ─── 진짜 LLM PlayerAgent (★ 2차 commit base + E commit enforcement) ───
 
 PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 주어진 게임 상황을 보고 다음 행동을 결정해야 합니다.
@@ -125,9 +174,27 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 | communicate | 파티원 소식 | 받는 자 |
 | flee | 강한 적 만남 | 위협 이름 |
 
+## 🔥 본격 ActionType 다양 강제 (★ E commit server-side)
+
+stochastic LLM은 익숙 ActionType만 도피하는 본질이 있다.
+본 turn 본격 다양 강제 (★ A.6 GM mirror):
+
+**encounter type별 required ActionType (★ 매핑 본격)**:
+- ESSENCE encounter → ABSORB_ESSENCE
+- MONSTER encounter → ATTACK / FLEE / USE_ITEM 中
+- RIFT encounter → ENTER_RIFT / OFFER_TO_STONE / EXIT_RIFT 中
+- ITEM encounter → USE_ITEM
+- EVENT encounter → COMMUNICATE / WAIT / EXPLORE 中
+- narrative-only → 자유
+
+**직전 ActionType 인식**:
+- 직전 3 연속 같은 ActionType → 본 turn 본격 다른 ActionType
+- 50%+ dominance → 본 turn 본격 다른 ActionType
+- ★ E commit: server가 응답 검증, 위반 시 재호출 + fallback
+
 ## 절대 금지 (★ 본 prompt 본격)
 - ❌ **빛 활성: O 인데 ACTIVATE_LIGHT 출력 X** (★ 이미 빛 켜짐, 다음 단계 진행)
-- ❌ 같은 action_type 3회 연속 반복 X (★ 다양 사용 본격)
+- ❌ 같은 action_type 3+ 연속 반복 X (★ E commit server-side)
 - ❌ EXPLORE만 반복 (★ 1층 진행 X)
 - ❌ MOVE만 반복 (★ 빛 X면 위험)
 - ❌ rationale 영어 (★ 한국어만)
@@ -178,58 +245,327 @@ else:
 """
 
 
-class PlayerAgent:
-    """진짜 LLM PlayerAgent (★ 2차 commit).
+# ─── 본격 helpers (★ A.6 mirror) ───
 
-    LLM 호출 → JSON parsing → PlayerAction 반환.
-    본 commit은 1턴 호출 검증 (★ 50턴은 3차 commit).
+
+def _detect_dominant_actions(
+    last_actions: list[str],
+    window: int = ACTION_DOMINANCE_WINDOW,
+    threshold: float = ACTION_DOMINANCE_THRESHOLD,
+    consecutive: int = ACTION_DOMINANCE_COUNT,
+) -> list[str]:
+    """직전 window 안 dominance ActionType 검출 (★ A.6 mirror)."""
+    if not last_actions:
+        return []
+
+    recent = last_actions[-window:]
+    if len(recent) < 3:
+        return []
+
+    counter: Counter[str] = Counter(recent)
+    total = len(recent)
+
+    return [
+        a for a, c in counter.items()
+        if c / total >= threshold or c >= consecutive
+    ]
+
+
+def _is_consecutive_violation(
+    last_actions: list[str],
+    new_action: str,
+    max_consecutive: int = MAX_CONSECUTIVE_SAME_ACTION,
+) -> bool:
+    """직전 max_consecutive 모두 same + new도 same → violation."""
+    if len(last_actions) < max_consecutive:
+        return False
+
+    recent = last_actions[-max_consecutive:]
+    return all(a == new_action for a in recent)
+
+
+def _is_action_violation(
+    new_action: str,
+    last_actions: list[str],
+    dominant_actions: list[str],
+) -> tuple[bool, str]:
+    """본 turn ActionType 위반? (★ A.6 mirror).
+
+    Returns:
+        (위반 여부, reason)
+    """
+    if _is_consecutive_violation(last_actions, new_action):
+        return (
+            True,
+            f"{new_action} {MAX_CONSECUTIVE_SAME_ACTION}+ 연속",
+        )
+
+    if new_action in dominant_actions:
+        return True, f"{new_action} dominance"
+
+    return False, ""
+
+
+def _build_forbidden_action_section(
+    last_action: str | None,
+    dominant_actions: list[str],
+) -> str:
+    """본 turn forbidden ActionType 섹션 (★ A.6 mirror)."""
+    if not last_action and not dominant_actions:
+        return "(★ 본 turn ActionType 자유 결정)"
+
+    lines = ["**본 turn 절대 금지 ActionType**:"]
+    if last_action:
+        lines.append(
+            f"- ❌ {last_action} (★ 직전 "
+            f"{MAX_CONSECUTIVE_SAME_ACTION} 연속)"
+        )
+    for da in dominant_actions:
+        if da != last_action:
+            lines.append(f"- ❌ {da} (★ 직전 8턴 dominance)")
+
+    lines.append("")
+    lines.append("→ 본 turn은 위 ActionType 외 본격 선택")
+
+    return "\n".join(lines)
+
+
+def _build_required_action_section(
+    encounters: list[dict[str, Any]],
+) -> str:
+    """본 turn required ActionType 섹션 (★ encounter 매핑 본격)."""
+    if not encounters:
+        return (
+            "(★ encounter X — 자유 결정, EXPLORE / MOVE / REST 추천)"
+        )
+
+    lines = ["**본 turn 본격 required ActionType (encounter 매핑)**:"]
+    matched = False
+    for e in encounters:
+        etype = str(e.get("type", ""))
+        ename = e.get("name", "?")
+        required = ENCOUNTER_REQUIRED_ACTIONS.get(etype, ())
+        if required:
+            req_text = " / ".join(req.upper() for req in required)
+            lines.append(
+                f"- {etype} ({ename}) → **{req_text} 본격 우선**"
+            )
+            matched = True
+
+    if not matched:
+        lines.append("(★ narrative encounter — 자유 결정)")
+
+    return "\n".join(lines)
+
+
+def _make_fallback_action(
+    actor_name: str,
+    encounters: list[dict[str, Any]],
+    last_actions: list[str],
+    dominant_actions: list[str],
+) -> PlayerAction:
+    """fallback rule-based ActionType (★ Step D 안전).
+
+    1. encounter 본격 인식 → required ActionType (★ dominance 외)
+    2. priority list (★ dominance / 직전 외)
+    3. 최후 EXPLORE
+    """
+    forbidden = set(dominant_actions)
+    last_action = last_actions[-1] if last_actions else None
+    if last_action and _is_consecutive_violation(last_actions, last_action):
+        forbidden.add(last_action)
+
+    # 1) encounter 본격 인식
+    for e in encounters or []:
+        etype = str(e.get("type", ""))
+        required = ENCOUNTER_REQUIRED_ACTIONS.get(etype, ())
+        for req in required:
+            if req not in forbidden:
+                return PlayerAction(
+                    action_type=PlayerActionType(req),
+                    actor_name=actor_name,
+                    target=str(e.get("name", "")) or None,
+                    rationale=(
+                        f"(★ E fallback) {etype} encounter required {req}"
+                    ),
+                )
+
+    # 2) priority list 본격
+    for action in FALLBACK_ACTIONS_BY_PRIORITY:
+        if action not in forbidden:
+            return PlayerAction(
+                action_type=PlayerActionType(action),
+                actor_name=actor_name,
+                target=None,
+                rationale=f"(★ E fallback) priority {action}",
+            )
+
+    # 3) 최후 EXPLORE
+    return PlayerAction(
+        action_type=PlayerActionType.EXPLORE,
+        actor_name=actor_name,
+        target=None,
+        rationale="(★ E fallback) default explore",
+    )
+
+
+# ─── PlayerAgent v3 본격 (★ E, A.6 mirror) ───
+
+
+class PlayerAgent:
+    """진짜 LLM PlayerAgent — server-side enforcement 본격 (★ E).
+
+    본 commit 본격 (★ A.6 mirror):
+    1. LLM 호출 → ActionType 응답
+    2. server-side rule check (★ 직전 / dominance)
+    3. 위반 시 retry (★ MAX_PLAYER_RETRY_COUNT)
+    4. retry 모두 실패 시 fallback rule-based ActionType
+    5. enforcement_stats 본격 측정
     """
 
-    def __init__(self, llm_client: LLMClient) -> None:
+    def __init__(
+        self,
+        llm_client: LLMClient,
+        max_retry: int = MAX_PLAYER_RETRY_COUNT,
+    ) -> None:
         self.llm_client = llm_client
+        self.max_retry = max_retry
+        self._last_actions: list[str] = []
+        # ★ E 본격: enforcement metrics (★ A.6 mirror)
+        self._retry_count_total = 0
+        self._fallback_count = 0
 
     @property
     def model_name(self) -> str:
         return self.llm_client.model_name
+
+    @property
+    def enforcement_stats(self) -> dict[str, int]:
+        """본 commit 본격 metrics (★ A.6 mirror)."""
+        return {
+            "retry_count": self._retry_count_total,
+            "fallback_count": self._fallback_count,
+        }
 
     def generate_action(
         self,
         actor_name: str,
         game_context: dict[str, Any],
     ) -> PlayerAgentResponse:
-        """LLM 호출 → action 생성.
+        """LLM 호출 + server-side enforcement (★ E 본격)."""
+        # ★ Step B: dominance 검출
+        dominant_actions = _detect_dominant_actions(self._last_actions)
 
-        Args:
-            actor_name: 누구의 행동인지 (★ "비요른" / "에르웬")
-            game_context: 게임 상황 dict (★ HP/위치/빛/시간 등)
+        encounters_raw = game_context.get("active_encounters") or []
+        encounters: list[dict[str, Any]] = [
+            e for e in encounters_raw if isinstance(e, dict)
+        ]
 
-        Returns:
-            PlayerAgentResponse (★ JSON parsing 실패 시 기본 WAIT fallback)
-        """
-        user_text = _build_player_prompt(actor_name, game_context)
+        last_response: LLMResponse | None = None
+        last_violation = ""
 
-        prompt = Prompt(
-            system=PLAYER_AGENT_SYSTEM_PROMPT,
-            user=user_text,
+        # ★ Step A: retry loop
+        for attempt in range(self.max_retry + 1):
+            user_text = _build_player_prompt(
+                actor_name,
+                game_context,
+                last_actions=self._last_actions,
+                dominant_actions=dominant_actions,
+            )
+            prompt = Prompt(
+                system=PLAYER_AGENT_SYSTEM_PROMPT,
+                user=user_text,
+            )
+            response = self.llm_client.generate(prompt, max_tokens=300)
+            action = _parse_action_json(response.text, actor_name)
+
+            # rule check
+            violation, reason = _is_action_violation(
+                new_action=action.action_type.value,
+                last_actions=self._last_actions,
+                dominant_actions=dominant_actions,
+            )
+
+            if not violation:
+                # OK — tracking 갱신 + return
+                self._last_actions.append(action.action_type.value)
+                self._last_actions = self._last_actions[-LAST_ACTIONS_WINDOW:]
+
+                return PlayerAgentResponse(
+                    action=action,
+                    raw_text=response.text,
+                    cost_usd=response.cost_usd,
+                    latency_ms=response.latency_ms,
+                )
+
+            # 위반 — retry (★ 실제 재호출 시에만 카운트)
+            log.warning(
+                "Player rule violation actor=%s attempt=%d reason=%s",
+                actor_name,
+                attempt + 1,
+                reason,
+            )
+            if attempt < self.max_retry:
+                self._retry_count_total += 1
+            last_response = response
+            last_violation = reason
+
+        # ★ Step D: retry 모두 실패 → fallback rule-based
+        log.warning(
+            "Player enforcement fallback actor=%s violation=%s",
+            actor_name,
+            last_violation,
         )
+        self._fallback_count += 1
 
-        response = self.llm_client.generate(prompt, max_tokens=300)
+        fallback = _make_fallback_action(
+            actor_name=actor_name,
+            encounters=encounters,
+            last_actions=self._last_actions,
+            dominant_actions=dominant_actions,
+        )
+        self._last_actions.append(fallback.action_type.value)
+        self._last_actions = self._last_actions[-LAST_ACTIONS_WINDOW:]
 
-        action = _parse_action_json(response.text, actor_name)
-
+        # 비용/지연 마지막 LLM 응답 누적 본격
+        if last_response is not None:
+            attempts = self.max_retry + 1
+            return PlayerAgentResponse(
+                action=fallback,
+                raw_text=(
+                    f"(★ E fallback after {attempts} attempts) "
+                    f"{last_violation}"
+                ),
+                cost_usd=last_response.cost_usd * attempts,
+                latency_ms=last_response.latency_ms * attempts,
+            )
         return PlayerAgentResponse(
-            action=action,
-            raw_text=response.text,
-            cost_usd=response.cost_usd,
-            latency_ms=response.latency_ms,
+            action=fallback,
+            raw_text="(★ E fallback)",
+            cost_usd=0.0,
+            latency_ms=0,
         )
 
+    def reset_history(self) -> None:
+        """시뮬 시작 시 호출 (★ A.6 mirror)."""
+        self._last_actions = []
+        self._retry_count_total = 0
+        self._fallback_count = 0
 
-def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
-    """게임 컨텍스트 → user prompt (★ 본 commit 본격 보강).
+
+def _build_player_prompt(
+    actor_name: str,
+    ctx: dict[str, Any],
+    *,
+    last_actions: list[str] | None = None,
+    dominant_actions: list[str] | None = None,
+) -> str:
+    """게임 컨텍스트 → user prompt (★ A.5 base + E commit 본격).
 
     - 진행 상태 명확 (★ HP / 빛 / 정수 / 시간)
     - 추천 다음 행동 힌트 (★ rule-based 5종)
+    - encounter type별 hint (★ A.5)
+    - 직전 ActionType / dominance / forbidden + required (★ E commit)
     - 13 ActionType 다양 유도
     """
     chars = ctx.get("v2_characters") or {}
@@ -258,12 +594,17 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
     if essence_slots < 3 and hours > 5:
         hints.append("💡 정수 슬롯 빔 — EXPLORE/ABSORB_ESSENCE 권장")
     if hours > 24 and essence_slots >= 5:
-        hints.append("💡 자원 충분 — OFFER_TO_STONE/ENTER_RIFT 권장 (★ 1층 탈출)")
+        hints.append(
+            "💡 자원 충분 — OFFER_TO_STONE/ENTER_RIFT 권장 (★ 1층 탈출)"
+        )
     if hours > 100:
         hints.append("⚠️ 168h 한도 임박 — 균열 진입 우선")
 
-    # ★ C commit: encounter type별 힌트 (★ GM이 spawn한 결과 인식)
-    encounters = ctx.get("active_encounters") or []
+    # ★ A.5 commit: encounter type별 힌트
+    encounters_raw = ctx.get("active_encounters") or []
+    encounters: list[dict[str, Any]] = [
+        e for e in encounters_raw if isinstance(e, dict)
+    ]
     for e in encounters:
         etype = e.get("type", "")
         ename = e.get("name", "?")
@@ -310,7 +651,7 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
         for sa in sub_areas[:6]:
             lines.append(f"- {sa['name']}: {sa.get('description', '')[:50]}")
 
-    # ★ C commit: GM이 spawn한 active encounters 본격 출력
+    # ★ A.5 commit: GM이 spawn한 active encounters
     if encounters:
         lines.append("")
         lines.append("**현재 encounter (★ GM 출력)**")
@@ -323,11 +664,38 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
             if edesc:
                 lines.append(f"  설명: {edesc}")
 
+    # ★ E commit: 직전 ActionType 출력
+    if last_actions:
+        recent = last_actions[-5:]
+        lines.append("")
+        lines.append(
+            f"**직전 5턴 ActionType (★ E tracking)**: {', '.join(recent)}"
+        )
+
+    # ★ E commit: 본 turn forbidden + required 동적 주입
+    last_action_for_forbidden: str | None = None
+    if last_actions and len(last_actions) >= MAX_CONSECUTIVE_SAME_ACTION:
+        recent_n = last_actions[-MAX_CONSECUTIVE_SAME_ACTION:]
+        if all(a == recent_n[0] for a in recent_n):
+            last_action_for_forbidden = recent_n[0]
+
+    forbidden_section = _build_forbidden_action_section(
+        last_action=last_action_for_forbidden,
+        dominant_actions=dominant_actions or [],
+    )
+    required_section = _build_required_action_section(encounters)
+
     lines.extend(
         [
             "",
             "## 추천 힌트",
             hint_text,
+            "",
+            "## 🔥 본 turn 강제 룰 (★ E server-side)",
+            "",
+            forbidden_section,
+            "",
+            required_section,
             "",
             "## 출력 (★ JSON 1개만)",
         ]
@@ -337,7 +705,12 @@ def _build_player_prompt(actor_name: str, ctx: dict[str, Any]) -> str:
 
 
 def _parse_action_json(raw_text: str, actor_name: str) -> PlayerAction:
-    """LLM 응답 JSON parsing — 안전 fallback (★ 실패 시 WAIT)."""
+    """LLM 응답 JSON parsing — 안전 fallback (★ 실패 시 WAIT).
+
+    본 commit 호환 본격 (★ A.5 commit 유지):
+    - parse 실패 → WAIT + rationale에 [parse_failed] 마커
+    - E commit retry는 rule violation 시에만 (★ parse 실패는 WAIT 통과)
+    """
     text = raw_text.strip()
 
     # ```json ... ``` 코드블록 우선 추출
@@ -358,7 +731,7 @@ def _parse_action_json(raw_text: str, actor_name: str) -> PlayerAction:
         return PlayerAction(
             action_type=PlayerActionType.WAIT,
             actor_name=actor_name,
-            rationale=f"[parse_failed] {raw_text[:100]}",
+            rationale=f"{PARSE_FAILED_MARKER} {raw_text[:100]}",
         )
 
     action_type_str = parsed.get("action_type", "wait")
