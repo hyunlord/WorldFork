@@ -129,7 +129,10 @@ def test_real_gm_with_mock_llm() -> None:
     )
 
     agent = SimGMAgent(llm_client=mock_llm)
-    response = agent.generate_encounters(1, {})
+    # ★ F commit: EXPLORE phase 본격 (★ MONSTER weight 25% 정합)
+    response = agent.generate_encounters(
+        1, {"v2_world_state": {"hours_in_dungeon": 10}}
+    )
 
     assert len(response.encounters) == 1
     assert response.encounters[0].type == EncounterType.MONSTER

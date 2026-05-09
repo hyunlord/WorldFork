@@ -435,13 +435,15 @@ class SimRunner:
             name: c.essence_slots_used() for name, c in party.items()
         }
 
-        # ★ A.6 본격: GM enforcement stats 수집
+        # ★ A.6 본격: GM enforcement stats 수집 (★ F commit phase 추가)
         gm_retry = 0
         gm_fallback = 0
+        gm_phase_mismatch = 0
         gm_stats = getattr(self.gm_agent, "enforcement_stats", None)
         if isinstance(gm_stats, dict):
             gm_retry = int(gm_stats.get("retry_count", 0))
             gm_fallback = int(gm_stats.get("fallback_count", 0))
+            gm_phase_mismatch = int(gm_stats.get("phase_mismatch_count", 0))
 
         # ★ E commit 본격: Player enforcement stats 수집 (A.6 mirror)
         player_retry = 0
@@ -465,6 +467,7 @@ class SimRunner:
             total_gm_llm_cost=gm_cost_total,
             gm_retry_count=gm_retry,
             gm_fallback_count=gm_fallback,
+            gm_phase_mismatch_count=gm_phase_mismatch,
             player_retry_count=player_retry,
             player_fallback_count=player_fallback,
         )

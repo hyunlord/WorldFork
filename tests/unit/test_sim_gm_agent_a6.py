@@ -188,9 +188,13 @@ def _mock_llm() -> MagicMock:
 
 
 def _empty_ctx() -> dict[str, object]:
+    """EXPLORE phase ctx (★ ESSENCE / MONSTER / ITEM 본격 OK).
+
+    F commit 본격: phase mismatch 본격 차단 위해 EXPLORE (h=10) 사용.
+    """
     return {
         "v2_characters": {},
-        "v2_world_state": {},
+        "v2_world_state": {"hours_in_dungeon": 10},
         "v2_initial_location": {"sub_area": "?"},
     }
 
@@ -209,7 +213,11 @@ def test_gm_agent_passes_when_no_violation() -> None:
     assert len(response.encounters) == 1
     assert response.encounters[0].type == EncounterType.MONSTER
     assert mock_llm.generate.call_count == 1
-    assert agent.enforcement_stats == {"retry_count": 0, "fallback_count": 0}
+    assert agent.enforcement_stats == {
+        "retry_count": 0,
+        "fallback_count": 0,
+        "phase_mismatch_count": 0,
+    }
 
 
 def test_gm_agent_retries_on_violation() -> None:
@@ -234,7 +242,11 @@ def test_gm_agent_retries_on_violation() -> None:
 
     assert response.encounters[0].type == EncounterType.MONSTER
     assert mock_llm.generate.call_count == 2
-    assert agent.enforcement_stats == {"retry_count": 1, "fallback_count": 0}
+    assert agent.enforcement_stats == {
+        "retry_count": 1,
+        "fallback_count": 0,
+        "phase_mismatch_count": 0,
+    }
 
 
 def test_gm_agent_fallback_after_max_retry() -> None:
@@ -256,7 +268,11 @@ def test_gm_agent_fallback_after_max_retry() -> None:
     assert response.encounters[0].type == EncounterType.NARRATIVE
     # 1 + 2 retry = 3 호출
     assert mock_llm.generate.call_count == 3
-    assert agent.enforcement_stats == {"retry_count": 2, "fallback_count": 1}
+    assert agent.enforcement_stats == {
+        "retry_count": 2,
+        "fallback_count": 1,
+        "phase_mismatch_count": 0,
+    }
 
     # 직전 type tracking에 narrative 본격 추가
     assert agent._last_encounter_types[-1] == "narrative"
@@ -289,7 +305,11 @@ def test_gm_agent_fallback_accumulates_cost_and_latency() -> None:
 def test_gm_agent_enforcement_stats_initial() -> None:
     """초기 metrics 본격 0."""
     agent = SimGMAgent(llm_client=_mock_llm())
-    assert agent.enforcement_stats == {"retry_count": 0, "fallback_count": 0}
+    assert agent.enforcement_stats == {
+        "retry_count": 0,
+        "fallback_count": 0,
+        "phase_mismatch_count": 0,
+    }
 
 
 def test_gm_agent_reset_history_clears_metrics() -> None:
@@ -302,7 +322,11 @@ def test_gm_agent_reset_history_clears_metrics() -> None:
     agent.reset_history()
 
     assert agent._last_encounter_types == []
-    assert agent.enforcement_stats == {"retry_count": 0, "fallback_count": 0}
+    assert agent.enforcement_stats == {
+        "retry_count": 0,
+        "fallback_count": 0,
+        "phase_mismatch_count": 0,
+    }
 
 
 def test_gm_agent_default_max_retry_matches_constant() -> None:

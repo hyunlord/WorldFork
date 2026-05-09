@@ -105,6 +105,108 @@ ENCOUNTER_TTL: dict[EncounterType, int] = {
 }
 
 
+# ─── F commit 본격: DungeonPhase + phase별 type 분포 ───
+
+
+class DungeonPhase(StrEnum):
+    """1층 미궁 진행 단계 (★ F commit, 작품 본문 정합).
+
+    1차 자료:
+    - 11화: 빛 / 메시지 스톤 / 약탈자 (★ ENTRY)
+    - 13/14화: 정수 흡수 (★ EXPLORE)
+    - 22화: 노움 (★ COMBAT)
+    - 27화: 균열 / 휴식 (★ RIFT)
+    - 168h: 미궁 한도
+    """
+
+    ENTRY = "entry"        # h<5: NARRATIVE 위주
+    EXPLORE = "explore"    # 5<h<24: ESSENCE/MONSTER 본격
+    COMBAT = "combat"      # 24<h<72: MONSTER/ITEM 본격
+    RIFT = "rift"          # h>72: RIFT 본격
+
+
+def determine_phase(hours_in_dungeon: int) -> DungeonPhase:
+    """미궁 시간 → phase 본격 결정 (★ F commit)."""
+    if hours_in_dungeon < 5:
+        return DungeonPhase.ENTRY
+    if hours_in_dungeon < 24:
+        return DungeonPhase.EXPLORE
+    if hours_in_dungeon < 72:
+        return DungeonPhase.COMBAT
+    return DungeonPhase.RIFT
+
+
+# phase별 권장 type 분포 (★ F commit, 본격 본질, sum ~1.0)
+PHASE_TYPE_WEIGHTS: dict[DungeonPhase, dict[EncounterType, float]] = {
+    DungeonPhase.ENTRY: {
+        EncounterType.NARRATIVE: 0.60,
+        EncounterType.ESSENCE: 0.20,
+        EncounterType.EVENT: 0.20,
+    },
+    DungeonPhase.EXPLORE: {
+        EncounterType.ESSENCE: 0.35,
+        EncounterType.MONSTER: 0.25,
+        EncounterType.ITEM: 0.20,
+        EncounterType.EVENT: 0.10,
+        EncounterType.NARRATIVE: 0.10,
+    },
+    DungeonPhase.COMBAT: {
+        EncounterType.MONSTER: 0.40,
+        EncounterType.ESSENCE: 0.25,
+        EncounterType.ITEM: 0.15,
+        EncounterType.EVENT: 0.10,
+        EncounterType.NARRATIVE: 0.10,
+    },
+    DungeonPhase.RIFT: {
+        EncounterType.RIFT: 0.40,
+        EncounterType.MONSTER: 0.25,
+        EncounterType.EVENT: 0.15,
+        EncounterType.NARRATIVE: 0.10,
+        EncounterType.ESSENCE: 0.10,
+    },
+}
+
+
+# phase별 spawn 빈도 (★ F commit, 본격 본질)
+PHASE_SPAWN_FREQUENCY: dict[DungeonPhase, float] = {
+    DungeonPhase.ENTRY: 0.30,    # 진입 본격 낮음
+    DungeonPhase.EXPLORE: 0.70,  # 탐색 본격 높음
+    DungeonPhase.COMBAT: 0.80,   # 몬스터 본격 높음
+    DungeonPhase.RIFT: 0.90,     # 균열 본격 매우 높음
+}
+
+
+# phase별 권장 (top weight) types (★ enforcement 본격)
+PHASE_PRIORITY_TYPES: dict[DungeonPhase, list[EncounterType]] = {
+    DungeonPhase.ENTRY: [
+        EncounterType.NARRATIVE,
+        EncounterType.ESSENCE,
+        EncounterType.EVENT,
+    ],
+    DungeonPhase.EXPLORE: [
+        EncounterType.ESSENCE,
+        EncounterType.MONSTER,
+        EncounterType.ITEM,
+        EncounterType.EVENT,
+        EncounterType.NARRATIVE,
+    ],
+    DungeonPhase.COMBAT: [
+        EncounterType.MONSTER,
+        EncounterType.ESSENCE,
+        EncounterType.ITEM,
+        EncounterType.EVENT,
+        EncounterType.NARRATIVE,
+    ],
+    DungeonPhase.RIFT: [
+        EncounterType.RIFT,
+        EncounterType.MONSTER,
+        EncounterType.EVENT,
+        EncounterType.NARRATIVE,
+        EncounterType.ESSENCE,
+    ],
+}
+
+
 @dataclass
 class GMResponse:
     """GM 단일 턴 응답 (★ structured output)."""
@@ -167,6 +269,9 @@ class SimResult:
     # ★ E commit server-side enforcement metrics (Player, A.6 mirror)
     player_retry_count: int = 0
     player_fallback_count: int = 0
+
+    # ★ F commit phase enforcement metric (GM, phase mismatch)
+    gm_phase_mismatch_count: int = 0
 
 
 @dataclass

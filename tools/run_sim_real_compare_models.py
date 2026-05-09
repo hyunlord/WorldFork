@@ -245,12 +245,17 @@ def main() -> int:
             f"  완료 턴: {analysis.completed_turns}/{analysis.total_turns}"
         )
         print(f"  생존: {'O' if analysis.survived_to_end else 'X'}")
-        # ★ A.6 본격 enforcement metrics (GM)
-        print(f"  GM retry: {result.gm_retry_count}회")
-        print(f"  GM fallback: {result.gm_fallback_count}회")
-        # ★ E commit metrics (Player, A.6 mirror)
-        print(f"  Player retry: {result.player_retry_count}회")
-        print(f"  Player fallback: {result.player_fallback_count}회")
+        # ★ A.6 + F commit GM metrics
+        print(
+            f"  GM retry: {result.gm_retry_count}회, "
+            f"fallback: {result.gm_fallback_count}회, "
+            f"phase_mismatch: {result.gm_phase_mismatch_count}회"
+        )
+        # ★ E commit Player metrics (A.6 mirror)
+        print(
+            f"  Player retry: {result.player_retry_count}회, "
+            f"fallback: {result.player_fallback_count}회"
+        )
         print(
             f"  균열 시도: "
             f"{'O' if analysis.floor_exit_attempted else 'X'}"
