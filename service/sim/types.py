@@ -126,14 +126,59 @@ class DungeonPhase(StrEnum):
 
 
 def determine_phase(hours_in_dungeon: int) -> DungeonPhase:
-    """미궁 시간 → phase 본격 결정 (★ F commit)."""
-    if hours_in_dungeon < 5:
+    """미궁 시간 → phase 본격 결정 (★ G commit, F 회귀 답).
+
+    F commit (★ 회귀 본질):
+    - h<5 ENTRY → ENTRY 본격 갇힘 (★ 시간 진행 X)
+
+    G commit (★ 본격 완화):
+    - h<2 ENTRY (★ 짧게)
+    - 2≤h<24 EXPLORE 본격
+    - 24≤h<72 COMBAT 유지
+    - h≥72 RIFT 유지
+    """
+    if hours_in_dungeon < 2:
         return DungeonPhase.ENTRY
     if hours_in_dungeon < 24:
         return DungeonPhase.EXPLORE
     if hours_in_dungeon < 72:
         return DungeonPhase.COMBAT
     return DungeonPhase.RIFT
+
+
+# ─── G commit 본격: ActionType별 시간 진행 매핑 ───
+
+ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
+    # 즉시 (★ 작품 본문)
+    PlayerActionType.ACTIVATE_LIGHT: 0.1,    # ★ 11화 빛 활성 즉시
+    PlayerActionType.ABSORB_ESSENCE: 0.1,    # ★ 13/14화 살이 닿으면 자동
+    PlayerActionType.USE_ITEM: 0.2,
+    # 짧음
+    PlayerActionType.MOVE: 0.5,              # sub_area 이동
+    PlayerActionType.ATTACK: 0.5,
+    PlayerActionType.COMMUNICATE: 0.5,
+    PlayerActionType.FLEE: 0.5,
+    PlayerActionType.ENTER_RIFT: 0.5,
+    PlayerActionType.EXIT_RIFT: 0.5,
+    # 중간
+    PlayerActionType.EXPLORE: 1.0,           # 정탐
+    PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
+    # 길음
+    PlayerActionType.WAIT: 2.0,
+    PlayerActionType.REST: 4.0,              # ★ 27화 휴식 4시간 본문
+}
+
+
+def action_hours_delta(action_type: PlayerActionType) -> float:
+    """ActionType → 미궁 시간 진행 (★ G commit 본격).
+
+    1차 자료:
+    - 27화: 휴식 4시간 교대
+    - 13/14화: 정수 흡수 살이 닿으면 자동 (★ 즉시)
+    - 11화: 빛 활성 즉시
+    - 374화: 비석 공물 본격
+    """
+    return ACTION_HOURS_DELTA.get(action_type, 0.5)  # default 0.5h
 
 
 # phase별 권장 type 분포 (★ F commit, 본격 본질, sum ~1.0)

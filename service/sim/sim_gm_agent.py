@@ -55,9 +55,11 @@ FALLBACK_NARRATIVE = "주변이 잠시 고요해진다. 미궁의 어둠이 천�
 # tracking 본격
 LAST_TYPES_WINDOW = 10          # _last_encounter_types 최근 10개 유지
 
-# ─── F commit 본격: phase enforcement ───
+# ─── F commit base + G commit 완화 ───
 # weight 미만 시 phase mismatch (★ Step C)
-PHASE_MISMATCH_WEIGHT_THRESHOLD = 0.05
+# F: 0.05 (★ 너무 strict — 회귀 root cause)
+# G: 0.02 (★ 매우 lax, weight === 0 만 본격 mismatch)
+PHASE_MISMATCH_WEIGHT_THRESHOLD = 0.02
 
 
 SIM_GM_SYSTEM_PROMPT = """당신은 RPG 게임의 GM (게임 마스터)입니다.

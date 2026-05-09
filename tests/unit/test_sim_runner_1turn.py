@@ -128,7 +128,8 @@ def test_sim_runner_run_with_party_and_world() -> None:
     assert len(result.turn_logs) == 5
     assert result.end_reason == "max_turns"
     assert result.final_hp_by_actor["비요른"] == 150
-    assert result.final_hours_in_dungeon == 5
+    # ★ G commit: WAIT delta=2h × 5 turn = 10h (★ A.5의 advance_time 1h overridden)
+    assert result.final_hours_in_dungeon == 10
 
 
 def test_sim_runner_run_no_party_returns_empty() -> None:

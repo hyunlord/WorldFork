@@ -39,6 +39,7 @@ from .types import (
     SimConfig,
     SimResult,
     TurnLog,
+    action_hours_delta,
 )
 
 
@@ -362,6 +363,11 @@ class SimRunner:
             self.player_agent.reset_history()
         self._active_encounters = []
 
+        # ★ G commit 본격: float 시간 누적기 (★ 0.1h 본격 보존)
+        # WorldState.hours_in_dungeon은 int이지만 G의 delta는 float
+        # → 누적 후 int(buffer)로 sync
+        hours_float = float(world.hours_in_dungeon)
+
         actor_names = list(party.keys())
         completed = 0
         end_reason = "max_turns"
@@ -422,6 +428,13 @@ class SimRunner:
             )
             turn_logs.append(log)
             completed += 1
+
+            # ★ G commit 본격: time advancement 통합
+            # 매 turn ActionType별 hours_delta 본격 누적
+            # turn_handler 내부 advance_time/rest 본격 영향 X (★ 본 commit override)
+            delta = action_hours_delta(log.action.action_type)
+            hours_float += delta
+            world.hours_in_dungeon = int(hours_float)
 
             reason = _check_end_condition(self.config, party, world, completed)
             if reason is not None:

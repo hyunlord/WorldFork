@@ -34,12 +34,14 @@ from service.sim.types import (
 
 
 def test_determine_phase_entry() -> None:
+    """G commit (★ 본 commit base): h<2 ENTRY (★ F의 h<5 완화)."""
     assert determine_phase(0) == DungeonPhase.ENTRY
-    assert determine_phase(4) == DungeonPhase.ENTRY
+    assert determine_phase(1) == DungeonPhase.ENTRY
 
 
 def test_determine_phase_explore() -> None:
-    assert determine_phase(5) == DungeonPhase.EXPLORE
+    """G commit: 2≤h<24 EXPLORE."""
+    assert determine_phase(2) == DungeonPhase.EXPLORE
     assert determine_phase(23) == DungeonPhase.EXPLORE
 
 
