@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — DUNGEON OF DARKNESS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1920px; height: 1080px;
+  background:
+    linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.85)),
+    url('../../../../ComfyUI/output/worldfork/ui_main_bg.png');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  overflow: hidden;
+  position: relative;
+}
+
+.logo {
+  position: absolute;
+  top: 80px; left: 50%; transform: translateX(-50%);
+  text-align: center;
+}
+.logo h1 {
+  font-size: 96px; font-weight: 900;
+  color: #d4af37;
+  text-shadow: 0 0 30px #8b0000, 0 0 60px rgba(139,0,0,0.5);
+  letter-spacing: 12px;
+}
+.logo .subtitle {
+  font-size: 28px; color: #8b7355;
+  letter-spacing: 8px; margin-top: 16px;
+}
+
+.menu {
+  position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; gap: 24px;
+  text-align: center;
+}
+.menu-item {
+  font-size: 36px; color: #d4af37;
+  padding: 16px 48px;
+  border: 1px solid rgba(212,175,55,0.3);
+  background: rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: all 0.3s;
+  letter-spacing: 4px;
+}
+.menu-item:hover {
+  background: rgba(139,0,0,0.4);
+  border-color: #d4af37;
+  text-shadow: 0 0 20px #d4af37;
+}
+.menu-item.primary {
+  background: linear-gradient(135deg, rgba(139,0,0,0.6), rgba(0,0,0,0.6));
+  border-color: #d4af37;
+  font-weight: 700;
+}
+
+.character {
+  position: absolute; bottom: 40px;
+  width: 280px; height: 360px;
+  background-size: cover; background-position: top center;
+  border: 2px solid rgba(212,175,55,0.4);
+  box-shadow: 0 0 40px rgba(0,0,0,0.8);
+}
+.character.left {
+  left: 80px;
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_main_bjorn.png');
+}
+.character.right {
+  right: 80px;
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_main_erwen.png');
+}
+.character-name {
+  position: absolute; bottom: -32px; left: 0; right: 0;
+  text-align: center; font-size: 22px;
+  color: #d4af37; letter-spacing: 4px;
+}
+
+.stats {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: #8b7355; letter-spacing: 2px;
+}
+.stats.left { left: 80px; text-align: left; }
+.stats.right { right: 80px; text-align: right; }
+.stats .label { color: #6b5d3f; font-size: 13px; }
+.stats .value { color: #d4af37; font-size: 20px; margin-top: 4px; margin-bottom: 16px; }
+
+.dungeon-time {
+  position: absolute; top: 40px; right: 80px;
+  font-size: 18px; color: #8b0000;
+  letter-spacing: 4px;
+  text-align: right;
+}
+.dungeon-time .hours {
+  font-size: 42px; color: #ff4444;
+  text-shadow: 0 0 16px #8b0000;
+  font-weight: 700;
+  display: block;
+}
+</style>
+</head>
+<body>
+  <div class="dungeon-time">
+    미궁 잔여 시간
+    <span class="hours">168h</span>
+  </div>
+
+  <div class="logo">
+    <h1>WORLDFORK</h1>
+    <div class="subtitle">DUNGEON OF DARKNESS</div>
+  </div>
+
+  <div class="stats left">
+    <div class="label">탐사대</div>
+    <div class="value">2명</div>
+    <div class="label">현재 층</div>
+    <div class="value">1층 / 10층</div>
+  </div>
+
+  <div class="stats right">
+    <div class="label">총 누적 시간</div>
+    <div class="value">0h</div>
+    <div class="label">미궁 등급</div>
+    <div class="value">9등급</div>
+  </div>
+
+  <div class="menu">
+    <div class="menu-item primary">▸ 1층 진입</div>
+    <div class="menu-item">이어하기</div>
+    <div class="menu-item">설정</div>
+    <div class="menu-item">나가기</div>
+  </div>
+
+  <div class="character left">
+    <div class="character-name">비요른</div>
+  </div>
+  <div class="character right">
+    <div class="character-name">에르웬</div>
+  </div>
+</body>
+</html>
