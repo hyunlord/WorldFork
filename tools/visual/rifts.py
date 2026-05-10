@@ -32,14 +32,18 @@ RIFTS: dict[str, dict[str, str]] = {
     "핏빛성채": {
         "english": "blood crimson rift fortress",
         "atmosphere": (
-            "crimson stone fortress interior, bloody ritual chamber, "
-            "dark gothic architecture"
+            "crimson stone fortress interior, gothic ritual chamber, "
+            "dark blood-soaked sanctum"
         ),
         "details": (
-            "imposing crimson stone walls, ritual circles in blood, "
-            "ominous goddess statue weeping crimson tears, "
-            "ancient grimoire (Necronomicon) on altar, "
-            "8th grade boss lair, blood-soaked floor, dim red torches"
+            "prominent stone goddess statue in center "
+            "weeping crimson blood from her eyes, "
+            "ancient open grimoire book Necronomicon clearly visible "
+            "on stone altar, "
+            "demonic pentagram ritual circle drawn in blood on floor, "
+            "imposing crimson stone walls, ritual blood pools, "
+            "8th grade boss lair, blood-soaked floor, dim red torches, "
+            "dark gothic architecture with arches"
         ),
         "mood": "horrifying sacred, dread sanctum",
         "color_theme": "deep crimson, dark red, black shadows",
