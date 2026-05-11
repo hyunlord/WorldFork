@@ -8,6 +8,7 @@ from tools.visual.ui_assets import (
     ALL_ASSET_DICTS,
     BJORN_LORA_NAME,
     CHARACTER_SHEET_ASSETS,
+    COMBAT_ASSETS,
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
     RIFT_ENTRY_ASSETS,
@@ -276,6 +277,7 @@ class TestPhase6Consistency:
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
+            COMBAT_ASSETS,
         ):
             for name, data in asset_dict.items():
                 neg = str(data["negative_prompt"]).lower()
@@ -288,6 +290,7 @@ class TestPhase6Consistency:
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
+            COMBAT_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "bjorn" in name:
@@ -302,6 +305,7 @@ class TestPhase6Consistency:
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
+            COMBAT_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "erwen" in name:
@@ -461,23 +465,6 @@ class TestRiftEntryAssets:
             assert "characters" in neg, f"{name}: negative 캐릭터 X"
 
 
-class TestAllAssetDictsPhase6d:
-    """Phase 6d 통합 dict 확장."""
-
-    def test_four_phase_integration(self) -> None:
-        assert set(ALL_ASSET_DICTS) == {
-            "main_screen",
-            "gameplay_screen",
-            "character_sheet",
-            "rift_entry",
-        }
-
-    def test_total_assets_fourteen(self) -> None:
-        """6a 3 + 6b 4 + 6c 3 + 6d 4 = 14."""
-        total = sum(len(d) for d in ALL_ASSET_DICTS.values())
-        assert total == 14
-
-
 class TestRiftEntryWorkflow:
     """Phase 6d workflow LoRA X 검증."""
 
@@ -499,3 +486,106 @@ class TestRiftEntryWorkflow:
             nodes = cast(dict[str, Any], wf["prompt"])
             assert nodes["7"]["inputs"]["width"] == 1024
             assert nodes["7"]["inputs"]["height"] == 1024
+
+
+class TestCombatAssets:
+    """Phase 6e 전투 자료 검증."""
+
+    def test_assets_count_five(self) -> None:
+        assert len(COMBAT_ASSETS) == 5
+        assert set(COMBAT_ASSETS) == {
+            "combat_bjorn_action",
+            "combat_erwen_casting",
+            "combat_monster_blade_wolf",
+            "combat_vfx_axe_strike",
+            "combat_vfx_magic_missile",
+        }
+
+    def test_bjorn_action_lora(self) -> None:
+        bjorn = COMBAT_ASSETS["combat_bjorn_action"]
+        assert bjorn["lora"] == BJORN_LORA_NAME
+        assert bjorn["lora_strength"] == 0.8
+        prompt = str(bjorn["prompt"]).lower()
+        assert "action" in prompt or "swing" in prompt
+        assert "battle" in prompt or "combat" in prompt
+        neg = str(bjorn["negative_prompt"]).lower()
+        assert "static" in neg or "calm" in neg
+
+    def test_erwen_casting_prompt_only(self) -> None:
+        erwen = COMBAT_ASSETS["combat_erwen_casting"]
+        assert erwen["lora"] is None
+        prompt = str(erwen["prompt"]).lower()
+        assert "spell" in prompt or "casting" in prompt
+        assert "silver" in prompt
+
+    def test_blade_wolf_content(self) -> None:
+        wolf = COMBAT_ASSETS["combat_monster_blade_wolf"]
+        assert wolf["lora"] is None
+        prompt = str(wolf["prompt"]).lower()
+        assert "blade" in prompt
+        assert "wolf" in prompt
+        assert "9th grade" in prompt or "9th-grade" in prompt
+        neg = str(wolf["negative_prompt"]).lower()
+        assert "cute" in neg
+        assert "friendly" in neg
+        assert "human" in neg
+
+    def test_vfx_isolated(self) -> None:
+        for name in ("combat_vfx_axe_strike", "combat_vfx_magic_missile"):
+            vfx = COMBAT_ASSETS[name]
+            assert vfx["lora"] is None
+            assert vfx["width"] == 1024
+            assert vfx["height"] == 1024
+            neg = str(vfx["negative_prompt"]).lower()
+            assert "characters" in neg or "people" in neg
+
+
+class TestAllAssetDictsPhase6e:
+    """Phase 6e 통합 dict 확장."""
+
+    def test_five_phase_integration(self) -> None:
+        assert set(ALL_ASSET_DICTS) == {
+            "main_screen",
+            "gameplay_screen",
+            "character_sheet",
+            "rift_entry",
+            "combat",
+        }
+
+    def test_total_assets_nineteen(self) -> None:
+        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 = 19."""
+        total = sum(len(d) for d in ALL_ASSET_DICTS.values())
+        assert total == 19
+
+    def test_combat_identity(self) -> None:
+        assert ALL_ASSET_DICTS["combat"] is COMBAT_ASSETS
+
+
+class TestCombatWorkflow:
+    """Phase 6e LoRA action / 나머지 prompt-only."""
+
+    def test_bjorn_action_lora_workflow(self) -> None:
+        from typing import cast
+
+        spec = spec_from_dict(
+            "combat_bjorn_action",
+            COMBAT_ASSETS["combat_bjorn_action"],
+        )
+        wf = build_workflow_with_lora(spec)
+        nodes = cast(dict[str, Any], wf["prompt"])
+        assert "1b" in nodes
+        assert nodes["1b"]["inputs"]["lora_name"] == BJORN_LORA_NAME
+
+    def test_others_no_lora(self) -> None:
+        from typing import cast
+
+        for name in (
+            "combat_erwen_casting",
+            "combat_monster_blade_wolf",
+            "combat_vfx_axe_strike",
+            "combat_vfx_magic_missile",
+        ):
+            spec = spec_from_dict(name, COMBAT_ASSETS[name])
+            wf = build_workflow_with_lora(spec)
+            nodes = cast(dict[str, Any], wf["prompt"])
+            assert "1b" not in nodes, f"{name}: LoRA 노드 X"

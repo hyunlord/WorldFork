@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — 전투</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1920px; height: 1080px;
+  background:
+    linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.9)),
+    url('../../../../ComfyUI/output/worldfork/ui_rift_bloodcastle.png');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  overflow: hidden;
+  position: relative;
+}
+
+.combat-header {
+  position: absolute;
+  top: 24px; left: 50%; transform: translateX(-50%);
+  text-align: center;
+  padding: 16px 48px;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(212,175,55,0.4);
+}
+.round-num {
+  font-size: 28px; color: #d4af37;
+  font-weight: 900; letter-spacing: 8px;
+}
+.location-name {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 4px; margin-top: 4px;
+}
+
+.party-side {
+  position: absolute;
+  top: 140px; bottom: 320px; left: 32px;
+  width: 380px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.fighter-card {
+  flex: 1;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid rgba(212,175,55,0.4);
+  padding: 16px;
+  display: flex; gap: 16px;
+}
+.fighter-portrait {
+  width: 100px; height: 140px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(212,175,55,0.3);
+  flex-shrink: 0;
+}
+.fighter-portrait.bjorn {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_combat_bjorn_action.png');
+}
+.fighter-portrait.erwen {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_combat_erwen_casting.png');
+}
+.fighter-info { flex: 1; }
+.fighter-name {
+  font-size: 18px; color: #d4af37;
+  font-weight: 700; letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+.fighter-class {
+  font-size: 11px; color: #8b7355;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+.fighter-bar-label {
+  font-size: 11px; color: #6b5d3f;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+  display: flex; justify-content: space-between;
+}
+.fighter-bar {
+  height: 12px;
+  background: rgba(60,0,0,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  margin-bottom: 8px;
+  position: relative;
+}
+.fighter-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+}
+.fighter-bar.mana .fill {
+  background: linear-gradient(90deg, #2a4868, #5cc0c0);
+}
+.fighter-bar.essence .fill {
+  background: linear-gradient(90deg, #4a3a25, #8b6f47);
+}
+
+.enemy-side {
+  position: absolute;
+  top: 140px; right: 32px;
+  width: 380px;
+}
+.enemy-card {
+  background: rgba(0,0,0,0.7);
+  border: 2px solid rgba(139,0,0,0.5);
+  padding: 16px;
+}
+.enemy-portrait {
+  width: 100%; height: 280px;
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_combat_monster_blade_wolf.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-bottom: 12px;
+}
+.enemy-name {
+  text-align: center;
+  font-size: 24px; color: #ff8888;
+  font-weight: 700; letter-spacing: 4px;
+  text-shadow: 0 0 12px #8b0000;
+}
+.enemy-grade {
+  text-align: center;
+  font-size: 12px; color: #8b7355;
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+.enemy-hp-bar {
+  height: 14px;
+  background: rgba(60,0,0,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+}
+.enemy-hp-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a0000, #ff4444);
+  width: 70%;
+}
+.enemy-status {
+  margin-top: 10px;
+  font-size: 12px; color: #8b7355;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.vfx-area {
+  position: absolute;
+  top: 200px; left: 432px; right: 432px; height: 320px;
+  pointer-events: none;
+}
+.vfx-axe {
+  position: absolute;
+  top: 60px; left: 80px;
+  width: 280px; height: 280px;
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_combat_vfx_axe_strike.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.85;
+  mix-blend-mode: screen;
+}
+.damage-number {
+  position: absolute;
+  font-size: 64px; font-weight: 900;
+  color: #ff4444;
+  text-shadow: 0 0 24px #8b0000, 2px 2px 0 #000;
+  letter-spacing: 4px;
+}
+.damage-number.crit {
+  font-size: 88px;
+  color: #ffaa00;
+  text-shadow: 0 0 32px #ff4444, 2px 2px 0 #000;
+}
+.damage-1 { top: 100px; left: 220px; }
+.damage-2 { top: 40px; left: 380px; }
+
+.action-panel {
+  position: absolute;
+  bottom: 24px; left: 32px;
+  width: 780px;
+  padding: 20px;
+  background: rgba(0,0,0,0.88);
+  border: 1px solid rgba(212,175,55,0.4);
+}
+.panel-title {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+}
+.action-tabs {
+  display: flex; gap: 6px;
+  margin-bottom: 12px;
+}
+.action-tab {
+  padding: 8px 20px;
+  background: rgba(40,30,20,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  font-size: 13px;
+  color: #8b7355;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+.action-tab.active {
+  background: rgba(212,175,55,0.2);
+  border-color: #d4af37;
+  color: #d4af37;
+  font-weight: 700;
+}
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.combat-btn {
+  padding: 14px 8px;
+  background: rgba(40,30,20,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #c4a437;
+  font-size: 14px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  text-align: center;
+}
+.combat-btn:hover {
+  background: rgba(139,0,0,0.5);
+  border-color: #d4af37;
+  color: #fff;
+}
+.combat-btn.primary {
+  background: rgba(139,0,0,0.4);
+  border-color: #8b0000;
+}
+.combat-btn.disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.combat-btn .cost {
+  display: block;
+  font-size: 10px;
+  color: #8b7355;
+  margin-top: 2px;
+}
+.combat-btn.primary .cost { color: #ff8888; }
+
+.combat-log {
+  position: absolute;
+  bottom: 24px; right: 32px;
+  width: 380px; height: 240px;
+  padding: 16px;
+  background: rgba(0,0,0,0.88);
+  border: 1px solid rgba(212,175,55,0.4);
+  overflow-y: auto;
+}
+.log-title {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 4px;
+  margin-bottom: 10px;
+}
+.log-entry {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c4a437;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(212,175,55,0.1);
+}
+.log-entry .actor.bjorn { color: #d4af37; font-weight: 700; }
+.log-entry .actor.erwen { color: #88e0e0; font-weight: 700; }
+.log-entry .actor.enemy { color: #ff8888; font-weight: 700; }
+.log-entry .damage { color: #ff4444; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="combat-header">
+    <div class="round-num">— 라운드 4 —</div>
+    <div class="location-name">균열 · 핏빛성채 · 8등급</div>
+  </div>
+
+  <div class="party-side">
+    <div class="fighter-card">
+      <div class="fighter-portrait bjorn"></div>
+      <div class="fighter-info">
+        <div class="fighter-name">비요른</div>
+        <div class="fighter-class">바바리안 · 전사</div>
+        <div class="fighter-bar-label"><span>HP</span><span>128/150</span></div>
+        <div class="fighter-bar"><div class="fill" style="width: 85%;"></div></div>
+        <div class="fighter-bar-label"><span>정수 (흙)</span><span>2/3</span></div>
+        <div class="fighter-bar essence"><div class="fill" style="width: 67%;"></div></div>
+      </div>
+    </div>
+    <div class="fighter-card">
+      <div class="fighter-portrait erwen"></div>
+      <div class="fighter-info">
+        <div class="fighter-name">에르웬</div>
+        <div class="fighter-class">엘프 · 마법사</div>
+        <div class="fighter-bar-label"><span>HP</span><span>72/90</span></div>
+        <div class="fighter-bar"><div class="fill" style="width: 80%;"></div></div>
+        <div class="fighter-bar-label"><span>마나</span><span>45/80</span></div>
+        <div class="fighter-bar mana"><div class="fill" style="width: 56%;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="enemy-side">
+    <div class="enemy-card">
+      <div class="enemy-portrait"></div>
+      <div class="enemy-name">칼날늑대</div>
+      <div class="enemy-grade">9등급 · BLADE WOLF</div>
+      <div class="enemy-hp-bar"><div class="fill"></div></div>
+      <div class="enemy-status">상태: 정상 · 출혈 1</div>
+    </div>
+  </div>
+
+  <div class="vfx-area">
+    <div class="vfx-axe"></div>
+    <div class="damage-number crit damage-1">62!</div>
+    <div class="damage-number damage-2">18</div>
+  </div>
+
+  <div class="action-panel">
+    <div class="panel-title">▣ 비요른의 차례</div>
+    <div class="action-tabs">
+      <div class="action-tab active">전투</div>
+      <div class="action-tab">스킬</div>
+      <div class="action-tab">정수</div>
+      <div class="action-tab">아이템</div>
+    </div>
+    <div class="action-buttons">
+      <div class="combat-btn primary">
+        도끼 공격
+        <span class="cost">ATK 25</span>
+      </div>
+      <div class="combat-btn">
+        광폭화
+        <span class="cost">흙 정수 1</span>
+      </div>
+      <div class="combat-btn">
+        일격필살
+        <span class="cost">쿨다운 5</span>
+      </div>
+      <div class="combat-btn">
+        방어
+        <span class="cost">DEF +50%</span>
+      </div>
+      <div class="combat-btn">
+        도주
+        <span class="cost">SPD 8</span>
+      </div>
+      <div class="combat-btn disabled">
+        탐색
+        <span class="cost">전투 중 X</span>
+      </div>
+      <div class="combat-btn disabled">
+        대화
+        <span class="cost">전투 중 X</span>
+      </div>
+      <div class="combat-btn">
+        대기
+        <span class="cost">방어 자세</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="combat-log">
+    <div class="log-title">▣ 전투 로그</div>
+    <div class="log-entry">
+      <span class="actor enemy">칼날늑대</span>가 도약 공격 →
+      <span class="actor bjorn">비요른</span>에게 <span class="damage">22</span> 피해.
+    </div>
+    <div class="log-entry">
+      <span class="actor erwen">에르웬</span>이 마법 미사일 시전 →
+      <span class="damage">38</span> 피해.
+    </div>
+    <div class="log-entry">
+      <span class="actor bjorn">비요른</span>이 도끼 공격 (치명!) →
+      <span class="damage">62</span> 피해.
+    </div>
+    <div class="log-entry">
+      <span class="actor enemy">칼날늑대</span>에 출혈 상태 부여 (3턴).
+    </div>
+    <div class="log-entry" style="border-bottom: none;">
+      라운드 4 시작. <span class="actor bjorn">비요른</span> 선턴.
+    </div>
+  </div>
+</body>
+</html>

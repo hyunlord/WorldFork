@@ -344,14 +344,126 @@ RIFT_ENTRY_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6e-g 본격 재사용)
+# 본격 자료 dict (★ Phase 6e 전투, 5개)
+COMBAT_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "combat_bjorn_action": {
+        "filename_prefix": "ui_combat_bjorn_action",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "bjorn_warrior, barbarian male warrior, "
+            "dynamic combat action pose, mid-swing of two-handed battle axe, "
+            "fierce battle cry expression, blue eyes blazing with fury, "
+            "muscles taut, fur cape flowing from motion, "
+            "leather armor with battle scars, tribal markings visible, "
+            "long dark braided hair flying back, thick beard, "
+            "dark fantasy battle scene, dramatic motion blur on axe, "
+            "rim lighting, painterly action shot, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, static pose, calm"
+        ),
+        "lora": BJORN_LORA_NAME,  # ★ Phase 5b ship, 5th use
+        "lora_strength": 0.8,
+    },
+    "combat_erwen_casting": {
+        "filename_prefix": "ui_combat_erwen_casting",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "ethereal faerie female mage, dynamic spellcasting pose, "
+            "staff raised high with crystal orb blazing "
+            "bright blue-white light, "
+            "magical energy swirling around hands, "
+            "delicate translucent wings spread wide, "
+            "silver-white long hair flowing from magical wind, "
+            "luminous green eyes glowing with arcane power, "
+            "pale robes with silver embroidery billowing, "
+            "ethereal aura, fierce focused expression, "
+            "dark fantasy battle scene, painterly action shot, "
+            "rim lighting, 8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, static pose, calm"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "combat_monster_blade_wolf": {
+        "filename_prefix": "ui_combat_monster_blade_wolf",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "monstrous blade wolf creature, 9th grade dungeon beast, "
+            "dark fur with razor-sharp metallic blade-like spikes "
+            "along spine, "
+            "glowing red predator eyes, snarling fangs bared, "
+            "muscular quadruped lupine body, low aggressive crouch, "
+            "saliva dripping, fierce hunting posture, "
+            "battle-scarred hide, claws extended, "
+            "dark dungeon background, ominous lighting, "
+            "dark fantasy creature design, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "cute, friendly, modern, cartoon, anime, soft, low quality, "
+            "human, humanoid"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "combat_vfx_axe_strike": {
+        "filename_prefix": "ui_combat_vfx_axe_strike",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "dynamic axe slash VFX effect, "
+            "crescent arc of golden energy, "
+            "sharp slicing motion lines, "
+            "sparks and impact particles flying outward, "
+            "isolated VFX element, transparent edges, "
+            "dark void background, "
+            "fantasy game battle effect, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "characters, people, scenery, modern, low quality"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "combat_vfx_magic_missile": {
+        "filename_prefix": "ui_combat_vfx_magic_missile",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "magical missile projectile VFX effect, "
+            "swirling blue-white arcane energy bolt, "
+            "trailing particle stream, "
+            "glowing ethereal core with crackling edges, "
+            "isolated VFX element, transparent edges, "
+            "dark void background, "
+            "fantasy game spell effect, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "characters, people, scenery, modern, low quality"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6f-g 본격 재사용)
 ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "main_screen": MAIN_SCREEN_ASSETS,
     "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
     "character_sheet": CHARACTER_SHEET_ASSETS,
     "rift_entry": RIFT_ENTRY_ASSETS,
-    # 후속 Phase 6e-g 본격 추가:
-    # "combat": COMBAT_ASSETS,
+    "combat": COMBAT_ASSETS,
+    # 후속 Phase 6f-g 본격 추가:
     # "dialogue": DIALOGUE_ASSETS,
     # "start_menu": START_MENU_ASSETS,
 }
