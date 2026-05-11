@@ -72,6 +72,9 @@ def run_trace(target_turns: int = 100) -> tuple[SimResult, float]:
         config=SimConfig(
             max_turns=target_turns,
             scenario_id=f"F1_e2e_{target_turns}turn",
+            # ★ F3: initial_hours=0 (★ ENTRY phase 시작, 전 phase 본격 test)
+            # default 72.0 (RIFT phase 시작) X — LLM이 본격 RIFT 위주만 응답
+            initial_hours_in_dungeon=0.0,
         ),
         player_agent=player_agent,
         gm_agent=gm_agent,

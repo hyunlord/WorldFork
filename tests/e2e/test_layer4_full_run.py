@@ -97,6 +97,8 @@ def test_layer4_full_run_100turn() -> None:
         config=SimConfig(
             max_turns=TARGET_TURNS,
             scenario_id="e2e_F1_100turn",
+            # ★ F3: 전 phase 본격 test (★ ENTRY 시작)
+            initial_hours_in_dungeon=0.0,
         ),
         player_agent=player_agent,
         gm_agent=gm_agent,
