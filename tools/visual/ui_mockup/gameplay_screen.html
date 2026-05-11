@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — 1층 미궁</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1920px; height: 1080px;
+  background:
+    linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)),
+    url('../../../../ComfyUI/output/worldfork/ui_gameplay_bg_crystal.png');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  overflow: hidden;
+  position: relative;
+}
+
+/* === 좌상단 HUD === */
+.hud-left {
+  position: absolute;
+  top: 24px; left: 24px;
+  width: 360px;
+  padding: 20px;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid rgba(212,175,55,0.4);
+  border-radius: 4px;
+}
+.hud-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.hud-label { color: #8b7355; font-size: 13px; letter-spacing: 2px; }
+.hud-value { color: #d4af37; font-size: 16px; font-weight: 700; }
+
+.hp-bar {
+  width: 100%; height: 14px;
+  background: rgba(60,0,0,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  position: relative;
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+.hp-bar .hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+}
+.hp-bar.bjorn .hp-fill { width: 100%; }
+.hp-bar.erwen .hp-fill { width: 100%; }
+
+.light-charges {
+  display: flex; gap: 4px; margin-top: 4px;
+}
+.light-charge {
+  width: 20px; height: 20px;
+  background: radial-gradient(circle, #d4af37 30%, rgba(212,175,55,0.2) 70%);
+  border: 1px solid #d4af37;
+  border-radius: 50%;
+}
+.light-charge.spent {
+  background: rgba(40,40,40,0.5);
+  border-color: #5a4a3a;
+}
+
+/* === 우상단 위치 === */
+.hud-right {
+  position: absolute;
+  top: 24px; right: 24px;
+  width: 280px;
+  padding: 20px;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid rgba(212,175,55,0.4);
+  text-align: right;
+}
+.dungeon-time-hud {
+  font-size: 13px; color: #8b0000;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}
+.dungeon-time-hud .hours-remaining {
+  font-size: 32px; color: #ff4444;
+  text-shadow: 0 0 12px #8b0000;
+  font-weight: 700;
+  letter-spacing: 0;
+  display: block;
+}
+.location {
+  margin-top: 14px;
+  font-size: 14px; color: #8b7355;
+}
+.location .name {
+  color: #d4af37; font-size: 22px;
+  font-weight: 700; letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+/* === 좌하단 미니맵 (1층 6 sub_areas) === */
+.minimap {
+  position: absolute;
+  bottom: 24px; left: 24px;
+  width: 320px; height: 320px;
+  padding: 16px;
+  background: rgba(0,0,0,0.8);
+  border: 1px solid rgba(212,175,55,0.4);
+}
+.minimap-title {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 3px; text-align: center;
+  margin-bottom: 10px;
+}
+.minimap-grid {
+  position: relative; width: 100%; height: 270px;
+}
+.sub-area {
+  position: absolute;
+  width: 80px; height: 50px;
+  background: rgba(40,30,20,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #8b7355;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.sub-area.current {
+  background: rgba(212,175,55,0.25);
+  border-color: #d4af37;
+  color: #d4af37;
+  box-shadow: 0 0 16px rgba(212,175,55,0.5);
+}
+.sub-area.entry { top: 110px; left: 0; }
+.sub-area.north { top: 10px; left: 100px; }
+.sub-area.south { top: 210px; left: 100px; }
+.sub-area.crystal { top: 110px; left: 100px; }
+.sub-area.stone { top: 60px; left: 200px; }
+.sub-area.portal { top: 160px; left: 200px; }
+
+/* === 중앙 상단 캐릭터 portraits === */
+.party {
+  position: absolute;
+  top: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 32px;
+}
+.party-member {
+  width: 180px; height: 240px;
+  background-size: cover; background-position: top center;
+  border: 2px solid rgba(212,175,55,0.4);
+  box-shadow: 0 0 24px rgba(0,0,0,0.8);
+  position: relative;
+}
+.party-member.bjorn {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_gameplay_bjorn_portrait.png');
+}
+.party-member.erwen {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_gameplay_erwen_portrait.png');
+}
+.party-member .name {
+  position: absolute; bottom: 6px; left: 0; right: 0;
+  text-align: center; font-size: 14px;
+  color: #d4af37; background: rgba(0,0,0,0.7);
+  padding: 4px; letter-spacing: 2px;
+}
+
+/* === 중앙 내러티브 === */
+.narrative {
+  position: absolute;
+  bottom: 320px; left: 380px; right: 440px;
+  height: 220px;
+  padding: 24px 32px;
+  background: rgba(0,0,0,0.82);
+  border: 1px solid rgba(212,175,55,0.5);
+  overflow-y: auto;
+  font-size: 19px; line-height: 1.8;
+  color: #e8d8a8;
+}
+.narrative .gm-prefix {
+  color: #8b0000; font-weight: 700;
+  margin-right: 12px;
+}
+.narrative .turn-label {
+  color: #8b7355; font-size: 13px;
+  letter-spacing: 3px; margin-bottom: 12px;
+  text-align: right;
+}
+
+/* === 우하단 행동 13 ActionType 그리드 === */
+.actions {
+  position: absolute;
+  bottom: 24px; right: 24px;
+  width: 400px;
+  padding: 16px;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(212,175,55,0.4);
+}
+.actions-title {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 3px; text-align: center;
+  margin-bottom: 10px;
+}
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.action-btn {
+  padding: 10px 4px;
+  background: rgba(40,30,20,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #c4a437;
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.action-btn:hover {
+  background: rgba(139,0,0,0.4);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+.action-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.action-btn.primary {
+  background: rgba(139,0,0,0.4);
+  border-color: #8b0000;
+  color: #ff8888;
+}
+</style>
+</head>
+<body>
+  <!-- 좌상단 HUD -->
+  <div class="hud-left">
+    <div class="hud-row">
+      <span class="hud-label">비요른</span>
+      <span class="hud-value">150 / 150</span>
+    </div>
+    <div class="hp-bar bjorn"><div class="hp-fill"></div></div>
+
+    <div class="hud-row">
+      <span class="hud-label">에르웬</span>
+      <span class="hud-value">90 / 90</span>
+    </div>
+    <div class="hp-bar erwen"><div class="hp-fill"></div></div>
+
+    <div class="hud-row">
+      <span class="hud-label">빛 자원</span>
+      <span class="hud-value">6 / 6</span>
+    </div>
+    <div class="light-charges">
+      <div class="light-charge"></div>
+      <div class="light-charge"></div>
+      <div class="light-charge"></div>
+      <div class="light-charge"></div>
+      <div class="light-charge"></div>
+      <div class="light-charge"></div>
+    </div>
+  </div>
+
+  <!-- 우상단 위치 -->
+  <div class="hud-right">
+    <div class="dungeon-time-hud">
+      미궁 잔여
+      <span class="hours-remaining">156h</span>
+    </div>
+    <div class="location">
+      현재 위치
+      <div class="name">수정 동굴</div>
+    </div>
+  </div>
+
+  <!-- 중앙 상단 파티 -->
+  <div class="party">
+    <div class="party-member bjorn"><div class="name">비요른</div></div>
+    <div class="party-member erwen"><div class="name">에르웬</div></div>
+  </div>
+
+  <!-- 좌하단 미니맵 -->
+  <div class="minimap">
+    <div class="minimap-title">▣ 1층 미궁</div>
+    <div class="minimap-grid">
+      <div class="sub-area entry">진입점</div>
+      <div class="sub-area north">북쪽 통로</div>
+      <div class="sub-area crystal current">수정 동굴</div>
+      <div class="sub-area south">남쪽 통로</div>
+      <div class="sub-area stone">비석 공동</div>
+      <div class="sub-area portal">포탈 영역</div>
+    </div>
+  </div>
+
+  <!-- 중앙 내러티브 -->
+  <div class="narrative">
+    <div class="turn-label">— 턴 12 —</div>
+    <p>
+      <span class="gm-prefix">GM</span>
+      어둠 속에서 청록빛 정수가 천천히 떠다닌다.
+      비요른의 도끼가 무겁게 빛난다.
+      벽면을 따라 박힌 수정이 미약한 빛을 반사하며,
+      어디선가 물방울이 떨어지는 소리가 들린다.
+    </p>
+  </div>
+
+  <!-- 우하단 행동 13 ActionType -->
+  <div class="actions">
+    <div class="actions-title">▣ 행동 선택 (13)</div>
+    <div class="action-grid">
+      <div class="action-btn">빛 활성</div>
+      <div class="action-btn">이동</div>
+      <div class="action-btn">탐색</div>
+      <div class="action-btn disabled">공격</div>
+
+      <div class="action-btn primary">정수 흡수</div>
+      <div class="action-btn">아이템</div>
+      <div class="action-btn">비석 공물</div>
+      <div class="action-btn disabled">균열 진입</div>
+
+      <div class="action-btn disabled">균열 이탈</div>
+      <div class="action-btn">휴식</div>
+      <div class="action-btn">대기</div>
+      <div class="action-btn">대화</div>
+
+      <div class="action-btn disabled">도주</div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+</body>
+</html>

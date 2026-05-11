@@ -92,6 +92,109 @@ MAIN_SCREEN_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
+# 본격 자료 dict (★ Phase 6b 게임 플레이 화면, 4개)
+GAMEPLAY_SCREEN_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "gameplay_bg_crystal": {
+        "filename_prefix": "ui_gameplay_bg_crystal",
+        "width": 1920,
+        "height": 1080,
+        "prompt": (
+            "dark fantasy crystal cavern interior, "
+            "glowing teal and cyan crystals embedded in stone walls, "
+            "dripping water from rocky ceiling, "
+            "ethereal blue-green ambient light, "
+            "ancient stone floor with mineral deposits, "
+            "deep underground atmosphere, mysterious, "
+            "cinematic wide shot, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "modern, bright, cheerful, cartoon, anime, low quality, "
+            "characters, people"
+        ),
+        "lora": None,  # ★ 배경 LoRA X
+        "lora_strength": 1.0,
+    },
+    "gameplay_bjorn_portrait": {
+        "filename_prefix": "ui_gameplay_bjorn_portrait",
+        "width": 512,
+        "height": 768,
+        "prompt": (
+            "bjorn_warrior, barbarian male warrior, "
+            "in-game character portrait, half-body shot, "
+            "ready stance, two-handed axe gripped firmly, "
+            "battle-worn fur and leather armor, "
+            "dark fantasy dungeon background, dim torchlight, "
+            "stern focused expression, fierce blue eyes, "
+            "dark braided hair and thick beard, tribal markings, "
+            "painterly fantasy game style, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, photorealistic, low quality, "
+            "full body"
+        ),
+        "lora": BJORN_LORA_NAME,  # ★ Phase 5b 본격 ship
+        "lora_strength": 0.8,
+    },
+    "gameplay_erwen_portrait": {
+        "filename_prefix": "ui_gameplay_erwen_portrait",
+        "width": 512,
+        "height": 768,
+        "prompt": (
+            "ethereal faerie female mage, in-game character portrait, "
+            "half-body shot, magical ready stance, "
+            "delicate translucent wings glowing softly, "
+            "long silver hair flowing, luminous green eyes, "
+            "fair pale skin, pointed ears, "
+            "elegant pale robes with arcane silver embroidery, "
+            "soul magic energy in palms, mystical aura, "
+            "dark fantasy dungeon background, dim ambient light, "
+            "graceful focused expression, painterly game style, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, photorealistic, low quality, "
+            "full body"
+        ),
+        "lora": None,  # ★ Phase 1 + 6a 정합 본격
+        "lora_strength": 1.0,
+    },
+    "gameplay_essence_effect": {
+        "filename_prefix": "ui_gameplay_essence_effect",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "magical floating essence orb, "
+            "swirling teal and cyan energy, "
+            "ethereal glow, particles drifting upward, "
+            "dark void background, mystical aura, "
+            "isolated VFX element, soft transparent edges, "
+            "fantasy game effect, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "characters, people, scenery, modern, low quality"
+        ),
+        "lora": None,  # ★ VFX 본격
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6c-g 본격 재사용)
+ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
+    "main_screen": MAIN_SCREEN_ASSETS,
+    "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
+    # 후속 Phase 6c-g 본격 추가:
+    # "character_sheet": CHARACTER_SHEET_ASSETS,
+    # "rift_entry": RIFT_ENTRY_ASSETS,
+    # "combat": COMBAT_ASSETS,
+    # "dialogue": DIALOGUE_ASSETS,
+    # "start_menu": START_MENU_ASSETS,
+}
+
+
 @dataclass(frozen=True, slots=True)
 class UIAssetSpec:
     """UI 자료 spec 본격 (★ Phase 6 재사용)."""
