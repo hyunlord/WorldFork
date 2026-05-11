@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — Phase 6 인덱스</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  min-width: 1280px; min-height: 800px;
+  background: #0a0606;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  padding: 40px;
+}
+h1 {
+  font-size: 48px;
+  letter-spacing: 8px;
+  text-align: center;
+  margin-bottom: 8px;
+  text-shadow: 0 0 24px #8b0000;
+}
+.subtitle {
+  font-size: 14px;
+  color: #8b7355;
+  letter-spacing: 4px;
+  text-align: center;
+  margin-bottom: 48px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.card {
+  background: rgba(20,15,10,0.9);
+  border: 1px solid rgba(212,175,55,0.3);
+  padding: 24px;
+  transition: all 0.3s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.card:hover {
+  border-color: #d4af37;
+  background: rgba(40,25,15,0.9);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(139,0,0,0.3);
+}
+.card .index {
+  font-size: 12px;
+  color: #8b0000;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+.card .title {
+  font-size: 24px;
+  color: #d4af37;
+  letter-spacing: 4px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.card .desc {
+  font-size: 13px;
+  color: #8b7355;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+.card .meta {
+  display: flex; gap: 12px;
+  font-size: 11px;
+  color: #6b5d3f;
+  letter-spacing: 1px;
+}
+.card .meta .tag {
+  padding: 3px 8px;
+  border: 1px solid rgba(212,175,55,0.3);
+}
+.summary {
+  margin-top: 48px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b5d3f;
+  letter-spacing: 2px;
+  line-height: 2;
+}
+.summary .accent { color: #d4af37; font-weight: 700; }
+</style>
+</head>
+<body>
+  <h1>WORLDFORK · Phase 6</h1>
+  <div class="subtitle">7 화면 시각화 인덱스 (7/7 마무리)</div>
+
+  <div class="grid">
+
+    <a href="main_screen.html" class="card">
+      <div class="index">▣ 6a</div>
+      <div class="title">메인 화면</div>
+      <div class="desc">게임 시작 후 인게임 메뉴. 로고 + 1층 진입 + 탐사대 stats + 미궁 168h.</div>
+      <div class="meta">
+        <div class="tag">3 자료</div>
+        <div class="tag">LoRA bjorn</div>
+      </div>
+    </a>
+
+    <a href="gameplay_screen.html" class="card">
+      <div class="index">▣ 6b</div>
+      <div class="title">게임 플레이</div>
+      <div class="desc">1층 탐험. HUD + 미니맵 6 sub_areas + 내러티브 + 행동 13 ActionType.</div>
+      <div class="meta">
+        <div class="tag">4 자료</div>
+        <div class="tag">LoRA bjorn</div>
+      </div>
+    </a>
+
+    <a href="character_sheet.html" class="card">
+      <div class="index">▣ 6c</div>
+      <div class="title">캐릭터 시트</div>
+      <div class="desc">비요른/에르웬 풀바디 + stats + 스킬 + 5 정수 + 9등급 마석 + 인벤토리.</div>
+      <div class="meta">
+        <div class="tag">3 자료</div>
+        <div class="tag">LoRA bjorn</div>
+      </div>
+    </a>
+
+    <a href="rift_entry.html" class="card">
+      <div class="index">▣ 6d</div>
+      <div class="title">균열 진입</div>
+      <div class="desc">4 균열 선택 (핏빛성채/빙하굴/녹색탄광/강철의 묘). 보상 정수 매핑.</div>
+      <div class="meta">
+        <div class="tag">4 자료</div>
+        <div class="tag">prompt-only</div>
+      </div>
+    </a>
+
+    <a href="combat_screen.html" class="card">
+      <div class="index">▣ 6e</div>
+      <div class="title">전투</div>
+      <div class="desc">균열 안 전투. 좌 파티 + 우 9등급 칼날늑대 + VFX overlay + 행동 + 로그.</div>
+      <div class="meta">
+        <div class="tag">5 자료</div>
+        <div class="tag">LoRA action</div>
+      </div>
+    </a>
+
+    <a href="dialogue_screen.html" class="card">
+      <div class="index">▣ 6f</div>
+      <div class="title">대화/이벤트</div>
+      <div class="desc">메시지 스톤 (11화) + 다른 탐사대 + 비석 공물 (374화). NPC 분리 정공법.</div>
+      <div class="meta">
+        <div class="tag">4 자료</div>
+        <div class="tag">prompt-only</div>
+      </div>
+    </a>
+
+    <a href="start_menu.html" class="card">
+      <div class="index">▣ 6g</div>
+      <div class="title">시작 메뉴</div>
+      <div class="desc">게임 첫 진입 첫 화면. 거대 로고 + 신규/이어하기/설정/종료. 미니멀 본격.</div>
+      <div class="meta">
+        <div class="tag">1 자료</div>
+        <div class="tag">prompt-only</div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="summary">
+    Phase 6 총 <span class="accent">24 자료</span> · <span class="accent">7 화면</span> · <span class="accent">LoRA worldfork_bjorn_v1</span> 5+ use · <span class="accent">prompt-only erwen</span> 7-phase 일관성<br>
+    1층 본문 정합: 6 sub_areas / 13 ActionType / 5 정수 / 9등급 마석 / 4 균열 / 빛 6 charges / 168h 한도
+  </div>
+</body>
+</html>

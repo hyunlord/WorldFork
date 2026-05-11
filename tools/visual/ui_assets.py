@@ -547,7 +547,34 @@ DIALOGUE_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6g 본격 재사용)
+# 본격 자료 dict (★ Phase 6g 시작 메뉴, 1개 — minimal 마무리)
+START_MENU_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "start_menu_bg": {
+        "filename_prefix": "ui_start_menu_bg",
+        "width": 1920,
+        "height": 1080,
+        "prompt": (
+            "dark fantasy ominous dungeon entrance from outside, "
+            "massive ancient stone gateway carved into mountainside, "
+            "pitch-black void inside the entrance, "
+            "only faint reddish glow from deep within, "
+            "weathered runic inscriptions on the arch, "
+            "cracked stone steps leading down into darkness, "
+            "moonless night atmosphere, foreboding silence, "
+            "vast cinematic wide shot, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "bright, cheerful, modern, cartoon, anime, low quality, "
+            "characters, people, interior view"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 7/7 마무리 (★ Phase 6 완성)
 ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "main_screen": MAIN_SCREEN_ASSETS,
     "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
@@ -555,8 +582,7 @@ ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "rift_entry": RIFT_ENTRY_ASSETS,
     "combat": COMBAT_ASSETS,
     "dialogue": DIALOGUE_ASSETS,
-    # 후속 Phase 6g 본격 추가:
-    # "start_menu": START_MENU_ASSETS,
+    "start_menu": START_MENU_ASSETS,
 }
 
 

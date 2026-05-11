@@ -13,6 +13,7 @@ from tools.visual.ui_assets import (
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
     RIFT_ENTRY_ASSETS,
+    START_MENU_ASSETS,
     build_workflow_with_lora,
     spec_from_dict,
 )
@@ -280,6 +281,7 @@ class TestPhase6Consistency:
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
             DIALOGUE_ASSETS,
+            START_MENU_ASSETS,
         ):
             for name, data in asset_dict.items():
                 neg = str(data["negative_prompt"]).lower()
@@ -294,6 +296,7 @@ class TestPhase6Consistency:
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
             DIALOGUE_ASSETS,
+            START_MENU_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "bjorn" in name:
@@ -310,6 +313,7 @@ class TestPhase6Consistency:
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
             DIALOGUE_ASSETS,
+            START_MENU_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "erwen" in name:
@@ -616,10 +620,43 @@ class TestDialogueAssets:
         )
 
 
-class TestAllAssetDictsPhase6f:
-    """Phase 6f 통합 dict 확장."""
+class TestPhase6fIdentities:
+    """Phase 6f identity."""
 
-    def test_six_phase_integration(self) -> None:
+    def test_dialogue_identity(self) -> None:
+        assert ALL_ASSET_DICTS["dialogue"] is DIALOGUE_ASSETS
+
+
+class TestStartMenuAssets:
+    """Phase 6g 시작 메뉴 자료 검증 (★ minimal 마무리)."""
+
+    def test_assets_count_one(self) -> None:
+        assert len(START_MENU_ASSETS) == 1
+        assert set(START_MENU_ASSETS) == {"start_menu_bg"}
+
+    def test_start_menu_bg_external_view(self) -> None:
+        bg = START_MENU_ASSETS["start_menu_bg"]
+        assert bg["lora"] is None
+        assert bg["width"] == 1920
+        assert bg["height"] == 1080
+        prompt = str(bg["prompt"]).lower()
+        # 외부 시점 본격 (★ 6a 내부와 차별화)
+        assert "entrance" in prompt or "gateway" in prompt
+        assert "outside" in prompt or "mountainside" in prompt
+        # 첫 진입 분위기
+        assert (
+            "ominous" in prompt
+            or "foreboding" in prompt
+            or "dark" in prompt
+        )
+        neg = str(bg["negative_prompt"]).lower()
+        assert "interior" in neg or "characters" in neg
+
+
+class TestAllAssetDictsPhase6gMarmugi:
+    """Phase 6 7/7 마무리 본격 검증."""
+
+    def test_seven_phase_integration(self) -> None:
         assert set(ALL_ASSET_DICTS) == {
             "main_screen",
             "gameplay_screen",
@@ -627,15 +664,87 @@ class TestAllAssetDictsPhase6f:
             "rift_entry",
             "combat",
             "dialogue",
+            "start_menu",
         }
+        assert len(ALL_ASSET_DICTS) == 7
 
-    def test_total_assets_twenty_three(self) -> None:
-        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 + 6f 4 = 23."""
+    def test_total_assets_twenty_four(self) -> None:
+        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 + 6f 4 + 6g 1 = 24."""
         total = sum(len(d) for d in ALL_ASSET_DICTS.values())
-        assert total == 23
+        assert total == 24
 
-    def test_dialogue_identity(self) -> None:
-        assert ALL_ASSET_DICTS["dialogue"] is DIALOGUE_ASSETS
+    def test_phase_per_count(self) -> None:
+        expected = {
+            "main_screen": 3,
+            "gameplay_screen": 4,
+            "character_sheet": 3,
+            "rift_entry": 4,
+            "combat": 5,
+            "dialogue": 4,
+            "start_menu": 1,
+        }
+        for phase, count in expected.items():
+            assert len(ALL_ASSET_DICTS[phase]) == count, (
+                f"{phase} count X"
+            )
+
+    def test_start_menu_identity(self) -> None:
+        assert ALL_ASSET_DICTS["start_menu"] is START_MENU_ASSETS
+
+
+class TestStartMenuWorkflow:
+    """Phase 6g workflow LoRA X."""
+
+    def test_no_lora_workflow(self) -> None:
+        from typing import cast
+
+        spec = spec_from_dict(
+            "start_menu_bg", START_MENU_ASSETS["start_menu_bg"]
+        )
+        wf = build_workflow_with_lora(spec)
+        nodes = cast(dict[str, Any], wf["prompt"])
+        assert "1b" not in nodes
+
+
+class TestPhase6Marmugi:
+    """Phase 6 7/7 본격 마무리 일관성."""
+
+    def test_bjorn_lora_count(self) -> None:
+        """LoRA bjorn use count ≥ 4 (★ 6a + 6b + 6c + 6e)."""
+        count = 0
+        for asset_dict in ALL_ASSET_DICTS.values():
+            for name, data in asset_dict.items():
+                if "bjorn" in name:
+                    count += 1
+                    assert data["lora"] == BJORN_LORA_NAME, (
+                        f"{name}: LoRA X"
+                    )
+        assert count >= 4, f"bjorn count {count} < 4"
+
+    def test_erwen_prompt_only_count(self) -> None:
+        """erwen prompt-only count ≥ 4 (★ Phase 1+6a+6b+6c+6e)."""
+        count = 0
+        for asset_dict in ALL_ASSET_DICTS.values():
+            for name, data in asset_dict.items():
+                if "erwen" in name:
+                    count += 1
+                    assert data["lora"] is None, f"{name}: prompt-only X"
+        assert count >= 4, f"erwen count {count} < 4"
+
+    def test_all_required_fields(self) -> None:
+        """모든 자료 dict 필수 필드 본격."""
+        required = {
+            "filename_prefix",
+            "width",
+            "height",
+            "prompt",
+            "negative_prompt",
+            "lora",
+        }
+        for asset_dict in ALL_ASSET_DICTS.values():
+            for name, data in asset_dict.items():
+                missing = required - data.keys()
+                assert not missing, f"{name}: 필드 누락 {missing}"
 
 
 class TestDialogueWorkflow:
