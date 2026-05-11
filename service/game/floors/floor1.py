@@ -138,6 +138,24 @@ _WRAITH = MonsterDef(
     requires_light=False,  # ★ 영체, 어둠 본질
 )
 
+# ★ F2 본격 추가: Phase 3 시각화 7종 정합 (★ F1 finding 답)
+# 누락된 본격 위치스램프 — LLM ATTACK target 본격 사용하지만 monster X
+# 등록되어 모든 ATTACK 실패 (F1 trace 9/9 success=False, all '위치스램프')
+_WITCH_LAMP = MonsterDef(
+    name="위치스램프",
+    grade=MonsterGrade.GRADE_9,
+    area=MonsterArea.GENERAL,
+    drops=(
+        EssenceDrop(
+            essence_name="위치스램프 정수",
+            drop_rate=0.0001,
+            color_pool=(EssenceColor.GREEN,),  # ★ 사악한 녹색 화염
+        ),
+    ),
+    behavior="떠다니는 등불 / 사악한 녹색 화염 / 지능형 유혹",
+    requires_light=False,  # ★ 자체 발광, 어둠 본격
+)
+
 
 FLOOR1_MONSTERS: tuple[MonsterDef, ...] = (
     _GOBLIN,
@@ -147,6 +165,7 @@ FLOOR1_MONSTERS: tuple[MonsterDef, ...] = (
     _SLIME,
     _BLADE_WOLF,
     _WRAITH,
+    _WITCH_LAMP,  # ★ F2 본격 추가 (Phase 3 정합)
 )
 
 

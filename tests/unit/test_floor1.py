@@ -29,7 +29,7 @@ def _find_sub_area(name: str) -> SubArea | None:
 
 def test_floor1_has_7_monsters() -> None:
     """1층 9등급 몬스터 7종."""
-    assert len(FLOOR1_MONSTERS) == 7
+    assert len(FLOOR1_MONSTERS) == 8  # ★ F2 위치스램프 추가
     names = {m.name for m in FLOOR1_MONSTERS}
     assert "고블린" in names
     assert "노움" in names
@@ -93,7 +93,7 @@ def test_get_floor1_definition_complete() -> None:
     """풀 정의 진짜 반환."""
     f1 = get_floor1_definition()
     assert f1.name == "수정동굴"
-    assert len(f1.monsters) == 7
+    assert len(f1.monsters) == 8  # ★ F2 위치스램프 추가
     assert len(f1.sub_areas) == 6
     assert f1.is_dark_default
     assert f1.base_time_hours == 168

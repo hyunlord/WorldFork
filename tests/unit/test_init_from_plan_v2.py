@@ -364,7 +364,7 @@ def test_init_floor_definition_for_floor1() -> None:
     assert fd["name"] == "수정동굴"
     assert fd["floor_number"] == 1
     assert len(fd["sub_areas"]) == 6
-    assert len(fd["monsters"]) == 7
+    assert len(fd["monsters"]) == 8  # ★ F2 위치스램프 추가
 
     # ★ 노움 = 남쪽 검증 (27화 본문)
     noom = next(m for m in fd["monsters"] if m["name"] == "노움")
@@ -381,7 +381,7 @@ def test_build_game_context_includes_floor_definition() -> None:
     fd = ctx["v2_floor_definition"]
     assert fd["name"] == "수정동굴"
     assert len(fd["sub_areas"]) == 6
-    assert len(fd["monsters"]) == 7
+    assert len(fd["monsters"]) == 8  # ★ F2 위치스램프 추가
 
 
 # ─── Stage 3: Rifts (★ 2026-05-07) ───
