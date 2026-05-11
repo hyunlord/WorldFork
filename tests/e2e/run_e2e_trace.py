@@ -52,8 +52,14 @@ def _llm_alive(url: str) -> bool:
         return False
 
 
-def run_trace(target_turns: int = 100) -> tuple[SimResult, float]:
-    """본 commit 본격 100턴 시뮬 (★ Player 9B + GM 27B if alive)."""
+def run_trace(
+    target_turns: int = 100,
+    initial_hours: float = 0.0,
+) -> tuple[SimResult, float]:
+    """본 commit 본격 100턴 시뮬 (★ Player 9B + GM 27B if alive).
+
+    ★ F5b: initial_hours 본격 (★ 0.0=ENTRY, 72.0=RIFT phase 시작).
+    """
     player_client = make_player_llm_client(timeout=60)
     player_agent = PlayerAgent(llm_client=player_client)
 
@@ -71,10 +77,10 @@ def run_trace(target_turns: int = 100) -> tuple[SimResult, float]:
     runner = SimRunner(
         config=SimConfig(
             max_turns=target_turns,
-            scenario_id=f"F1_e2e_{target_turns}turn",
-            # ★ F3: initial_hours=0 (★ ENTRY phase 시작, 전 phase 본격 test)
-            # default 72.0 (RIFT phase 시작) X — LLM이 본격 RIFT 위주만 응답
-            initial_hours_in_dungeon=0.0,
+            scenario_id=f"F1_e2e_{target_turns}turn_h{int(initial_hours)}",
+            # ★ F3: initial_hours=0 (ENTRY phase 시작, 전 phase 본격 test)
+            # ★ F5b: 72.0 본격 (RIFT phase 별도 검증 본격)
+            initial_hours_in_dungeon=initial_hours,
         ),
         player_agent=player_agent,
         gm_agent=gm_agent,
@@ -125,7 +131,7 @@ def run_trace(target_turns: int = 100) -> tuple[SimResult, float]:
             "has_light": False,
         },
         "v2_world_state": {
-            "hours_in_dungeon": 0,
+            "hours_in_dungeon": int(initial_hours),
             "is_dark_zone": True,
         },
     }
@@ -221,13 +227,22 @@ def main() -> int:
     )
     parser.add_argument("--turns", type=int, default=100)
     parser.add_argument(
+        "--initial-hours",
+        type=float,
+        default=0.0,
+        help="시뮬 시작 미궁 시간 (★ 0.0=ENTRY, 72.0=RIFT phase 본격)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=Path("tests/e2e/trace_F1.json"),
     )
     args = parser.parse_args()
 
-    print(f"E2E {args.turns}턴 시뮬 본격 시작...")
+    print(
+        f"E2E {args.turns}턴 시뮬 "
+        f"(★ initial_hours={args.initial_hours}) 본격 시작..."
+    )
     print(f"  Player: {QWEN35_9B_Q3_BASE_URL} (9B Q3)")
     if _llm_alive(QWEN36_27B_Q2_BASE_URL):
         print(f"  GM:     {QWEN36_27B_Q2_BASE_URL} (27B Q2)")
@@ -235,7 +250,7 @@ def main() -> int:
         print(f"  GM:     {QWEN35_9B_Q3_BASE_URL} (9B Q3 fallback)")
     print()
 
-    result, elapsed = run_trace(args.turns)
+    result, elapsed = run_trace(args.turns, initial_hours=args.initial_hours)
     findings = detect_findings(result)
 
     print(f"\n시뮬 시간: {elapsed:.1f}s ({elapsed / 60:.1f}분)")
@@ -247,7 +262,10 @@ def main() -> int:
     output: dict[str, Any] = {
         "config": {
             "target_turns": args.turns,
-            "scenario_id": f"F1_e2e_{args.turns}turn",
+            "initial_hours": args.initial_hours,
+            "scenario_id": (
+                f"F1_e2e_{args.turns}turn_h{int(args.initial_hours)}"
+            ),
         },
         "elapsed_seconds": round(elapsed, 1),
         "completed_turns": result.completed_turns,

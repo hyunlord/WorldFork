@@ -38,13 +38,18 @@ from service.sim.llm_factory import (
 from service.sim.player_agent import PlayerAgent
 from service.sim.sim_gm_agent import SimGMAgent
 from service.sim.sim_runner import SimRunner
-from service.sim.types import PlayerActionType, SimConfig
+from service.sim.types import PlayerActionType, SimConfig, SimResult
 
 # ★ F1 본격 E2E 기준 (★ 실측 후 본격 보정 가능)
 TARGET_TURNS = 100
 MIN_COMPLETED_TURNS = 30  # ★ 168h 한도 본격 도달 가능 (30턴 본격)
 MIN_ACTION_TYPES = 5      # ★ 13 중 최소 5 다양성
 MIN_SUB_AREAS = 2         # ★ 6 중 최소 2 방문
+
+# ★ F5b RIFT phase 본격 기준
+RIFT_INITIAL_HOURS = 72.0       # ★ phase 정합 (★ DungeonPhase.RIFT)
+RIFT_MIN_COMPLETED_TURNS = 50   # ★ RIFT phase 최소 완주
+RIFT_MIN_ENTER_RIFT = 1         # ★ RIFT phase 본격 ENTER_RIFT ≥ 1
 
 
 def _llm_server_running(url: str) -> bool:
@@ -73,11 +78,11 @@ def test_action_type_canonical_13() -> None:
     )
 
 
-def test_layer4_full_run_100turn() -> None:
-    """100턴 진짜 LLM 시뮬 — Layer 4 통합 검증.
-
-    본 test는 slow (~5-10분 본격 LLM, DGX Spark 한정).
-    """
+def _run_layer4_sim(
+    initial_hours: float,
+    scenario_id: str,
+) -> SimResult:
+    """공통 100턴 시뮬 본격 (★ ENTRY/RIFT phase 공유 본격 setup)."""
     player_client = make_player_llm_client(timeout=60)
     player_agent = PlayerAgent(llm_client=player_client)
 
@@ -96,9 +101,8 @@ def test_layer4_full_run_100turn() -> None:
     runner = SimRunner(
         config=SimConfig(
             max_turns=TARGET_TURNS,
-            scenario_id="e2e_F1_100turn",
-            # ★ F3: 전 phase 본격 test (★ ENTRY 시작)
-            initial_hours_in_dungeon=0.0,
+            scenario_id=scenario_id,
+            initial_hours_in_dungeon=initial_hours,
         ),
         player_agent=player_agent,
         gm_agent=gm_agent,
@@ -133,7 +137,7 @@ def test_layer4_full_run_100turn() -> None:
         has_light=False,
     )
 
-    result = runner.run(
+    return runner.run(
         party=party,
         world=world,
         location=location,
@@ -158,10 +162,20 @@ def test_layer4_full_run_100turn() -> None:
                 "has_light": False,
             },
             "v2_world_state": {
-                "hours_in_dungeon": 0,
+                "hours_in_dungeon": int(initial_hours),
                 "is_dark_zone": True,
             },
         },
+    )
+
+
+def test_layer4_full_run_100turn() -> None:
+    """100턴 진짜 LLM 시뮬 — Layer 4 통합 검증 (★ ENTRY phase).
+
+    본 test는 slow (~5-10분 본격 LLM, DGX Spark 한정).
+    """
+    result = _run_layer4_sim(
+        initial_hours=0.0, scenario_id="e2e_F1_100turn"
     )
 
     # 본격 1: state 정합 (★ 음수 X)
@@ -186,6 +200,57 @@ def test_layer4_full_run_100turn() -> None:
     )
 
     # 본격 4: end_reason 본격 정합
+    valid_reasons = {
+        "max_turns",
+        "permadeath",
+        "exit_floor",
+        "time_limit_168h",
+    }
+    assert result.end_reason in valid_reasons, (
+        f"unexpected end_reason: {result.end_reason!r}"
+    )
+
+
+def test_layer4_full_run_rift_phase() -> None:
+    """100턴 RIFT phase 본격 시뮬 — initial_hours=72.0 (★ F5b).
+
+    F1-F5는 ENTRY phase (h=0) 본격 검증. 본 test는 RIFT phase 별도:
+    - GM이 RIFT encounter 우선 spawn (★ PHASE_TYPE_WEIGHTS RIFT 40%)
+    - LLM이 ENTER_RIFT 본격 발현
+    - 본격 1층 안정화 완전 마무리
+
+    본 test는 slow (~20분 본격 LLM, DGX Spark 한정).
+    """
+    result = _run_layer4_sim(
+        initial_hours=RIFT_INITIAL_HOURS,
+        scenario_id="e2e_F5b_rift_phase_100turn",
+    )
+
+    # 본격 1: state 정합 (★ 음수 X)
+    for log in result.turn_logs:
+        assert log.hp_after >= 0, (
+            f"turn {log.turn_number}: HP 음수 {log.hp_after}"
+        )
+        assert log.hours_in_dungeon >= 0
+        assert log.hours_in_dungeon <= 250  # ★ 168 + RIFT 시작 본격 buffer
+
+    # 본격 2: RIFT phase 50턴 본격 완주
+    assert result.completed_turns >= RIFT_MIN_COMPLETED_TURNS, (
+        f"RIFT phase early termination: {result.completed_turns} "
+        f"< {RIFT_MIN_COMPLETED_TURNS} (end_reason={result.end_reason!r})"
+    )
+
+    # 본격 3: ENTER_RIFT ≥ 1 (★ RIFT phase 정합 본격)
+    enter_rift_count = sum(
+        1 for log in result.turn_logs
+        if log.action.action_type == PlayerActionType.ENTER_RIFT
+    )
+    assert enter_rift_count >= RIFT_MIN_ENTER_RIFT, (
+        f"RIFT phase ENTER_RIFT 본격 X: {enter_rift_count} "
+        f"< {RIFT_MIN_ENTER_RIFT}"
+    )
+
+    # 본격 4: end_reason 본격 정합 (★ time_limit 가능 본격 — h=72 시작)
     valid_reasons = {
         "max_turns",
         "permadeath",
