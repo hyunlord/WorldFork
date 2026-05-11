@@ -9,6 +9,7 @@ Phase 6a 본격 export (★ UI 자료):
 from tools.visual.ui_assets import (
     ALL_ASSET_DICTS,
     BJORN_LORA_NAME,
+    CHARACTER_SHEET_ASSETS,
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
     UIAssetSpec,
@@ -20,6 +21,7 @@ from tools.visual.ui_assets import (
 __all__ = [
     "ALL_ASSET_DICTS",
     "BJORN_LORA_NAME",
+    "CHARACTER_SHEET_ASSETS",
     "GAMEPLAY_SCREEN_ASSETS",
     "MAIN_SCREEN_ASSETS",
     "UIAssetSpec",

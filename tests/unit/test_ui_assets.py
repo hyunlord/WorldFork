@@ -7,6 +7,7 @@ from typing import Any, cast
 from tools.visual.ui_assets import (
     ALL_ASSET_DICTS,
     BJORN_LORA_NAME,
+    CHARACTER_SHEET_ASSETS,
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
     build_workflow_with_lora,
@@ -269,14 +270,22 @@ class TestPhase6Consistency:
     """Phase 6a + 6b 일관성 본격 검증."""
 
     def test_all_negative_low_quality(self) -> None:
-        for asset_dict in (MAIN_SCREEN_ASSETS, GAMEPLAY_SCREEN_ASSETS):
+        for asset_dict in (
+            MAIN_SCREEN_ASSETS,
+            GAMEPLAY_SCREEN_ASSETS,
+            CHARACTER_SHEET_ASSETS,
+        ):
             for name, data in asset_dict.items():
                 neg = str(data["negative_prompt"]).lower()
                 assert "low quality" in neg, f"{name}: negative 본격 X"
 
     def test_all_bjorn_use_lora(self) -> None:
-        """6a + 6b 모든 bjorn 자료 LoRA 본격 정합."""
-        for asset_dict in (MAIN_SCREEN_ASSETS, GAMEPLAY_SCREEN_ASSETS):
+        """6a+6b+6c 모든 bjorn 자료 LoRA 본격 정합."""
+        for asset_dict in (
+            MAIN_SCREEN_ASSETS,
+            GAMEPLAY_SCREEN_ASSETS,
+            CHARACTER_SHEET_ASSETS,
+        ):
             for name, data in asset_dict.items():
                 if "bjorn" in name:
                     assert data["lora"] == BJORN_LORA_NAME, (
@@ -284,10 +293,112 @@ class TestPhase6Consistency:
                     )
 
     def test_all_erwen_prompt_only(self) -> None:
-        """6a + 6b 모든 erwen 자료 prompt-only 정합."""
-        for asset_dict in (MAIN_SCREEN_ASSETS, GAMEPLAY_SCREEN_ASSETS):
+        """6a+6b+6c 모든 erwen 자료 prompt-only 정합."""
+        for asset_dict in (
+            MAIN_SCREEN_ASSETS,
+            GAMEPLAY_SCREEN_ASSETS,
+            CHARACTER_SHEET_ASSETS,
+        ):
             for name, data in asset_dict.items():
                 if "erwen" in name:
                     assert data["lora"] is None, (
                         f"{name}: erwen prompt-only X"
                     )
+
+
+class TestCharacterSheetAssets:
+    """Phase 6c 캐릭터 시트 자료 검증."""
+
+    def test_assets_count_three(self) -> None:
+        assert len(CHARACTER_SHEET_ASSETS) == 3
+        assert set(CHARACTER_SHEET_ASSETS) == {
+            "character_bjorn_full",
+            "character_erwen_full",
+            "character_essence_grid",
+        }
+
+    def test_bjorn_full_lora_full_body(self) -> None:
+        bjorn = CHARACTER_SHEET_ASSETS["character_bjorn_full"]
+        assert bjorn["width"] == 1024
+        assert bjorn["height"] == 1536  # ★ 풀바디
+        assert bjorn["lora"] == BJORN_LORA_NAME
+        assert bjorn["lora_strength"] == 0.8
+        prompt = str(bjorn["prompt"]).lower()
+        assert "full body" in prompt or "head to feet" in prompt
+        neg = str(bjorn["negative_prompt"]).lower()
+        assert "cropped" in neg
+        assert "half body" in neg
+
+    def test_erwen_full_prompt_only(self) -> None:
+        erwen = CHARACTER_SHEET_ASSETS["character_erwen_full"]
+        assert erwen["lora"] is None
+        assert erwen["width"] == 1024
+        assert erwen["height"] == 1536
+        prompt = str(erwen["prompt"]).lower()
+        assert "faerie" in prompt or "elven" in prompt
+        assert "silver" in prompt
+
+    def test_essence_grid_five_colors(self) -> None:
+        essence = CHARACTER_SHEET_ASSETS["character_essence_grid"]
+        assert essence["lora"] is None
+        assert essence["width"] == 1024
+        assert essence["height"] == 1024
+        prompt = str(essence["prompt"]).lower()
+        for color in (
+            "earth brown",
+            "teal",
+            "blue-gray",
+            "blood-red",
+            "golden",
+        ):
+            assert color in prompt, f"본격 정수 색 X: {color}"
+        neg = str(essence["negative_prompt"]).lower()
+        assert "characters" in neg or "people" in neg
+
+
+class TestAllAssetDictsExtended:
+    """Phase 6 통합 dict 본격 확장."""
+
+    def test_three_phase_integration(self) -> None:
+        assert set(ALL_ASSET_DICTS) == {
+            "main_screen",
+            "gameplay_screen",
+            "character_sheet",
+        }
+
+    def test_character_sheet_identity(self) -> None:
+        assert ALL_ASSET_DICTS["character_sheet"] is CHARACTER_SHEET_ASSETS
+
+    def test_total_assets_ten(self) -> None:
+        """6a 3 + 6b 4 + 6c 3 = 10."""
+        total = sum(len(d) for d in ALL_ASSET_DICTS.values())
+        assert total == 10
+
+
+class TestCharacterSheetWorkflow:
+    """Phase 6c workflow LoRA 분기."""
+
+    def test_bjorn_full_lora_workflow(self) -> None:
+        from typing import cast
+
+        spec = spec_from_dict(
+            "character_bjorn_full",
+            CHARACTER_SHEET_ASSETS["character_bjorn_full"],
+        )
+        wf = build_workflow_with_lora(spec)
+        nodes = cast(dict[str, Any], wf["prompt"])
+        assert "1b" in nodes
+        assert nodes["1b"]["inputs"]["lora_name"] == BJORN_LORA_NAME
+        assert nodes["7"]["inputs"]["width"] == 1024
+        assert nodes["7"]["inputs"]["height"] == 1536
+
+    def test_erwen_full_no_lora(self) -> None:
+        from typing import cast
+
+        spec = spec_from_dict(
+            "character_erwen_full",
+            CHARACTER_SHEET_ASSETS["character_erwen_full"],
+        )
+        wf = build_workflow_with_lora(spec)
+        nodes = cast(dict[str, Any], wf["prompt"])
+        assert "1b" not in nodes

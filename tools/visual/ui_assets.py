@@ -182,12 +182,86 @@ GAMEPLAY_SCREEN_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6c-g 본격 재사용)
+# 본격 자료 dict (★ Phase 6c 캐릭터 시트, 3개)
+CHARACTER_SHEET_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "character_bjorn_full": {
+        "filename_prefix": "ui_character_bjorn_full",
+        "width": 1024,
+        "height": 1536,
+        "prompt": (
+            "bjorn_warrior, barbarian male warrior, "
+            "full body character sheet portrait, standing pose, "
+            "two-handed battle axe gripped firmly, "
+            "battle-worn fur and leather armor, "
+            "thick leather boots, tribal markings visible, "
+            "dark braided hair and thick beard, "
+            "fierce blue eyes, scarred face, "
+            "dark fantasy painterly style, neutral dark background, "
+            "rim lighting, full character visible from head to feet, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, "
+            "cropped, partial body, half body, close-up"
+        ),
+        "lora": BJORN_LORA_NAME,  # ★ Phase 5b ship 본격
+        "lora_strength": 0.8,
+    },
+    "character_erwen_full": {
+        "filename_prefix": "ui_character_erwen_full",
+        "width": 1024,
+        "height": 1536,
+        "prompt": (
+            "ethereal faerie female mage, "
+            "full body character sheet portrait, standing pose, "
+            "delicate translucent wings glowing softly, "
+            "long silver hair flowing past shoulders, "
+            "luminous green eyes, fair pale skin, pointed ears, "
+            "elegant pale robes with arcane silver embroidery, "
+            "soul magic energy in palms, mystical aura, "
+            "dark fantasy painterly style, neutral dark background, "
+            "rim lighting, full character visible from head to feet, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, "
+            "cropped, partial body, half body, close-up"
+        ),
+        "lora": None,  # ★ Phase 1+6a+6b 정합 본격
+        "lora_strength": 1.0,
+    },
+    "character_essence_grid": {
+        "filename_prefix": "ui_character_essence_grid",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "five mystical floating essence orbs arranged "
+            "in horizontal row, "
+            "first: earth brown essence with soil particles, "
+            "second: teal cyan essence with ice crystals, "
+            "third: blue-gray essence with mind whispers, "
+            "fourth: crimson blood-red essence with dark aura, "
+            "fifth: golden light essence with radiance, "
+            "each orb distinct and separated, "
+            "dark void background, isolated VFX elements, "
+            "fantasy game collectible icons, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "characters, people, scenery, modern, low quality"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6d-g 본격 재사용)
 ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "main_screen": MAIN_SCREEN_ASSETS,
     "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
-    # 후속 Phase 6c-g 본격 추가:
-    # "character_sheet": CHARACTER_SHEET_ASSETS,
+    "character_sheet": CHARACTER_SHEET_ASSETS,
+    # 후속 Phase 6d-g 본격 추가:
     # "rift_entry": RIFT_ENTRY_ASSETS,
     # "combat": COMBAT_ASSETS,
     # "dialogue": DIALOGUE_ASSETS,

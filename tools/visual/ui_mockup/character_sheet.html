@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — 캐릭터 시트</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1920px; height: 1080px;
+  background:
+    linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.92)),
+    url('../../../../ComfyUI/output/worldfork/ui_main_bg.png');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  overflow: hidden;
+  position: relative;
+  padding: 32px;
+}
+
+/* === 상단 탭 === */
+.tabs {
+  position: absolute;
+  top: 32px; left: 32px;
+  display: flex; gap: 4px;
+}
+.tab {
+  padding: 16px 36px;
+  background: rgba(40,30,20,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-bottom: none;
+  color: #8b7355;
+  font-size: 18px; letter-spacing: 3px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.tab.active {
+  background: rgba(212,175,55,0.2);
+  border-color: #d4af37;
+  color: #d4af37;
+  font-weight: 700;
+}
+
+.close-btn {
+  position: absolute;
+  top: 32px; right: 32px;
+  padding: 12px 24px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #8b7355;
+  cursor: pointer;
+  font-size: 14px; letter-spacing: 2px;
+}
+
+/* === 메인 컨테이너 === */
+.sheet {
+  position: absolute;
+  top: 96px; left: 32px; right: 32px; bottom: 32px;
+  display: grid;
+  grid-template-columns: 380px 1fr 480px;
+  gap: 32px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(212,175,55,0.4);
+  padding: 32px;
+}
+
+/* === 좌측 풀바디 === */
+.character-art {
+  display: flex; flex-direction: column;
+}
+.character-portrait {
+  flex: 1;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_character_bjorn_full.png');
+  border: 2px solid rgba(212,175,55,0.4);
+  box-shadow: inset 0 0 32px rgba(0,0,0,0.7);
+}
+.character-name {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 32px; color: #d4af37;
+  font-weight: 900; letter-spacing: 8px;
+}
+.character-race {
+  text-align: center;
+  font-size: 16px; color: #8b7355;
+  letter-spacing: 4px;
+  margin-top: 4px;
+}
+
+/* === 중앙 stats + 스킬 === */
+.center-panel {
+  display: flex; flex-direction: column; gap: 20px;
+}
+.stat-block {
+  background: rgba(20,15,10,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  padding: 20px;
+}
+.stat-block-title {
+  font-size: 14px; color: #8b7355;
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(212,175,55,0.2);
+  padding-bottom: 8px;
+}
+.stat-row {
+  display: flex; justify-content: space-between;
+  font-size: 16px; padding: 4px 0;
+}
+.stat-row .label { color: #8b7355; letter-spacing: 1px; }
+.stat-row .value { color: #d4af37; font-weight: 700; }
+
+.hp-bar-large {
+  width: 100%; height: 18px;
+  background: rgba(60,0,0,0.6);
+  border: 1px solid rgba(212,175,55,0.3);
+  position: relative;
+  margin-top: 4px;
+}
+.hp-bar-large .hp-fill {
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+}
+
+.skill {
+  display: flex; align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(212,175,55,0.1);
+}
+.skill:last-child { border-bottom: none; }
+.skill-icon {
+  width: 36px; height: 36px;
+  background: rgba(139,0,0,0.4);
+  border: 1px solid #d4af37;
+  display: flex; align-items: center; justify-content: center;
+  color: #d4af37; font-weight: 700;
+  flex-shrink: 0;
+}
+.skill-info { flex: 1; }
+.skill-name {
+  font-size: 15px; color: #d4af37;
+  font-weight: 700; letter-spacing: 2px;
+}
+.skill-desc {
+  font-size: 12px; color: #8b7355;
+  margin-top: 2px; line-height: 1.4;
+}
+
+/* === 우측 정수 + 마석 + 인벤토리 === */
+.right-panel {
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.essence-slots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.essence-slot {
+  aspect-ratio: 1;
+  background: rgba(20,15,10,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 10px; color: #8b7355;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.essence-slot.filled {
+  border-color: #d4af37;
+  box-shadow: 0 0 12px rgba(212,175,55,0.4);
+}
+.essence-orb {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+.essence-orb.earth { background: radial-gradient(circle, #8b6f47, #4a3a25); }
+.essence-orb.teal { background: radial-gradient(circle, #5cc0c0, #2a6868); }
+.essence-orb.mind { background: radial-gradient(circle, #7090a8, #354858); }
+.essence-orb.blood { background: radial-gradient(circle, #c83030, #5a0808); }
+.essence-orb.light { background: radial-gradient(circle, #f0c860, #8b6818); }
+.essence-orb.empty { background: rgba(40,30,20,0.6); border: 1px dashed #5a4a3a; }
+
+.magic-stones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.magic-stone {
+  aspect-ratio: 1;
+  background: rgba(20,15,10,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #8b7355;
+  letter-spacing: 1px;
+}
+.magic-stone.filled {
+  background: linear-gradient(135deg, rgba(212,175,55,0.3), rgba(139,0,0,0.2));
+  border-color: #d4af37;
+  color: #d4af37; font-weight: 700;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.inv-slot {
+  aspect-ratio: 1;
+  background: rgba(20,15,10,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: #8b7355;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.inv-slot.filled {
+  background: rgba(60,40,20,0.6);
+  border-color: rgba(212,175,55,0.5);
+  color: #d4af37;
+}
+</style>
+</head>
+<body>
+  <div class="tabs">
+    <div class="tab active">▸ 비요른</div>
+    <div class="tab">에르웬</div>
+  </div>
+  <div class="close-btn">닫기 [ESC]</div>
+
+  <div class="sheet">
+
+    <!-- 좌측 풀바디 -->
+    <div class="character-art">
+      <div class="character-portrait"></div>
+      <div class="character-name">비요른</div>
+      <div class="character-race">바바리안 · 전사</div>
+    </div>
+
+    <!-- 중앙 stats + 스킬 -->
+    <div class="center-panel">
+
+      <div class="stat-block">
+        <div class="stat-block-title">▣ 상태</div>
+        <div class="stat-row"><span class="label">HP</span><span class="value">150 / 150</span></div>
+        <div class="hp-bar-large"><div class="hp-fill"></div></div>
+        <div style="height: 14px;"></div>
+        <div class="stat-row"><span class="label">공격력 (ATK)</span><span class="value">25</span></div>
+        <div class="stat-row"><span class="label">방어력 (DEF)</span><span class="value">12</span></div>
+        <div class="stat-row"><span class="label">속도 (SPD)</span><span class="value">8</span></div>
+        <div class="stat-row"><span class="label">의지 (WILL)</span><span class="value">15</span></div>
+      </div>
+
+      <div class="stat-block">
+        <div class="stat-block-title">▣ 스킬</div>
+        <div class="skill">
+          <div class="skill-icon">광</div>
+          <div class="skill-info">
+            <div class="skill-name">광폭화</div>
+            <div class="skill-desc">3턴간 ATK +50%, DEF -25%. 흙 정수 1 소모.</div>
+          </div>
+        </div>
+        <div class="skill">
+          <div class="skill-icon">일</div>
+          <div class="skill-info">
+            <div class="skill-name">일격필살</div>
+            <div class="skill-desc">단일 대상에 ATK ×3 데미지. 쿨다운 5턴.</div>
+          </div>
+        </div>
+        <div class="skill">
+          <div class="skill-icon">야</div>
+          <div class="skill-info">
+            <div class="skill-name">야성의 직감</div>
+            <div class="skill-desc">패시브. 어둠 속 위험 감지. 균열 진입 시 +1턴.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 우측 정수 + 마석 + 인벤토리 -->
+    <div class="right-panel">
+
+      <div class="stat-block">
+        <div class="stat-block-title">▣ 정수 슬롯 (1 / 5)</div>
+        <div class="essence-slots">
+          <div class="essence-slot filled">
+            <div class="essence-orb earth"></div>
+            <span>흙</span>
+          </div>
+          <div class="essence-slot">
+            <div class="essence-orb empty"></div>
+            <span>—</span>
+          </div>
+          <div class="essence-slot">
+            <div class="essence-orb empty"></div>
+            <span>—</span>
+          </div>
+          <div class="essence-slot">
+            <div class="essence-orb empty"></div>
+            <span>—</span>
+          </div>
+          <div class="essence-slot">
+            <div class="essence-orb empty"></div>
+            <span>—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-block">
+        <div class="stat-block-title">▣ 9등급 마석 (0 / 3)</div>
+        <div class="magic-stones">
+          <div class="magic-stone">빈 슬롯</div>
+          <div class="magic-stone">빈 슬롯</div>
+          <div class="magic-stone">빈 슬롯</div>
+        </div>
+      </div>
+
+      <div class="stat-block">
+        <div class="stat-block-title">▣ 인벤토리</div>
+        <div class="inventory-grid">
+          <div class="inv-slot filled">도끼</div>
+          <div class="inv-slot filled">가죽 갑옷</div>
+          <div class="inv-slot filled">빛 도구</div>
+          <div class="inv-slot filled">육포</div>
+          <div class="inv-slot"></div>
+          <div class="inv-slot"></div>
+          <div class="inv-slot"></div>
+          <div class="inv-slot"></div>
+          <div class="inv-slot"></div>
+          <div class="inv-slot"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
