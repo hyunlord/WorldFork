@@ -224,6 +224,128 @@ def test_build_prompt_slot_full_warning() -> None:
     assert "OFFER_TO_STONE" in p
 
 
+# ─── F6: rift prerequisite ───
+
+
+def test_system_prompt_enter_rift_prerequisite() -> None:
+    """ACTION_TYPE_GUIDANCE 본격 — ENTER_RIFT active_rifts 조건 명시."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    assert "active_rifts" in p
+    assert "활성 균열" in p
+    # ★ F6: 활성 X 시 사용 금지 본격
+    assert "활성 균열 없으면 사용 금지" in p or "활성 X 시" in p
+    # ★ OFFER_TO_STONE 먼저 본격 명시
+    assert "OFFER_TO_STONE 먼저" in p
+
+
+def test_system_prompt_offer_to_stone_activation() -> None:
+    """ACTION_TYPE_GUIDANCE 본격 — OFFER_TO_STONE 활성화 mechanism 명시."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    assert "world.active_rifts에 등록" in p
+    assert "ENTER_RIFT 가능" in p
+
+
+def test_build_prompt_active_rifts_empty_warning() -> None:
+    """active_rifts empty 본격 ENTER_RIFT 금지 경고 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 72,
+            "party_members": ["비요른"],
+            "active_rifts": [],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "비석 공동",
+        },
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "활성 균열" in p
+    assert "없음" in p
+    assert "ENTER_RIFT 사용 금지" in p
+    assert "OFFER_TO_STONE 먼저" in p
+
+
+def test_build_prompt_active_rifts_present() -> None:
+    """active_rifts ≥ 1 본격 ENTER_RIFT 가능 명시 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 72,
+            "party_members": ["비요른"],
+            "active_rifts": ["bloody_castle"],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "포탈 근처",
+        },
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "bloody_castle" in p
+    assert "ENTER_RIFT 가능" in p
+
+
+def test_build_prompt_rift_encounter_inactive_warning() -> None:
+    """RIFT encounter + active_rifts X 본격 OFFER 권장 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 72,
+            "party_members": ["비요른"],
+            "active_rifts": [],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "포탈 근처",
+        },
+        "active_encounters": [
+            {
+                "type": "rift",
+                "name": "핏빛성채",
+                "location": "포탈 근처",
+                "description": "균열",
+                "details": {},
+                "spawned_at_turn": 1,
+                "ttl_remaining": 30,
+            }
+        ],
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "핏빛성채" in p
+    assert "비활성" in p
+    assert "OFFER_TO_STONE 먼저" in p
+
+
 def test_build_prompt_slot_partial_allowed() -> None:
     """slot 2/5 + essence encounter → ABSORB 우선 본격 (★ 본격 정합)."""
     ctx = {

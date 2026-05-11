@@ -155,9 +155,19 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 
 **6단계: 균열 진입 (★ 1층 탈출 / 보상)**
 - OFFER_TO_STONE: 비석 공물 (★ 마석 → 의도적 균열, 374화)
+  ★ 본격 본질 (★ 균열 활성화 필수 mechanism):
+    1. 비석 공동 위치 + 정수/마석 본격
+    2. 공물 → world.active_rifts에 등록 → ENTER_RIFT 가능
+  ★ 활성 균열 없을 때 RIFT encounter 발견 시 우선 호출
+  - target: 균열 이름 (예: "핏빛성채")
 - ENTER_RIFT: 균열 포탈 진입
+  ★ 조건: world.active_rifts ≥ 1 (★ 활성 균열 존재)
+  ⚠️ 활성 균열 없으면 사용 금지 (★ success=False)
+  → 활성 X 시: OFFER_TO_STONE 먼저
+  - target: 활성 균열 이름 (예: "핏빛성채")
 - EXIT_RIFT: 균열 탈출
-- target: 균열 이름 (예: "green_mine") 또는 마석 등급
+  ★ 조건: 균열 안 본격 (★ ENTER_RIFT 후)
+  - target: 균열 이름
 
 ## action_type 가능 값 (13 종류 — 다양 사용 본격)
 
@@ -651,9 +661,17 @@ def _build_player_prompt(
         elif etype == "monster":
             hints.append(f"⚔️ 몬스터 발견 ({ename}) — ATTACK 또는 FLEE")
         elif etype == "rift":
-            hints.append(
-                f"🌀 균열 발견 ({ename}) — ENTER_RIFT 또는 OFFER_TO_STONE"
-            )
+            # ★ F6: active_rifts 없으면 OFFER_TO_STONE 먼저 본격 명시
+            active_rifts_now = world.get("active_rifts") or []
+            if ename in active_rifts_now:
+                hints.append(
+                    f"🌀 균열 발견 ({ename}) — 활성 본격, ENTER_RIFT 가능"
+                )
+            else:
+                hints.append(
+                    f"🌀 균열 발견 ({ename}) — 비활성, "
+                    "OFFER_TO_STONE 먼저 (★ active_rifts 등록 후 ENTER)"
+                )
         elif etype == "item":
             hints.append(f"🎁 아이템 발견 ({ename}) — USE_ITEM 검토")
         elif etype == "event":
@@ -676,8 +694,18 @@ def _build_player_prompt(
         "",
         f"**미궁 시간**: {hours}h / 168h",
     ]
-    if active_rifts := world.get("active_rifts"):
-        lines.append(f"**활성 균열**: {', '.join(active_rifts)}")
+    # ★ F6: active_rifts 본격 명시 — empty 본격 ENTER_RIFT 금지 경고
+    active_rifts_raw = world.get("active_rifts") or []
+    if active_rifts_raw:
+        lines.append(
+            f"**활성 균열**: {', '.join(active_rifts_raw)} "
+            f"(★ ENTER_RIFT 가능)"
+        )
+    else:
+        lines.append(
+            "**활성 균열**: 없음 ⚠️ "
+            "(★ ENTER_RIFT 사용 금지 — OFFER_TO_STONE 먼저)"
+        )
     if party_members := world.get("party_members"):
         lines.append(f"**파티**: {', '.join(party_members)}")
 

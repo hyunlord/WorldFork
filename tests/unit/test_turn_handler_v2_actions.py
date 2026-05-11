@@ -249,6 +249,35 @@ def test_exit_rift_removes_from_active() -> None:
     assert "green_mine" not in world.active_rifts
 
 
+def test_offer_to_stone_korean_name_alias() -> None:
+    """★ F6: 한국어 name '핏빛성채' → 'bloody_castle' canonical."""
+    c = _bjorn()
+    world = WorldState()
+    r = offer_to_stone(c, "핏빛성채", world)
+    assert r.success
+    assert "bloody_castle" in world.active_rifts
+
+
+def test_enter_rift_korean_name_alias() -> None:
+    """★ F6: ENTER_RIFT 한국어 name 본격 success."""
+    c = _bjorn()
+    world = WorldState()
+    offer_to_stone(c, "핏빛성채", world)  # rift_id 등록
+    r = enter_rift([c], world, "핏빛성채")  # 한국어 name
+    assert r.success
+
+
+def test_exit_rift_korean_name_alias() -> None:
+    """★ F6: EXIT_RIFT 한국어 name 본격 success."""
+    c = _bjorn()
+    world = WorldState()
+    offer_to_stone(c, "핏빛성채", world)
+    enter_rift([c], world, "핏빛성채")
+    r = exit_rift([c], world, "핏빛성채")
+    assert r.success
+    assert "bloody_castle" not in world.active_rifts
+
+
 # ─── use_item ───
 
 

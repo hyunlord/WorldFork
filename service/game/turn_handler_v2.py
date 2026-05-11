@@ -406,6 +406,19 @@ def flee_from_threat(
 # ─── 9. 비석 공물 ───
 
 
+def _resolve_rift_id(target: str) -> str | None:
+    """rift_id 또는 한국어 name → canonical rift_id (★ F6).
+
+    LLM은 한국어 name ('핏빛성채') 사용. floor1.py는 rift_id ('bloody_castle').
+    본격 alias bridge — F4 essence color→monster명 대 본격 동일 패턴.
+    """
+    f1 = get_floor1_definition()
+    for r in f1.rifts:
+        if r.rift_id == target or r.name == target:
+            return r.rift_id
+    return None
+
+
 def offer_to_stone(
     character: Character,
     rift_id: str,
@@ -414,19 +427,21 @@ def offer_to_stone(
     """비석 공물 — 8등급 마석 → 균열 진입 가능 (★ 374화).
 
     본 commit 단순화: rift_id 검증만 (★ 마석 차감은 inventory 통합 시).
+    ★ F6: target은 rift_id 또는 한국어 name 본격.
     """
-    f1 = get_floor1_definition()
-    rift = next((r for r in f1.rifts if r.rift_id == rift_id), None)
-
-    if rift is None:
+    canonical = _resolve_rift_id(rift_id)
+    if canonical is None:
         return TurnResult(
             success=False,
             action_type="offer_to_stone",
             message=f"균열 {rift_id} X (★ 1층 4 균열).",
         )
 
-    if rift_id not in world.active_rifts:
-        world.active_rifts.append(rift_id)
+    f1 = get_floor1_definition()
+    rift = next(r for r in f1.rifts if r.rift_id == canonical)
+
+    if canonical not in world.active_rifts:
+        world.active_rifts.append(canonical)
 
     return TurnResult(
         success=True,
@@ -447,8 +462,12 @@ def enter_rift(
     world: WorldState,
     rift_id: str,
 ) -> TurnResult:
-    """균열 진입 — Location 변경은 caller가 (★ side_effect 명시)."""
-    if rift_id not in world.active_rifts:
+    """균열 진입 — Location 변경은 caller가 (★ side_effect 명시).
+
+    ★ F6: target은 rift_id 또는 한국어 name 본격.
+    """
+    canonical = _resolve_rift_id(rift_id)
+    if canonical is None or canonical not in world.active_rifts:
         return TurnResult(
             success=False,
             action_type="enter_rift",
@@ -460,10 +479,10 @@ def enter_rift(
     return TurnResult(
         success=True,
         action_type="enter_rift",
-        message=f"균열 {rift_id} 진입.",
+        message=f"균열 {canonical} 진입.",
         side_effects=[
             "target_realm=RIFT",
-            f"target_rift_id={rift_id}",
+            f"target_rift_id={canonical}",
             "시간 0.5h",
         ],
     )
@@ -477,16 +496,20 @@ def exit_rift(
     world: WorldState,
     rift_id: str,
 ) -> TurnResult:
-    """균열 탈출 — 1층 복귀."""
-    if rift_id in world.active_rifts:
-        world.active_rifts.remove(rift_id)
+    """균열 탈출 — 1층 복귀.
+
+    ★ F6: target은 rift_id 또는 한국어 name 본격.
+    """
+    canonical = _resolve_rift_id(rift_id) or rift_id
+    if canonical in world.active_rifts:
+        world.active_rifts.remove(canonical)
 
     advance_time(party, world, elapsed_hours=0.5)
 
     return TurnResult(
         success=True,
         action_type="exit_rift",
-        message=f"균열 {rift_id} 탈출 → 1층.",
+        message=f"균열 {canonical} 탈출 → 1층.",
         side_effects=["target_realm=DUNGEON", "시간 0.5h"],
     )
 
