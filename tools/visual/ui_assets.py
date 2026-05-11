@@ -256,13 +256,101 @@ CHARACTER_SHEET_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6d-g 본격 재사용)
+# 본격 자료 dict (★ Phase 6d 균열 진입, 4개)
+RIFT_ENTRY_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "rift_bloodcastle": {
+        "filename_prefix": "ui_rift_bloodcastle",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "dark fantasy crimson blood castle interior, "
+            "gothic stone archways drenched in blood, "
+            "central altar with open Necronomicon grimoire, "
+            "weeping goddess statue, ritual pentagram circle on floor, "
+            "torchlight casting red shadows, "
+            "deep dread atmosphere, 8th grade boss lair, "
+            "cinematic wide shot, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, bright, cheerful, cartoon, anime, low quality, "
+            "characters, people"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "rift_glacier": {
+        "filename_prefix": "ui_rift_glacier",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "dark fantasy frozen glacier cavern interior, "
+            "massive blue-white ice walls and stalactites, "
+            "frozen ground with cracks emitting cold mist, "
+            "pale cyan ethereal light, frost crystals scattered, "
+            "ancient frozen pillars, breath-frosting cold atmosphere, "
+            "deep underground frozen lair, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, bright, cheerful, cartoon, anime, low quality, "
+            "characters, people, warm colors"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "rift_greenmine": {
+        "filename_prefix": "ui_rift_greenmine",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "dark fantasy abandoned green mine interior, "
+            "toxic emerald glowing crystals embedded in stone, "
+            "rusted mine carts and broken wooden supports, "
+            "sickly green mist drifting through tunnels, "
+            "moss-covered mineral veins, dripping toxic water, "
+            "abandoned mining tools, ominous green ambient light, "
+            "deep underground toxic atmosphere, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, bright, cheerful, cartoon, anime, low quality, "
+            "characters, people"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "rift_steeltomb": {
+        "filename_prefix": "ui_rift_steeltomb",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "dark fantasy steel mausoleum interior, "
+            "polished cold steel walls and floors, "
+            "rows of iron sarcophagi with engraved runes, "
+            "metallic blue-gray torchlight reflections, "
+            "ancient warrior tombs, ceremonial steel banners, "
+            "deep silence atmosphere, oppressive metallic chill, "
+            "cinematic wide shot, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, bright, cheerful, cartoon, anime, low quality, "
+            "characters, people, warm colors"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6e-g 본격 재사용)
 ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "main_screen": MAIN_SCREEN_ASSETS,
     "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
     "character_sheet": CHARACTER_SHEET_ASSETS,
-    # 후속 Phase 6d-g 본격 추가:
-    # "rift_entry": RIFT_ENTRY_ASSETS,
+    "rift_entry": RIFT_ENTRY_ASSETS,
+    # 후속 Phase 6e-g 본격 추가:
     # "combat": COMBAT_ASSETS,
     # "dialogue": DIALOGUE_ASSETS,
     # "start_menu": START_MENU_ASSETS,

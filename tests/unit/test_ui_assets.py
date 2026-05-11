@@ -10,6 +10,7 @@ from tools.visual.ui_assets import (
     CHARACTER_SHEET_ASSETS,
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
+    RIFT_ENTRY_ASSETS,
     build_workflow_with_lora,
     spec_from_dict,
 )
@@ -274,6 +275,7 @@ class TestPhase6Consistency:
             MAIN_SCREEN_ASSETS,
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
+            RIFT_ENTRY_ASSETS,
         ):
             for name, data in asset_dict.items():
                 neg = str(data["negative_prompt"]).lower()
@@ -285,6 +287,7 @@ class TestPhase6Consistency:
             MAIN_SCREEN_ASSETS,
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
+            RIFT_ENTRY_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "bjorn" in name:
@@ -298,6 +301,7 @@ class TestPhase6Consistency:
             MAIN_SCREEN_ASSETS,
             GAMEPLAY_SCREEN_ASSETS,
             CHARACTER_SHEET_ASSETS,
+            RIFT_ENTRY_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "erwen" in name:
@@ -357,22 +361,13 @@ class TestCharacterSheetAssets:
 
 
 class TestAllAssetDictsExtended:
-    """Phase 6 통합 dict 본격 확장."""
-
-    def test_three_phase_integration(self) -> None:
-        assert set(ALL_ASSET_DICTS) == {
-            "main_screen",
-            "gameplay_screen",
-            "character_sheet",
-        }
+    """Phase 6 통합 dict 본격 확장 (★ 6c identity 본격)."""
 
     def test_character_sheet_identity(self) -> None:
         assert ALL_ASSET_DICTS["character_sheet"] is CHARACTER_SHEET_ASSETS
 
-    def test_total_assets_ten(self) -> None:
-        """6a 3 + 6b 4 + 6c 3 = 10."""
-        total = sum(len(d) for d in ALL_ASSET_DICTS.values())
-        assert total == 10
+    def test_rift_entry_identity(self) -> None:
+        assert ALL_ASSET_DICTS["rift_entry"] is RIFT_ENTRY_ASSETS
 
 
 class TestCharacterSheetWorkflow:
@@ -402,3 +397,105 @@ class TestCharacterSheetWorkflow:
         wf = build_workflow_with_lora(spec)
         nodes = cast(dict[str, Any], wf["prompt"])
         assert "1b" not in nodes
+
+
+class TestRiftEntryAssets:
+    """Phase 6d 균열 진입 자료 검증."""
+
+    def test_assets_count_four(self) -> None:
+        assert len(RIFT_ENTRY_ASSETS) == 4
+        assert set(RIFT_ENTRY_ASSETS) == {
+            "rift_bloodcastle",
+            "rift_glacier",
+            "rift_greenmine",
+            "rift_steeltomb",
+        }
+
+    def test_all_lora_none(self) -> None:
+        """4 균열 모두 LoRA X (★ 환경 본격)."""
+        for name, data in RIFT_ENTRY_ASSETS.items():
+            assert data["lora"] is None, f"{name}: LoRA 본격 X"
+
+    def test_all_1024_square(self) -> None:
+        for _name, data in RIFT_ENTRY_ASSETS.items():
+            assert data["width"] == 1024
+            assert data["height"] == 1024
+
+    def test_bloodcastle_content(self) -> None:
+        rift = RIFT_ENTRY_ASSETS["rift_bloodcastle"]
+        prompt = str(rift["prompt"]).lower()
+        assert "blood" in prompt
+        assert "necronomicon" in prompt
+        assert "weeping" in prompt or "goddess" in prompt
+        assert "pentagram" in prompt
+
+    def test_glacier_content(self) -> None:
+        rift = RIFT_ENTRY_ASSETS["rift_glacier"]
+        prompt = str(rift["prompt"]).lower()
+        assert "ice" in prompt or "frozen" in prompt
+        assert "cyan" in prompt or "blue" in prompt
+        assert "cold" in prompt or "frost" in prompt
+
+    def test_greenmine_content(self) -> None:
+        rift = RIFT_ENTRY_ASSETS["rift_greenmine"]
+        prompt = str(rift["prompt"]).lower()
+        assert "green" in prompt or "emerald" in prompt
+        assert "mine" in prompt
+        assert "toxic" in prompt or "moss" in prompt
+
+    def test_steeltomb_content(self) -> None:
+        rift = RIFT_ENTRY_ASSETS["rift_steeltomb"]
+        prompt = str(rift["prompt"]).lower()
+        assert "steel" in prompt
+        assert (
+            "tomb" in prompt
+            or "sarcophagi" in prompt
+            or "mausoleum" in prompt
+        )
+
+    def test_all_dark_fantasy(self) -> None:
+        for name, data in RIFT_ENTRY_ASSETS.items():
+            prompt = str(data["prompt"]).lower()
+            assert "dark fantasy" in prompt, f"{name}: 다크 판타지 X"
+            neg = str(data["negative_prompt"]).lower()
+            assert "characters" in neg, f"{name}: negative 캐릭터 X"
+
+
+class TestAllAssetDictsPhase6d:
+    """Phase 6d 통합 dict 확장."""
+
+    def test_four_phase_integration(self) -> None:
+        assert set(ALL_ASSET_DICTS) == {
+            "main_screen",
+            "gameplay_screen",
+            "character_sheet",
+            "rift_entry",
+        }
+
+    def test_total_assets_fourteen(self) -> None:
+        """6a 3 + 6b 4 + 6c 3 + 6d 4 = 14."""
+        total = sum(len(d) for d in ALL_ASSET_DICTS.values())
+        assert total == 14
+
+
+class TestRiftEntryWorkflow:
+    """Phase 6d workflow LoRA X 검증."""
+
+    def test_all_no_lora_workflow(self) -> None:
+        from typing import cast
+
+        for name in RIFT_ENTRY_ASSETS:
+            spec = spec_from_dict(name, RIFT_ENTRY_ASSETS[name])
+            wf = build_workflow_with_lora(spec)
+            nodes = cast(dict[str, Any], wf["prompt"])
+            assert "1b" not in nodes, f"{name}: LoRA 노드 본격 X"
+
+    def test_all_1024_workflow(self) -> None:
+        from typing import cast
+
+        for name in RIFT_ENTRY_ASSETS:
+            spec = spec_from_dict(name, RIFT_ENTRY_ASSETS[name])
+            wf = build_workflow_with_lora(spec)
+            nodes = cast(dict[str, Any], wf["prompt"])
+            assert nodes["7"]["inputs"]["width"] == 1024
+            assert nodes["7"]["inputs"]["height"] == 1024

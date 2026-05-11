@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>WORLDFORK — 균열 진입</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1920px; height: 1080px;
+  background:
+    linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.92)),
+    url('../../../../ComfyUI/output/worldfork/ui_main_bg.png');
+  background-size: cover;
+  background-position: center;
+  font-family: 'Noto Serif KR', serif;
+  color: #d4af37;
+  overflow: hidden;
+  position: relative;
+  padding: 40px;
+}
+
+/* === 상단 헤더 === */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 32px;
+}
+.title-block {
+  text-align: center; flex: 1;
+}
+.title-block .title {
+  font-size: 56px; font-weight: 900;
+  color: #d4af37;
+  text-shadow: 0 0 24px #8b0000;
+  letter-spacing: 16px;
+}
+.title-block .subtitle {
+  font-size: 16px; color: #8b7355;
+  letter-spacing: 6px; margin-top: 8px;
+}
+
+.info-left, .info-right {
+  width: 280px;
+  padding: 16px 20px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(212,175,55,0.4);
+}
+.info-left .label, .info-right .label {
+  font-size: 12px; color: #8b7355;
+  letter-spacing: 3px;
+}
+.info-left .value {
+  font-size: 24px; color: #d4af37;
+  font-weight: 700; letter-spacing: 2px;
+  margin-top: 4px;
+}
+.info-right .value {
+  font-size: 28px; color: #ff4444;
+  font-weight: 700;
+  text-shadow: 0 0 12px #8b0000;
+  margin-top: 4px;
+}
+
+/* === 메인 4 균열 그리드 === */
+.rift-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.rift-card {
+  height: 380px;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid rgba(212,175,55,0.4);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.rift-card:hover {
+  border-color: #d4af37;
+  box-shadow: 0 0 32px rgba(212,175,55,0.4);
+  transform: translateY(-2px);
+}
+.rift-card.bloodcastle:hover { box-shadow: 0 0 32px rgba(139,0,0,0.7); }
+.rift-card.glacier:hover { box-shadow: 0 0 32px rgba(92,192,192,0.5); }
+.rift-card.greenmine:hover { box-shadow: 0 0 32px rgba(92,192,92,0.5); }
+.rift-card.steeltomb:hover { box-shadow: 0 0 32px rgba(120,140,160,0.5); }
+
+.rift-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.85);
+}
+.rift-bg.bloodcastle {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_rift_bloodcastle.png');
+}
+.rift-bg.glacier {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_rift_glacier.png');
+}
+.rift-bg.greenmine {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_rift_greenmine.png');
+}
+.rift-bg.steeltomb {
+  background-image: url('../../../../ComfyUI/output/worldfork/ui_rift_steeltomb.png');
+}
+.rift-bg::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 60%;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.95));
+}
+
+.rift-info {
+  position: absolute;
+  top: 160px; left: 0; right: 0; bottom: 0;
+  padding: 24px;
+  display: flex; flex-direction: column;
+}
+.rift-name {
+  font-size: 32px; font-weight: 900;
+  letter-spacing: 6px;
+  margin-bottom: 4px;
+}
+.rift-name.bloodcastle { color: #ff4444; text-shadow: 0 0 16px #8b0000; }
+.rift-name.glacier { color: #88e0e0; text-shadow: 0 0 16px #5cc0c0; }
+.rift-name.greenmine { color: #88dd88; text-shadow: 0 0 16px #5cc05c; }
+.rift-name.steeltomb { color: #b0c0d0; text-shadow: 0 0 16px #789cb0; }
+
+.rift-grade {
+  font-size: 13px; color: #8b7355;
+  letter-spacing: 3px; margin-bottom: 16px;
+}
+
+.rift-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: auto;
+}
+.stat-cell {
+  text-align: left;
+}
+.stat-cell .stat-label {
+  font-size: 11px; color: #6b5d3f;
+  letter-spacing: 2px;
+}
+.stat-cell .stat-value {
+  font-size: 15px; color: #d4af37;
+  font-weight: 700; margin-top: 2px;
+}
+.essence-orb-small {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.essence-orb-small.blood { background: radial-gradient(circle, #c83030, #5a0808); }
+.essence-orb-small.teal { background: radial-gradient(circle, #5cc0c0, #2a6868); }
+.essence-orb-small.earth { background: radial-gradient(circle, #8b6f47, #4a3a25); }
+.essence-orb-small.mind { background: radial-gradient(circle, #7090a8, #354858); }
+
+.danger {
+  color: #ff8888;
+  letter-spacing: 1px;
+}
+.danger .star { color: #ff4444; }
+.danger .star.empty { color: #5a3a3a; }
+
+.enter-btn {
+  margin-top: 8px;
+  padding: 10px;
+  text-align: center;
+  background: rgba(139,0,0,0.4);
+  border: 1px solid rgba(212,175,55,0.5);
+  color: #d4af37;
+  font-size: 15px;
+  letter-spacing: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.rift-card:hover .enter-btn {
+  background: rgba(139,0,0,0.7);
+  border-color: #d4af37;
+  color: #fff;
+}
+
+/* === 하단 액션 === */
+.actions-bar {
+  display: flex; justify-content: center; gap: 16px;
+  margin-top: 24px;
+}
+.action-btn {
+  padding: 14px 48px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #8b7355;
+  font-size: 16px; letter-spacing: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-btn:hover {
+  border-color: #d4af37;
+  color: #d4af37;
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="info-left">
+      <div class="label">현재 위치</div>
+      <div class="value">1층 · 비석 공동</div>
+    </div>
+    <div class="title-block">
+      <div class="title">균열 진입</div>
+      <div class="subtitle">CHOOSE YOUR PATH</div>
+    </div>
+    <div class="info-right">
+      <div class="label">미궁 잔여</div>
+      <div class="value">152h</div>
+    </div>
+  </div>
+
+  <div class="rift-grid">
+
+    <div class="rift-card bloodcastle">
+      <div class="rift-bg bloodcastle"></div>
+      <div class="rift-info">
+        <div class="rift-name bloodcastle">핏빛성채</div>
+        <div class="rift-grade">8등급 · BLOODCASTLE</div>
+        <div class="rift-stats">
+          <div class="stat-cell">
+            <div class="stat-label">보상</div>
+            <div class="stat-value"><span class="essence-orb-small blood"></span>핏빛 정수</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">위험도</div>
+            <div class="stat-value danger">
+              <span class="star">★★★★</span><span class="star empty">★</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">추정 시간</div>
+            <div class="stat-value">~24h</div>
+          </div>
+        </div>
+        <div class="enter-btn">▸ 진입</div>
+      </div>
+    </div>
+
+    <div class="rift-card glacier">
+      <div class="rift-bg glacier"></div>
+      <div class="rift-info">
+        <div class="rift-name glacier">빙하굴</div>
+        <div class="rift-grade">9등급 · GLACIER CAVE</div>
+        <div class="rift-stats">
+          <div class="stat-cell">
+            <div class="stat-label">보상</div>
+            <div class="stat-value"><span class="essence-orb-small teal"></span>청록 정수</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">위험도</div>
+            <div class="stat-value danger">
+              <span class="star">★★★</span><span class="star empty">★★</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">추정 시간</div>
+            <div class="stat-value">~16h</div>
+          </div>
+        </div>
+        <div class="enter-btn">▸ 진입</div>
+      </div>
+    </div>
+
+    <div class="rift-card greenmine">
+      <div class="rift-bg greenmine"></div>
+      <div class="rift-info">
+        <div class="rift-name greenmine">녹색탄광</div>
+        <div class="rift-grade">9등급 · GREEN MINE</div>
+        <div class="rift-stats">
+          <div class="stat-cell">
+            <div class="stat-label">보상</div>
+            <div class="stat-value"><span class="essence-orb-small earth"></span>흙 정수</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">위험도</div>
+            <div class="stat-value danger">
+              <span class="star">★★</span><span class="star empty">★★★</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">추정 시간</div>
+            <div class="stat-value">~12h</div>
+          </div>
+        </div>
+        <div class="enter-btn">▸ 진입</div>
+      </div>
+    </div>
+
+    <div class="rift-card steeltomb">
+      <div class="rift-bg steeltomb"></div>
+      <div class="rift-info">
+        <div class="rift-name steeltomb">강철의 묘</div>
+        <div class="rift-grade">8등급 · STEEL TOMB</div>
+        <div class="rift-stats">
+          <div class="stat-cell">
+            <div class="stat-label">보상</div>
+            <div class="stat-value"><span class="essence-orb-small mind"></span>정신 정수</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">위험도</div>
+            <div class="stat-value danger">
+              <span class="star">★★★★</span><span class="star empty">★</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">추정 시간</div>
+            <div class="stat-value">~20h</div>
+          </div>
+        </div>
+        <div class="enter-btn">▸ 진입</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="actions-bar">
+    <div class="action-btn">취소</div>
+    <div class="action-btn">상세 정보</div>
+  </div>
+</body>
+</html>
