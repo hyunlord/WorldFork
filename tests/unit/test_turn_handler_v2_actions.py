@@ -150,6 +150,29 @@ def test_absorb_unknown_essence() -> None:
     assert not r.success
 
 
+def test_absorb_color_alias_brown() -> None:
+    """★ F4: GM이 '갈색 정수' spawn → 고블린 정수 canonical 매핑."""
+    c = _bjorn()
+    r = absorb_floating_essence(c, "갈색 정수")
+    assert r.success
+    assert c.essence_slots_used() == 1
+
+
+def test_absorb_color_alias_all_five() -> None:
+    """★ F4: GM prompt 5 색 모두 본격 정합."""
+    color_names = [
+        "갈색 정수",
+        "흙색 정수",
+        "청록색 정수",
+        "핏빛 정수",
+        "회청색 정수",
+    ]
+    for cname in color_names:
+        c = _bjorn()
+        r = absorb_floating_essence(c, cname)
+        assert r.success, f"{cname} 본격 X"
+
+
 # ─── rest / explore / message / flee ───
 
 

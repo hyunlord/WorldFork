@@ -272,6 +272,19 @@ def execute_attack(
 
 # ─── 5. 정수 흡수 ───
 
+# ★ F4: GM이 정수를 색깔로 spawn (sim_gm_agent.py 146-152) — Player LLM이
+# '갈색 정수' 등 색명을 ABSORB target으로 사용. 그러나 floor1.py drops는
+# 본문 정합 본격 monster 본격 명명 ('고블린 정수' 등). 본 매핑이 둘을 연결.
+_COLOR_TO_ESSENCE_NAME: dict[str, str] = {
+    "갈색 정수": "고블린 정수",
+    "흙색 정수": "노움 정수",
+    "청록색 정수": "슬라임 정수",
+    "산성록 정수": "슬라임 정수",
+    "핏빛 정수": "칼날늑대 정수",
+    "회청색 정수": "레이스 정수",
+    "녹색 정수": "위치스램프 정수",
+}
+
 
 def absorb_floating_essence(
     character: Character,
@@ -282,12 +295,15 @@ def absorb_floating_essence(
     본 commit 단순화:
     - 1층 9등급 정수 매핑 (★ Floor1 monsters drops)
     - 살이 닿음 가정 (★ 후속 commit에 거리 시뮬)
+    - ★ F4: 색명 → monster명 alias 매핑 (★ GM prompt 색 본격)
     """
+    canonical_name = _COLOR_TO_ESSENCE_NAME.get(essence_name, essence_name)
+
     f1 = get_floor1_definition()
     found = None
     for m in f1.monsters:
         for d in m.drops:
-            if d.essence_name == essence_name:
+            if d.essence_name == canonical_name:
                 found = d
                 break
         if found is not None:
@@ -302,12 +318,12 @@ def absorb_floating_essence(
 
     color = found.color_pool[0] if found.color_pool else EssenceColor.GREEN
     essence = Essence(
-        name=essence_name,
+        name=canonical_name,
         grade=EssenceGrade.GRADE_9,
         color=color,
         essence_type=EssenceType.DPS_MELEE,
         origin=EssenceOrigin.MONSTER_DROP,
-        monster_source=essence_name.replace(" 정수", ""),
+        monster_source=canonical_name.replace(" 정수", ""),
     )
 
     success = character.absorb_essence(essence)
