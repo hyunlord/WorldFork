@@ -456,15 +456,106 @@ COMBAT_ASSETS: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6f-g 본격 재사용)
+# 본격 자료 dict (★ Phase 6f 대화/이벤트, 4개)
+DIALOGUE_ASSETS: Final[dict[str, dict[str, Any]]] = {
+    "dialogue_message_stone": {
+        "filename_prefix": "ui_dialogue_message_stone",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "ancient mystical message stone, "
+            "smooth polished obsidian surface "
+            "with glowing runic inscriptions, "
+            "soft pulsing blue-white ethereal light from within, "
+            "floating slightly above the ground, "
+            "magical communication artifact, "
+            "intricate runes carved deep, "
+            "dark void background with mist, "
+            "fantasy game key item, painterly, "
+            "8k, highly detailed, masterpiece"
+        ),
+        "negative_prompt": (
+            "characters, people, scenery, modern, low quality"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "dialogue_other_explorer_male": {
+        "filename_prefix": "ui_dialogue_other_explorer_male",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "human male dungeon explorer portrait, half-body shot, "
+            "weathered adventurer in his thirties, "
+            "short dark hair with grey streaks, sharp hazel eyes, "
+            "stubbled jaw, serious focused expression, "
+            "studded leather armor with travel cloak, "
+            "sword sheathed at side, lantern in hand, "
+            "dark fantasy dungeon background with dim torchlight, "
+            "painterly portrait style, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, "
+            "bjorn, viking, barbarian, axe, beard, braided hair"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "dialogue_other_explorer_female": {
+        "filename_prefix": "ui_dialogue_other_explorer_female",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "human female dungeon explorer portrait, half-body shot, "
+            "rogue adventurer in her late twenties, "
+            "raven black hair tied back in practical braid, "
+            "piercing dark green eyes, focused alert expression, "
+            "dark leather armor with hood pulled back, "
+            "twin daggers at belt, gloved hands, "
+            "dark fantasy dungeon background with dim torchlight, "
+            "painterly portrait style, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "modern, anime, cartoon, soft, low quality, "
+            "erwen, elven, silver hair, staff, wings, robes, faerie"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "dialogue_ancient_stone": {
+        "filename_prefix": "ui_dialogue_ancient_stone",
+        "width": 1024,
+        "height": 1024,
+        "prompt": (
+            "ancient towering stone monolith in dungeon chamber, "
+            "weathered gray stone covered in deep carved runic glyphs, "
+            "faint warm golden glow emanating from the runes, "
+            "moss and cracks of age, ceremonial offerings at base, "
+            "small carved bowl for tributes, "
+            "dark stone chamber background with dim torchlight, "
+            "deep mystical atmosphere, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "characters, people, modern, cartoon, low quality"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+}
+
+
+# 본격 dict 통합 (★ Phase 6 화면별 본격, 후속 6g 본격 재사용)
 ALL_ASSET_DICTS: Final[dict[str, dict[str, dict[str, Any]]]] = {
     "main_screen": MAIN_SCREEN_ASSETS,
     "gameplay_screen": GAMEPLAY_SCREEN_ASSETS,
     "character_sheet": CHARACTER_SHEET_ASSETS,
     "rift_entry": RIFT_ENTRY_ASSETS,
     "combat": COMBAT_ASSETS,
-    # 후속 Phase 6f-g 본격 추가:
-    # "dialogue": DIALOGUE_ASSETS,
+    "dialogue": DIALOGUE_ASSETS,
+    # 후속 Phase 6g 본격 추가:
     # "start_menu": START_MENU_ASSETS,
 }
 

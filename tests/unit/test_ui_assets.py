@@ -9,6 +9,7 @@ from tools.visual.ui_assets import (
     BJORN_LORA_NAME,
     CHARACTER_SHEET_ASSETS,
     COMBAT_ASSETS,
+    DIALOGUE_ASSETS,
     GAMEPLAY_SCREEN_ASSETS,
     MAIN_SCREEN_ASSETS,
     RIFT_ENTRY_ASSETS,
@@ -278,6 +279,7 @@ class TestPhase6Consistency:
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
+            DIALOGUE_ASSETS,
         ):
             for name, data in asset_dict.items():
                 neg = str(data["negative_prompt"]).lower()
@@ -291,6 +293,7 @@ class TestPhase6Consistency:
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
+            DIALOGUE_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "bjorn" in name:
@@ -306,6 +309,7 @@ class TestPhase6Consistency:
             CHARACTER_SHEET_ASSETS,
             RIFT_ENTRY_ASSETS,
             COMBAT_ASSETS,
+            DIALOGUE_ASSETS,
         ):
             for name, data in asset_dict.items():
                 if "erwen" in name:
@@ -540,25 +544,111 @@ class TestCombatAssets:
             assert "characters" in neg or "people" in neg
 
 
-class TestAllAssetDictsPhase6e:
-    """Phase 6e 통합 dict 확장."""
+class TestPhase6eIdentities:
+    """Phase 6e identity 본격."""
 
-    def test_five_phase_integration(self) -> None:
+    def test_combat_identity(self) -> None:
+        assert ALL_ASSET_DICTS["combat"] is COMBAT_ASSETS
+
+
+class TestDialogueAssets:
+    """Phase 6f 대화/이벤트 자료 검증."""
+
+    def test_assets_count_four(self) -> None:
+        assert len(DIALOGUE_ASSETS) == 4
+        assert set(DIALOGUE_ASSETS) == {
+            "dialogue_message_stone",
+            "dialogue_other_explorer_male",
+            "dialogue_other_explorer_female",
+            "dialogue_ancient_stone",
+        }
+
+    def test_message_stone_content(self) -> None:
+        stone = DIALOGUE_ASSETS["dialogue_message_stone"]
+        assert stone["lora"] is None
+        assert stone["width"] == 1024
+        assert stone["height"] == 1024
+        prompt = str(stone["prompt"]).lower()
+        assert "message stone" in prompt or "communication" in prompt
+        assert "runic" in prompt or "rune" in prompt
+        assert "blue-white" in prompt or "ethereal" in prompt
+        neg = str(stone["negative_prompt"]).lower()
+        assert "characters" in neg
+
+    def test_other_explorer_male_separation(self) -> None:
+        """다른 탐사대 남성 — 비요른과 분리 명시."""
+        male = DIALOGUE_ASSETS["dialogue_other_explorer_male"]
+        assert male["lora"] is None
+        assert male["width"] == 768
+        assert male["height"] == 1024
+        prompt = str(male["prompt"]).lower()
+        assert "male" in prompt
+        assert "explorer" in prompt or "adventurer" in prompt
+        neg = str(male["negative_prompt"]).lower()
+        assert "bjorn" in neg
+        assert "viking" in neg or "barbarian" in neg
+
+    def test_other_explorer_female_separation(self) -> None:
+        """다른 탐사대 여성 — 에르웬과 분리 명시."""
+        female = DIALOGUE_ASSETS["dialogue_other_explorer_female"]
+        assert female["lora"] is None
+        prompt = str(female["prompt"]).lower()
+        assert "female" in prompt
+        assert (
+            "explorer" in prompt
+            or "adventurer" in prompt
+            or "rogue" in prompt
+        )
+        neg = str(female["negative_prompt"]).lower()
+        assert "erwen" in neg
+        assert "elven" in neg or "silver hair" in neg
+
+    def test_ancient_stone_content(self) -> None:
+        stone = DIALOGUE_ASSETS["dialogue_ancient_stone"]
+        assert stone["lora"] is None
+        prompt = str(stone["prompt"]).lower()
+        assert "monolith" in prompt or "stone" in prompt
+        assert "runic" in prompt or "glyph" in prompt
+        assert (
+            "offering" in prompt
+            or "tribute" in prompt
+            or "bowl" in prompt
+        )
+
+
+class TestAllAssetDictsPhase6f:
+    """Phase 6f 통합 dict 확장."""
+
+    def test_six_phase_integration(self) -> None:
         assert set(ALL_ASSET_DICTS) == {
             "main_screen",
             "gameplay_screen",
             "character_sheet",
             "rift_entry",
             "combat",
+            "dialogue",
         }
 
-    def test_total_assets_nineteen(self) -> None:
-        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 = 19."""
+    def test_total_assets_twenty_three(self) -> None:
+        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 + 6f 4 = 23."""
         total = sum(len(d) for d in ALL_ASSET_DICTS.values())
-        assert total == 19
+        assert total == 23
 
-    def test_combat_identity(self) -> None:
-        assert ALL_ASSET_DICTS["combat"] is COMBAT_ASSETS
+    def test_dialogue_identity(self) -> None:
+        assert ALL_ASSET_DICTS["dialogue"] is DIALOGUE_ASSETS
+
+
+class TestDialogueWorkflow:
+    """Phase 6f workflow 모두 LoRA X."""
+
+    def test_all_no_lora_workflow(self) -> None:
+        from typing import cast
+
+        for name in DIALOGUE_ASSETS:
+            spec = spec_from_dict(name, DIALOGUE_ASSETS[name])
+            wf = build_workflow_with_lora(spec)
+            nodes = cast(dict[str, Any], wf["prompt"])
+            assert "1b" not in nodes, f"{name}: LoRA 노드 X"
 
 
 class TestCombatWorkflow:
