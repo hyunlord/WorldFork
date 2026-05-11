@@ -140,6 +140,9 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 - ABSORB_ESSENCE: 떠다니는 정수 흡수 (★ 30분 자연 소멸)
 - 정수 흡수 = 능력 강화 (★ 13/14화 본문)
 - target: 정수 이름 (예: "고블린 정수")
+- ★ 조건: floating essence 발견 + 슬롯 < 5
+- ⚠️ 슬롯 5/5 FULL 시 ABSORB_ESSENCE 사용 금지 (★ can_absorb False → 호출 자체 X)
+- → 슬롯 가득 시 OFFER_TO_STONE (비석 공물)로 슬롯 비우기 권장
 
 **4단계: 전투 / 도주 결정**
 - ATTACK: 약한 몬스터 (★ 9등급)
@@ -553,6 +556,23 @@ class PlayerAgent:
         self._fallback_count = 0
 
 
+def _format_slot_status(count: int, max_slots: int) -> str:
+    """슬롯 상태 본격 명시 — LLM 인지 본격 (★ F5).
+
+    - 5/5 → FULL 경고 + OFFER_TO_STONE 권장
+    - 4/5 → 거의 가득
+    - < 4 → N 추가 가능
+    """
+    if count >= max_slots:
+        return (
+            f"{count}/{max_slots} ⚠️ FULL "
+            "(★ ABSORB_ESSENCE 사용 금지, OFFER_TO_STONE 권장)"
+        )
+    if count >= max_slots - 1:
+        return f"{count}/{max_slots} (★ 거의 가득, 1 추가 가능)"
+    return f"{count}/{max_slots} ({max_slots - count} 추가 가능)"
+
+
 def _build_player_prompt(
     actor_name: str,
     ctx: dict[str, Any],
@@ -579,6 +599,8 @@ def _build_player_prompt(
     hp_pct = (hp / hp_max * 100) if hp_max > 0 else 0
     has_light = bool(actor.get("has_active_light", False))
     essence_slots = int(actor.get("essence_slots_used", 0))
+    essence_slot_max = int(actor.get("essence_slot_max", 5))
+    slot_full = essence_slots >= essence_slot_max
     hours = int(world.get("hours_in_dungeon", 0))
 
     # ─── 추천 다음 행동 힌트 (★ rule-based) ───
@@ -593,7 +615,13 @@ def _build_player_prompt(
         )
     if essence_slots < 3 and hours > 5:
         hints.append("💡 정수 슬롯 빔 — EXPLORE/ABSORB_ESSENCE 권장")
-    if hours > 24 and essence_slots >= 5:
+    if slot_full:
+        # ★ F5: slot 5/5 FULL → ABSORB 금지 + OFFER 권장
+        hints.append(
+            "⚠️ 정수 슬롯 FULL — ABSORB_ESSENCE 사용 금지, "
+            "OFFER_TO_STONE 으로 슬롯 비우기 권장"
+        )
+    elif hours > 24 and essence_slots >= essence_slot_max - 1:
         hints.append(
             "💡 자원 충분 — OFFER_TO_STONE/ENTER_RIFT 권장 (★ 1층 탈출)"
         )
@@ -609,9 +637,17 @@ def _build_player_prompt(
         etype = e.get("type", "")
         ename = e.get("name", "?")
         if etype == "essence":
-            hints.append(
-                f"💎 정수 발견 ({ename}) — ABSORB_ESSENCE 우선 (30분 자연 소멸)"
-            )
+            # ★ F5: slot FULL 시 ABSORB 금지 — OFFER 우회 권장
+            if slot_full:
+                hints.append(
+                    f"💎 정수 발견 ({ename}) — 슬롯 FULL → "
+                    "OFFER_TO_STONE 으로 슬롯 비운 후 재시도"
+                )
+            else:
+                hints.append(
+                    f"💎 정수 발견 ({ename}) — ABSORB_ESSENCE 우선 "
+                    "(30분 자연 소멸)"
+                )
         elif etype == "monster":
             hints.append(f"⚔️ 몬스터 발견 ({ename}) — ATTACK 또는 FLEE")
         elif etype == "rift":
@@ -631,7 +667,7 @@ def _build_player_prompt(
         f"**플레이어**: {actor_name} ({actor.get('race', '?')})",
         f"- HP: {hp}/{hp_max} ({hp_pct:.0f}%)",
         f"- 빛 활성: {'O' if has_light else 'X'}",
-        f"- 정수 슬롯 사용: {essence_slots}",
+        f"- 정수 슬롯: {_format_slot_status(essence_slots, essence_slot_max)}",
         "",
         f"**위치**: {location.get('realm', '?')} "
         f"{location.get('floor', '?')}층 {location.get('sub_area', '?')}",

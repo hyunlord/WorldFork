@@ -141,3 +141,124 @@ def test_build_prompt_long_dungeon_hint() -> None:
     }
     p = _build_player_prompt("비요른", ctx)
     assert "168h 한도 임박" in p
+
+
+# ─── F5: slot awareness ───
+
+
+def test_format_slot_status_full() -> None:
+    """slot 5/5 FULL 본격 명시 + OFFER_TO_STONE 권장."""
+    from service.sim.player_agent import _format_slot_status
+
+    s = _format_slot_status(5, 5)
+    assert "5/5" in s
+    assert "FULL" in s
+    assert "OFFER_TO_STONE" in s
+
+
+def test_format_slot_status_almost_full() -> None:
+    """slot 4/5 — 1 추가 가능 본격."""
+    from service.sim.player_agent import _format_slot_status
+
+    s = _format_slot_status(4, 5)
+    assert "4/5" in s
+    assert "1 추가" in s
+
+
+def test_format_slot_status_empty() -> None:
+    """slot 0/5 — 5 추가 가능 본격."""
+    from service.sim.player_agent import _format_slot_status
+
+    s = _format_slot_status(0, 5)
+    assert "0/5" in s
+    assert "5 추가" in s
+
+
+def test_system_prompt_absorb_slot_full_forbidden() -> None:
+    """ACTION_TYPE_GUIDANCE 본격 — slot FULL 시 ABSORB 금지 명시."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    assert "슬롯 5/5 FULL" in p
+    assert "ABSORB_ESSENCE 사용 금지" in p
+    assert "OFFER_TO_STONE" in p
+
+
+def test_build_prompt_slot_full_warning() -> None:
+    """slot 5/5 + essence encounter → ABSORB 금지 + OFFER 권장 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 5,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 10,
+            "party_members": ["비요른"],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "수정 동굴",
+        },
+        "active_encounters": [
+            {
+                "type": "essence",
+                "name": "갈색 정수",
+                "location": "수정 동굴",
+                "description": "떠다니는 정수",
+                "details": {},
+                "spawned_at_turn": 9,
+                "ttl_remaining": 30,
+            }
+        ],
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "5/5" in p
+    assert "FULL" in p
+    # ★ essence encounter hint 본격 slot FULL 시 OFFER_TO_STONE 권장
+    assert "슬롯 FULL" in p
+    assert "OFFER_TO_STONE" in p
+
+
+def test_build_prompt_slot_partial_allowed() -> None:
+    """slot 2/5 + essence encounter → ABSORB 우선 본격 (★ 본격 정합)."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 2,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 10,
+            "party_members": ["비요른"],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "수정 동굴",
+        },
+        "active_encounters": [
+            {
+                "type": "essence",
+                "name": "갈색 정수",
+                "location": "수정 동굴",
+                "description": "떠다니는 정수",
+                "details": {},
+                "spawned_at_turn": 9,
+                "ttl_remaining": 30,
+            }
+        ],
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "2/5" in p
+    assert "3 추가 가능" in p
+    assert "ABSORB_ESSENCE 우선" in p

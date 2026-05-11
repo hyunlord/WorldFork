@@ -186,6 +186,7 @@ def _refresh_context(
                 "agility": c.agility,
                 "has_active_light": c.has_active_light(),
                 "essence_slots_used": c.essence_slots_used(),
+                "essence_slot_max": c.essence_slot_max(),
             }
         )
         chars_ctx[name] = existing
