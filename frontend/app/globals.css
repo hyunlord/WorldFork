@@ -756,3 +756,324 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ─── Phase 7e: Character Sheet (★ Phase 6 character_sheet.html 정합) ─── */
+
+.character-screen-bg {
+  position: relative;
+  min-height: 1080px;
+  width: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  padding: 24px;
+  border: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+/* Tabs */
+.character-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.character-tab {
+  padding: 10px 32px;
+  background: rgba(40, 30, 20, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--wf-warm-gray);
+  font-size: 16px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.character-tab:hover {
+  border-color: var(--wf-gold);
+  color: var(--wf-gold);
+}
+
+.character-tab.active {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: var(--wf-gold);
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+/* Grid */
+.character-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr 360px;
+  gap: 24px;
+  height: calc(100% - 80px);
+}
+
+.character-grid-left,
+.character-grid-center,
+.character-grid-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Portrait full (left column) */
+.character-portrait-full {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  padding: 16px;
+}
+
+.portrait-full-image {
+  width: 100%;
+  height: 600px;
+  background-size: cover;
+  background-position: top center;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  margin-bottom: 16px;
+}
+
+.portrait-full-info {
+  text-align: center;
+}
+
+.portrait-full-name {
+  font-size: 28px;
+  color: var(--wf-gold);
+  letter-spacing: 6px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.portrait-full-meta {
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 3px;
+  margin-top: 4px;
+}
+
+/* Panels (common) */
+.stats-panel,
+.essence-slots-panel,
+.mage-stones-panel,
+.skills-panel {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  padding: 20px;
+}
+
+.panel-title {
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  padding-bottom: 8px;
+}
+
+.slot-count {
+  color: var(--wf-gold);
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+/* HP block (in stats panel) */
+.hp-block {
+  margin-bottom: 14px;
+}
+
+.hp-block-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.hp-block-value {
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+.hp-bar-large {
+  width: 100%;
+  height: 18px;
+  background: rgba(60, 0, 0, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.hp-fill-large {
+  height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+  transition: width 0.3s ease;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  font-size: 14px;
+}
+
+.stat-row-label {
+  color: var(--wf-warm-gray);
+  letter-spacing: 1px;
+}
+
+.stat-row-value {
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+/* Essence slots */
+.essence-slots-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.essence-slot {
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.essence-orb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(212, 175, 55, 0.5);
+}
+
+.essence-orb.empty {
+  background: rgba(40, 40, 40, 0.3);
+  border-style: dashed;
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+.essence-orb.filled {
+  border-color: var(--wf-gold);
+}
+
+.essence-slot-label {
+  font-size: 11px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 1px;
+}
+
+.essence-slot.filled .essence-slot-label {
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+/* Mage stones */
+.mage-stones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mage-stone {
+  padding: 10px 14px;
+  background: rgba(40, 30, 20, 0.6);
+  border-left: 3px solid var(--wf-gold);
+  font-size: 13px;
+}
+
+.mage-stone.empty {
+  color: var(--wf-warm-gray);
+  font-style: italic;
+  border-left-color: rgba(212, 175, 55, 0.2);
+  text-align: center;
+}
+
+.mage-stone-name {
+  color: var(--wf-gold);
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.mage-stone-type {
+  color: var(--wf-warm-gray);
+  font-size: 12px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* Skills */
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skill {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(40, 30, 20, 0.6);
+  border-left: 3px solid var(--wf-gold);
+  font-size: 13px;
+}
+
+.skill-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(139, 0, 0, 0.4);
+  border: 1px solid var(--wf-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--wf-gold);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.skill-info {
+  flex: 1;
+}
+
+.skill-name {
+  color: var(--wf-gold);
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.skill-type {
+  color: var(--wf-warm-gray);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.skill-desc {
+  color: var(--wf-text-light);
+  font-size: 12px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.skill-meta {
+  color: var(--wf-warm-gray);
+  font-size: 11px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.empty-message {
+  color: var(--wf-warm-gray);
+  font-style: italic;
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+}
