@@ -384,3 +384,116 @@ def test_build_prompt_slot_partial_allowed() -> None:
     assert "2/5" in p
     assert "3 추가 가능" in p
     assert "ABSORB_ESSENCE 우선" in p
+
+
+# ─── F7: EXIT_RIFT 본격 prompt + realm 인지 ───
+
+
+def test_system_prompt_exit_rift_realm_condition() -> None:
+    """EXIT_RIFT 본격 조건 'location.realm == RIFT' 본격 명시."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    assert "EXIT_RIFT" in p
+    assert "location.realm == RIFT" in p or "균열 안" in p
+    # 균열 밖 본격 사용 X 본격
+    assert "realm=DUNGEON" in p or "균열 밖" in p
+
+
+def test_system_prompt_enter_rift_in_rift_forbidden() -> None:
+    """ENTER_RIFT 본격 이미 균열 안 본격 시 금지 본격."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    assert "realm=RIFT" in p or "이미 균열 안" in p
+    # EXIT_RIFT 대안 본격 명시
+    assert "EXIT_RIFT" in p
+
+
+def test_build_prompt_in_rift_hint() -> None:
+    """realm=RIFT (균열) 본격 시 EXIT_RIFT 본격 복귀 가이드 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 73,
+            "party_members": ["비요른"],
+            "active_rifts": ["bloody_castle"],
+        },
+        "v2_initial_location": {
+            "realm": "균열",
+            "floor": 1,
+            "sub_area": "균열 내부",
+            "rift_id": "bloody_castle",
+        },
+    }
+    p = _build_player_prompt("비요른", ctx)
+    assert "현재 균열 안 본격" in p
+    assert "bloody_castle" in p
+    assert "EXIT_RIFT" in p
+    assert "1층 복귀" in p
+
+
+def test_build_prompt_in_rift_already_entered_warning() -> None:
+    """realm=RIFT 본격 + active_rifts 있음 본격 'EXIT 우선' 본격."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 73,
+            "party_members": ["비요른"],
+            "active_rifts": ["bloody_castle"],
+        },
+        "v2_initial_location": {
+            "realm": "균열",
+            "floor": 1,
+            "sub_area": "균열 내부",
+            "rift_id": "bloody_castle",
+        },
+    }
+    p = _build_player_prompt("비요른", ctx)
+    # 이미 진입 본격 → EXIT_RIFT 우선 본격
+    assert "이미 진입 본격" in p or "EXIT_RIFT 우선" in p
+
+
+def test_build_prompt_dungeon_no_in_rift_hint() -> None:
+    """realm=DUNGEON 본격 시 in_rift hint 본격 출현 X."""
+    ctx = {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 72,
+            "party_members": ["비요른"],
+            "active_rifts": ["bloody_castle"],
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "포탈 근처",
+        },
+    }
+    p = _build_player_prompt("비요른", ctx)
+    # 균열 밖 본격 → in_rift hint 본격 X
+    assert "현재 균열 안 본격" not in p
+    # active_rifts 본격 ENTER_RIFT 가능 본격 (★ F6 본격)
+    assert "ENTER_RIFT 가능" in p

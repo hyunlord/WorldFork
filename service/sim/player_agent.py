@@ -161,13 +161,19 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
   ★ 활성 균열 없을 때 RIFT encounter 발견 시 우선 호출
   - target: 균열 이름 (예: "핏빛성채")
 - ENTER_RIFT: 균열 포탈 진입
-  ★ 조건: world.active_rifts ≥ 1 (★ 활성 균열 존재)
+  ★ 조건: world.active_rifts ≥ 1 (★ 활성 균열 존재) + location.realm != RIFT
   ⚠️ 활성 균열 없으면 사용 금지 (★ success=False)
+  ⚠️ 이미 균열 안 (realm=RIFT) 본격 시 사용 금지 — EXIT_RIFT 또는 ATTACK
   → 활성 X 시: OFFER_TO_STONE 먼저
   - target: 활성 균열 이름 (예: "핏빛성채")
-- EXIT_RIFT: 균열 탈출
-  ★ 조건: 균열 안 본격 (★ ENTER_RIFT 후)
-  - target: 균열 이름
+- EXIT_RIFT: 균열 탈출 → 1층 복귀
+  ★ 조건: location.realm == RIFT (★ 균열 안 본격)
+  ★ 시점 본격:
+    1. 균열 클리어 후 (★ 보상 획득)
+    2. 위험 본격 (HP 낮음 / 강적)
+    3. 충분 본격 (★ 시간 1-2h 이상)
+  ⚠️ 균열 밖 (realm=DUNGEON) 본격 시 사용 X
+  - target: 현재 균열 이름 (★ location.rift_id)
 
 ## action_type 가능 값 (13 종류 — 다양 사용 본격)
 
@@ -696,10 +702,21 @@ def _build_player_prompt(
     ]
     # ★ F6: active_rifts 본격 명시 — empty 본격 ENTER_RIFT 금지 경고
     active_rifts_raw = world.get("active_rifts") or []
+    # ★ F7: 현재 균열 안 본격 (★ realm == RIFT) 본격 EXIT_RIFT 가이드
+    realm_now = location.get("realm", "")
+    in_rift = realm_now == "균열" or realm_now == "RIFT"
+    rift_id_now = location.get("rift_id")
+    if in_rift:
+        lines.append(
+            f"**현재 균열 안 본격** 🌀 (rift_id={rift_id_now}) — "
+            "EXIT_RIFT로 1층 복귀 가능 (★ ENTER_RIFT 재호출 X)"
+        )
     if active_rifts_raw:
         lines.append(
             f"**활성 균열**: {', '.join(active_rifts_raw)} "
-            f"(★ ENTER_RIFT 가능)"
+            f"(★ ENTER_RIFT 가능)" if not in_rift
+            else f"**활성 균열**: {', '.join(active_rifts_raw)} "
+                 f"(★ 이미 진입 본격 — EXIT_RIFT 우선)"
         )
     else:
         lines.append(

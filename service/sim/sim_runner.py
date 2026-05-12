@@ -12,8 +12,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from service.game.state_v2 import Character, Location, WorldState
+from service.game.state_v2 import Character, Location, Realm, WorldState
 from service.game.turn_handler_v2 import (
+    _resolve_rift_id,
     absorb_floating_essence,
     activate_light,
     advance_time,
@@ -144,12 +145,21 @@ def _execute_action(
         if not action.target:
             return False, "target rift 없음.", []
         r = enter_rift(party_list, world, action.target)
+        if r.success:
+            # ★ F7: location 본격 변경 — RIFT realm + canonical rift_id
+            canonical = _resolve_rift_id(action.target) or action.target
+            location.realm = Realm.RIFT
+            location.rift_id = canonical
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.EXIT_RIFT:
         if not action.target:
             return False, "target rift 없음.", []
         r = exit_rift(party_list, world, action.target)
+        if r.success:
+            # ★ F7: location 1층 복귀 — DUNGEON realm + rift_id 해제
+            location.realm = Realm.DUNGEON
+            location.rift_id = None
         return r.success, r.message, r.side_effects
 
     return False, f"unknown action: {action.action_type.value}", []
