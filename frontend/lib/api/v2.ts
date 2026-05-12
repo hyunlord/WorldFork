@@ -98,3 +98,30 @@ export async function resetState(): Promise<ResetResponse> {
     method: "POST",
   });
 }
+
+// ─── Phase 7k: action endpoint ───
+
+export interface ActionRequest {
+  action_type: string;
+  actor?: string;
+  target?: string;
+  rationale?: string;
+}
+
+export interface ActionResponse {
+  success: boolean;
+  message: string;
+  side_effects: string[];
+  state: GameStateV2;
+  turn: number;
+}
+
+export async function postAction(
+  req: ActionRequest
+): Promise<ActionResponse> {
+  return fetchJSON<ActionResponse>(`${API_URL}/api/v2/action`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}

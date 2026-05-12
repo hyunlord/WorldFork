@@ -23,6 +23,7 @@ import { EnemyCard } from "@/components/combat/EnemyCard";
 import { FighterCard } from "@/components/combat/FighterCard";
 import { VfxOverlay } from "@/components/combat/VfxOverlay";
 import { useGameState } from "@/lib/hooks/useGameState";
+import { usePostAction } from "@/lib/hooks/usePostAction";
 import { useRecentActions } from "@/lib/hooks/useRecentActions";
 
 const COMBAT_PORTRAIT_BY_NAME: Record<string, string> = {
@@ -54,14 +55,23 @@ interface EncounterLite {
 }
 
 export default function CombatPage() {
-  const { data, loading, error } = useGameState();
-  const { data: actionsData } = useRecentActions(8);
+  const { data, loading, error, refetch: refetchState } = useGameState();
+  const { data: actionsData, refetch: refetchActions } = useRecentActions(8);
+  const {
+    execute,
+    executing,
+    error: actionError,
+  } = usePostAction();
 
-  const handleAction = useCallback((actionId: string) => {
-    // ★ Phase 7g: console.log only — POST API 본격 7j
-    // eslint-disable-next-line no-console
-    console.log("Combat action:", actionId);
-  }, []);
+  const handleAction = useCallback(
+    async (actionId: string) => {
+      const result = await execute({ action_type: actionId });
+      if (result) {
+        await Promise.all([refetchState(), refetchActions()]);
+      }
+    },
+    [execute, refetchActions, refetchState]
+  );
 
   if (loading) {
     return (
@@ -177,6 +187,15 @@ export default function CombatPage() {
 
         {/* 중앙 VFX */}
         <VfxOverlay damages={[]} />
+
+        {executing && (
+          <div className="action-feedback executing">행동 실행 중...</div>
+        )}
+        {actionError && (
+          <div className="action-feedback error">
+            행동 실패: {actionError.message}
+          </div>
+        )}
 
         {/* 하단 행동 */}
         <CombatActions

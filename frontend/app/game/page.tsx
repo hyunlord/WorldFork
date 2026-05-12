@@ -18,19 +18,29 @@ import { Minimap } from "@/components/game/Minimap";
 import { Narrative } from "@/components/game/Narrative";
 import { PartyPortraits } from "@/components/game/PartyPortraits";
 import { useGameState } from "@/lib/hooks/useGameState";
+import { usePostAction } from "@/lib/hooks/usePostAction";
 import { useRecentActions } from "@/lib/hooks/useRecentActions";
 
 const MAX_HOURS = 168;
 
 export default function GamePage() {
-  const { data, loading, error } = useGameState();
-  const { data: actionsData } = useRecentActions(5);
+  const { data, loading, error, refetch: refetchState } = useGameState();
+  const { data: actionsData, refetch: refetchActions } = useRecentActions(5);
+  const {
+    execute,
+    executing,
+    error: actionError,
+  } = usePostAction();
 
-  const handleAction = useCallback((actionId: string) => {
-    // ★ Phase 7d: console.log only — POST API 본격 7h
-    // eslint-disable-next-line no-console
-    console.log("Action selected:", actionId);
-  }, []);
+  const handleAction = useCallback(
+    async (actionId: string) => {
+      const result = await execute({ action_type: actionId });
+      if (result) {
+        await Promise.all([refetchState(), refetchActions()]);
+      }
+    },
+    [execute, refetchActions, refetchState]
+  );
 
   if (loading) {
     return (
@@ -92,6 +102,16 @@ export default function GamePage() {
 
         {/* 중앙 내러티브 */}
         <Narrative turn={data.turn} recentActions={actions} />
+
+        {/* action feedback (★ Phase 7k) */}
+        {executing && (
+          <div className="action-feedback executing">행동 실행 중...</div>
+        )}
+        {actionError && (
+          <div className="action-feedback error">
+            행동 실패: {actionError.message}
+          </div>
+        )}
 
         {/* 우하단 행동 13 */}
         <ActionGrid

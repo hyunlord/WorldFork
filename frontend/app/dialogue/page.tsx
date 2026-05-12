@@ -25,6 +25,7 @@ import type {
 } from "@/components/dialogue/DialogueInfo";
 import { DialogueSpeaker } from "@/components/dialogue/DialogueSpeaker";
 import { useGameState } from "@/lib/hooks/useGameState";
+import { usePostAction } from "@/lib/hooks/usePostAction";
 
 const MAX_HOURS = 168;
 
@@ -60,13 +61,23 @@ interface DialogueLike {
 }
 
 export default function DialoguePage() {
-  const { data, loading, error } = useGameState();
+  const { data, loading, error, refetch: refetchState } = useGameState();
+  const {
+    execute,
+    executing,
+    error: actionError,
+  } = usePostAction();
 
-  const handleChoose = useCallback((choiceId: string) => {
-    // ★ Phase 7h: console.log only — POST API 본격 7j
-    // eslint-disable-next-line no-console
-    console.log("Dialogue choice:", choiceId);
-  }, []);
+  const handleChoose = useCallback(
+    async (choiceId: string) => {
+      const result = await execute({
+        action_type: "communicate",
+        target: choiceId,
+      });
+      if (result) await refetchState();
+    },
+    [execute, refetchState]
+  );
 
   if (loading) {
     return (
@@ -137,6 +148,15 @@ export default function DialoguePage() {
           <div className="header-context">{subArea}</div>
           <div className="header-mode">{headerMode}</div>
         </div>
+
+        {executing && (
+          <div className="action-feedback executing">행동 실행 중...</div>
+        )}
+        {actionError && (
+          <div className="action-feedback error">
+            행동 실패: {actionError.message}
+          </div>
+        )}
 
         <div className="dialogue-grid">
           <DialogueSpeaker

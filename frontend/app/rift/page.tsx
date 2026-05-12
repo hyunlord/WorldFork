@@ -18,6 +18,7 @@ import { ActivateRiftPanel } from "@/components/rift/ActivateRiftPanel";
 import { RiftCard } from "@/components/rift/RiftCard";
 import { RiftStatus } from "@/components/rift/RiftStatus";
 import { useGameState } from "@/lib/hooks/useGameState";
+import { usePostAction } from "@/lib/hooks/usePostAction";
 
 interface RiftTemplate {
   riftId: string;
@@ -75,17 +76,30 @@ interface CharLite {
 }
 
 export default function RiftPage() {
-  const { data, loading, error } = useGameState();
+  const { data, loading, error, refetch: refetchState } = useGameState();
+  const {
+    execute,
+    executing,
+    error: actionError,
+  } = usePostAction();
 
-  const handleEnter = useCallback((riftId: string) => {
-    // eslint-disable-next-line no-console
-    console.log("ENTER_RIFT:", riftId);
-  }, []);
+  const handleEnter = useCallback(
+    async (riftId: string) => {
+      const result = await execute({
+        action_type: "enter_rift",
+        target: riftId,
+      });
+      if (result) await refetchState();
+    },
+    [execute, refetchState]
+  );
 
-  const handleActivate = useCallback(() => {
-    // eslint-disable-next-line no-console
-    console.log("OFFER_TO_STONE");
-  }, []);
+  const handleActivate = useCallback(async () => {
+    // ★ OFFER_TO_STONE 본격 target=rift_id 본격 (★ F6 본격 정합)
+    // 본 commit: first non-active rift 본격 target 본격 — 본격 후속 본격 UI 본격
+    const result = await execute({ action_type: "offer_to_stone" });
+    if (result) await refetchState();
+  }, [execute, refetchState]);
 
   if (loading) {
     return (
@@ -149,6 +163,15 @@ export default function RiftPage() {
             currentRiftName={currentRiftName}
           />
         </div>
+
+        {executing && (
+          <div className="action-feedback executing">행동 실행 중...</div>
+        )}
+        {actionError && (
+          <div className="action-feedback error">
+            행동 실패: {actionError.message}
+          </div>
+        )}
 
         <div className="rift-grid-4">
           {RIFT_TEMPLATES.map((rift) => (

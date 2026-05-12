@@ -2323,3 +2323,32 @@ body {
 .start-bottom-bar .credits {
   color: #6b5d3f;
 }
+
+/* ─── Phase 7k: action feedback toast (★ executing / error) ─── */
+
+.action-feedback {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 32px;
+  background: rgba(0, 0, 0, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--wf-gold);
+  font-size: 14px;
+  letter-spacing: 2px;
+  z-index: 100;
+  pointer-events: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+.action-feedback.executing {
+  border-color: #88e0e0;
+  color: #88e0e0;
+}
+
+.action-feedback.error {
+  border-color: var(--wf-error);
+  color: var(--wf-error);
+  background: rgba(40, 0, 0, 0.92);
+}
