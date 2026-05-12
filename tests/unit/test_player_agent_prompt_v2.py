@@ -497,3 +497,89 @@ def test_build_prompt_dungeon_no_in_rift_hint() -> None:
     assert "현재 균열 안 본격" not in p
     # active_rifts 본격 ENTER_RIFT 가능 본격 (★ F6 본격)
     assert "ENTER_RIFT 가능" in p
+
+
+# ─── F8: post-EXIT 본격 recent_exit prompt 본격 ───
+
+
+def _build_post_exit_ctx(active_rifts: list[str]) -> dict[str, object]:
+    """F8 테스트용 ctx — DUNGEON + active_rifts 지정 본격."""
+    return {
+        "v2_characters": {
+            "비요른": {
+                "hp": 150,
+                "hp_max": 150,
+                "race": "BARBARIAN",
+                "has_active_light": True,
+                "essence_slots_used": 0,
+                "essence_slot_max": 5,
+            }
+        },
+        "v2_world_state": {
+            "hours_in_dungeon": 75,
+            "party_members": ["비요른"],
+            "active_rifts": active_rifts,
+        },
+        "v2_initial_location": {
+            "realm": "DUNGEON",
+            "floor": 1,
+            "sub_area": "포탈 근처",
+        },
+    }
+
+
+def test_build_prompt_post_exit_empty_strong_warning() -> None:
+    """★ F8: 방금 EXIT + active_rifts empty 본격 강한 경고 본격."""
+    ctx = _build_post_exit_ctx(active_rifts=[])
+    p = _build_player_prompt(
+        "비요른", ctx, last_actions=["attack", "exit_rift", "move"]
+    )
+    assert "방금 EXIT_RIFT" in p or "active_rifts 비움" in p
+    assert "OFFER_TO_STONE" in p
+    assert "ENTER_RIFT 다시 호출 X" in p or "success=False" in p
+
+
+def test_build_prompt_no_recent_exit_normal_warning() -> None:
+    """★ F8: recent_exit X 본격 일반 경고 본격 (★ F6 패턴 유지)."""
+    ctx = _build_post_exit_ctx(active_rifts=[])
+    p = _build_player_prompt(
+        "비요른", ctx, last_actions=["attack", "explore", "move"]
+    )
+    # 일반 경고 본격, F8 강한 경고 X
+    assert "ENTER_RIFT 사용 금지" in p
+    assert "OFFER_TO_STONE 먼저" in p
+    # F8 본격 strong 메시지 X
+    assert "방금 EXIT_RIFT" not in p
+
+
+def test_build_prompt_active_rifts_with_recent_exit() -> None:
+    """★ F8: active_rifts 본격 + recent_exit → 일반 표시 본격 (강한 경고 X)."""
+    ctx = _build_post_exit_ctx(active_rifts=["bloody_castle"])
+    p = _build_player_prompt(
+        "비요른", ctx, last_actions=["exit_rift", "offer_to_stone"]
+    )
+    # active_rifts 본격 본격 본격 → ENTER_RIFT 가능
+    assert "ENTER_RIFT 가능" in p
+    assert "bloody_castle" in p
+
+
+def test_system_prompt_rift_cycle_sequence() -> None:
+    """★ F8: 균열 사이클 본격 순서 본격 system prompt 본격."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    # 사이클 5단계 본격 명시
+    assert "균열 사이클" in p or "OFFER_TO_STONE" in p
+    # EXIT 후 ENTER 본격 금지 본격
+    assert "EXIT_RIFT 직후" in p or "EXIT 후 반드시 OFFER_TO_STONE" in p
+    # active_rifts empty 본격 명시
+    assert "active_rifts empty" in p or "active_rifts에서 본격 제거됨" in p
+
+
+def test_system_prompt_offer_target_is_rift_name() -> None:
+    """★ F8: offer_to_stone target 본격 '균열 이름' 본격 (★ '마석 등급' X)."""
+    p = PLAYER_AGENT_SYSTEM_PROMPT
+    # offer_to_stone row 본격
+    assert "offer_to_stone" in p
+    # 균열 이름 본격, 마석 등급 본격 X
+    assert "균열 이름" in p
+    # 본격 본격 본격
+    assert "마석 등급" not in p

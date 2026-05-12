@@ -175,6 +175,16 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
   ⚠️ 균열 밖 (realm=DUNGEON) 본격 시 사용 X
   - target: 현재 균열 이름 (★ location.rift_id)
 
+**★ F8 균열 사이클 본격 순서**:
+  1. OFFER_TO_STONE (★ 비석 공물) → world.active_rifts 등록
+  2. ENTER_RIFT → 균열 안 진입 (realm = RIFT)
+  3. ATTACK / EXPLORE / ABSORB 본격 (★ 균열 안 행동)
+  4. EXIT_RIFT → 1층 복귀 (★ active_rifts에서 본격 제거됨)
+  5. **다시 OFFER_TO_STONE → ENTER_RIFT** (★ active_rifts empty 본격 본격)
+
+⚠️ EXIT_RIFT 직후 active_rifts empty 본격 — ENTER_RIFT 호출 X (★ success=False)
+→ EXIT 후 반드시 OFFER_TO_STONE 먼저 (★ 새 균열 활성화)
+
 ## action_type 가능 값 (13 종류 — 다양 사용 본격)
 
 | action_type | 사용 시점 | target |
@@ -185,7 +195,7 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 | attack | 약한 몬스터 발견 | 몬스터 이름 |
 | absorb_essence | 정수 떠다님 | 정수 이름 |
 | use_item | 아이템 사용 | 아이템 이름 |
-| offer_to_stone | 균열 진입 직전 | 마석 등급 |
+| offer_to_stone | 균열 활성화 (★ EXIT 후 본격) | 균열 이름 (예: "핏빛성채") |
 | enter_rift | 균열 발견 | 균열 이름 |
 | exit_rift | 균열 안에서 | 균열 이름 |
 | rest | HP/MP 낮을 때 | null |
@@ -706,6 +716,10 @@ def _build_player_prompt(
     realm_now = location.get("realm", "")
     in_rift = realm_now == "균열" or realm_now == "RIFT"
     rift_id_now = location.get("rift_id")
+    # ★ F8: post-EXIT 본격 검출 (★ last 3 actions 본격 exit_rift)
+    recent_exit = bool(
+        last_actions and "exit_rift" in last_actions[-3:]
+    )
     if in_rift:
         lines.append(
             f"**현재 균열 안 본격** 🌀 (rift_id={rift_id_now}) — "
@@ -717,6 +731,14 @@ def _build_player_prompt(
             f"(★ ENTER_RIFT 가능)" if not in_rift
             else f"**활성 균열**: {', '.join(active_rifts_raw)} "
                  f"(★ 이미 진입 본격 — EXIT_RIFT 우선)"
+        )
+    elif recent_exit:
+        # ★ F8: 방금 EXIT_RIFT 본격 — active_rifts empty 본격 강한 경고
+        lines.append(
+            "**활성 균열**: 없음 ⚠️ (★ 방금 EXIT_RIFT — active_rifts 비움)\n"
+            "  → OFFER_TO_STONE으로 새 균열 활성화 먼저 "
+            "(★ target=균열 이름)\n"
+            "  ⚠️ ENTER_RIFT 다시 호출 X (★ success=False)"
         )
     else:
         lines.append(
