@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from service.api.game_routes import router as game_router
+from service.api.v2_state_router import router as v2_state_router
 
 
 def _parse_cors_origins() -> list[str]:
@@ -56,6 +57,8 @@ def create_app() -> FastAPI:
 
     # Routes
     app.include_router(game_router, prefix="/game", tags=["game"])
+    # ★ Phase 7a: Tier 2 state API (★ frontend 통합 enabler)
+    app.include_router(v2_state_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
