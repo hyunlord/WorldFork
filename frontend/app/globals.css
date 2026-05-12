@@ -1370,3 +1370,391 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ─── Phase 7g: Combat Screen (★ Phase 6 combat_screen.html 정합) ─── */
+
+.combat-screen-bg {
+  position: relative;
+  min-height: 1080px;
+  width: 100%;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.92)),
+    url("/assets/worldfork/ui_rift_bloody_castle.png");
+  background-size: cover;
+  background-position: center;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+/* Header */
+.combat-header {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  padding: 16px 48px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  z-index: 2;
+}
+
+.round-num {
+  font-size: 28px;
+  color: var(--wf-gold);
+  font-weight: 900;
+  letter-spacing: 8px;
+}
+
+.combat-location-name {
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 4px;
+  margin-top: 4px;
+}
+
+/* Idle */
+.combat-idle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  padding: 48px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.combat-idle p {
+  font-size: 22px;
+  color: var(--wf-gold);
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+}
+
+.combat-idle .hint {
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+}
+
+/* Party side */
+.party-side {
+  position: absolute;
+  top: 140px;
+  bottom: 320px;
+  left: 32px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fighter-card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(212, 175, 55, 0.4);
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+}
+
+.fighter-portrait {
+  width: 100px;
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  flex-shrink: 0;
+}
+
+.fighter-info {
+  flex: 1;
+}
+
+.fighter-name {
+  font-size: 18px;
+  color: var(--wf-gold);
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+
+.fighter-class {
+  font-size: 11px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.fighter-bar-label {
+  font-size: 11px;
+  color: #6b5d3f;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.fighter-bar {
+  height: 12px;
+  background: rgba(60, 0, 0, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  margin-bottom: 8px;
+}
+
+.fighter-bar .fill.hp {
+  height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+}
+
+.fighter-bar.mana .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2a4868, #5cc0c0);
+}
+
+.fighter-essences {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.fighter-essence-orb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+}
+
+/* Enemy side */
+.enemy-side {
+  position: absolute;
+  top: 140px;
+  right: 32px;
+  width: 380px;
+}
+
+.enemy-card {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(139, 0, 0, 0.5);
+  padding: 16px;
+}
+
+.enemy-portrait {
+  width: 100%;
+  height: 280px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-bottom: 12px;
+}
+
+.enemy-name {
+  text-align: center;
+  font-size: 24px;
+  color: #ff8888;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-shadow: 0 0 12px var(--wf-blood);
+}
+
+.enemy-grade {
+  text-align: center;
+  font-size: 12px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+
+.enemy-hp-bar {
+  height: 14px;
+  background: rgba(60, 0, 0, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.enemy-hp-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a0000, #ff4444);
+}
+
+.enemy-hp-label {
+  text-align: center;
+  font-size: 12px;
+  color: var(--wf-warm-gray);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.enemy-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* VFX area */
+.vfx-area {
+  position: absolute;
+  top: 200px;
+  left: 432px;
+  right: 432px;
+  height: 320px;
+  pointer-events: none;
+}
+
+.vfx-axe {
+  position: absolute;
+  top: 60px;
+  left: 80px;
+  width: 280px;
+  height: 280px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.85;
+}
+
+.vfx-magic {
+  position: absolute;
+  top: 100px;
+  left: 100px;
+  width: 240px;
+  height: 240px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.85;
+}
+
+.damage-number {
+  position: absolute;
+  font-size: 64px;
+  font-weight: 900;
+  color: #ff4444;
+  text-shadow: 0 0 24px var(--wf-blood), 2px 2px 0 #000;
+  letter-spacing: 4px;
+}
+
+.damage-number.crit {
+  font-size: 88px;
+  color: #ffaa00;
+  text-shadow: 0 0 32px #ff4444, 2px 2px 0 #000;
+}
+
+.damage-number.miss {
+  font-size: 40px;
+  color: #aaa;
+}
+
+.damage-number.heal {
+  color: #88ff88;
+  text-shadow: 0 0 24px #228822;
+}
+
+/* Combat actions */
+.action-panel {
+  position: absolute;
+  bottom: 24px;
+  left: 32px;
+  width: 780px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.action-panel .panel-title {
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.combat-btn {
+  padding: 14px 8px;
+  background: rgba(40, 30, 20, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #c4a437;
+  font-size: 14px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  font-family: inherit;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.combat-btn:hover:not(:disabled) {
+  background: rgba(139, 0, 0, 0.5);
+  border-color: var(--wf-gold);
+  color: #fff;
+}
+
+.combat-btn.primary {
+  background: rgba(139, 0, 0, 0.4);
+  border-color: var(--wf-blood);
+}
+
+.combat-btn.disabled,
+.combat-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.combat-btn .cost {
+  display: block;
+  font-size: 10px;
+  color: var(--wf-warm-gray);
+  margin-top: 2px;
+}
+
+/* Combat log */
+.combat-log {
+  position: absolute;
+  bottom: 24px;
+  right: 32px;
+  width: 380px;
+  height: 240px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  overflow-y: auto;
+}
+
+.combat-log .log-title {
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 4px;
+  margin-bottom: 10px;
+}
+
+.combat-log .log-entry {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c4a437;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.combat-log .actor.bjorn {
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+.combat-log .actor.erwen {
+  color: #88e0e0;
+  font-weight: 700;
+}
+
+.combat-log .actor.enemy {
+  color: #ff8888;
+  font-weight: 700;
+}
