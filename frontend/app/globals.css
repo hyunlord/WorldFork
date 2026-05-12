@@ -1077,3 +1077,296 @@ body {
   padding: 16px;
   font-size: 13px;
 }
+
+/* ─── Phase 7f: Rift Entry (★ Phase 6 rift_entry.html 정합) ─── */
+
+.rift-screen-bg {
+  position: relative;
+  min-height: 1080px;
+  width: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.95));
+  padding: 32px;
+  border: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+.rift-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.rift-page-title {
+  font-size: 32px;
+  letter-spacing: 8px;
+  color: var(--wf-gold);
+  text-shadow: 0 0 16px var(--wf-blood);
+}
+
+/* Status */
+.rift-status {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.rift-status .status-label {
+  color: var(--wf-warm-gray);
+  font-size: 13px;
+  letter-spacing: 2px;
+  margin-right: 8px;
+}
+
+.rift-status .status-value {
+  color: var(--wf-gold);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.rift-status-current {
+  color: #ff6666;
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.rift-status-current .current-name {
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+/* Grid */
+.rift-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* Card */
+.rift-card {
+  background: rgba(20, 15, 10, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+}
+
+.rift-card.active {
+  border-color: var(--wf-gold);
+  box-shadow: 0 0 32px rgba(212, 175, 55, 0.3);
+}
+
+.rift-card.inactive {
+  opacity: 0.7;
+}
+
+.rift-card.current {
+  border-color: #ff4444;
+  box-shadow: 0 0 32px rgba(255, 68, 68, 0.4);
+}
+
+.rift-card.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 48px rgba(212, 175, 55, 0.5);
+}
+
+.rift-card-image {
+  width: 100%;
+  height: 240px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.rift-card-locked,
+.rift-card-current {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 24px;
+  font-size: 16px;
+  letter-spacing: 4px;
+}
+
+.rift-card-locked {
+  color: #ff6666;
+  border: 1px solid #8b0000;
+}
+
+.rift-card-current {
+  color: #ff8888;
+  border: 1px solid #ff4444;
+}
+
+.rift-card-info {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.rift-card-name {
+  font-size: 26px;
+  color: var(--wf-gold);
+  letter-spacing: 6px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.rift-card-id {
+  font-size: 12px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  font-style: italic;
+  margin-bottom: 10px;
+}
+
+.rift-card-grade {
+  font-size: 14px;
+  color: #ff8866;
+  letter-spacing: 3px;
+  margin-bottom: 10px;
+}
+
+.rift-card-reward {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.rift-card-reward .reward-label {
+  color: var(--wf-warm-gray);
+  letter-spacing: 1px;
+}
+
+.rift-card-reward .reward-orb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.6);
+}
+
+.rift-card-reward .reward-name {
+  color: var(--wf-text-light);
+  font-weight: 700;
+}
+
+.rift-card-boss {
+  font-size: 13px;
+  color: var(--wf-text-light);
+  margin-bottom: 10px;
+}
+
+.rift-card-boss strong {
+  color: #ff8866;
+  font-weight: 700;
+}
+
+.rift-card-desc {
+  font-size: 13px;
+  color: var(--wf-text-light);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+.rift-enter-btn {
+  padding: 12px 24px;
+  background: rgba(139, 0, 0, 0.4);
+  border: 1px solid var(--wf-gold);
+  color: var(--wf-gold);
+  font-size: 16px;
+  letter-spacing: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s, text-shadow 0.2s;
+}
+
+.rift-enter-btn:hover:not(:disabled) {
+  background: rgba(139, 0, 0, 0.7);
+  text-shadow: 0 0 12px var(--wf-gold);
+}
+
+.rift-enter-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: rgba(40, 40, 40, 0.4);
+}
+
+/* Activate panel */
+.rift-actions {
+  margin-top: 16px;
+}
+
+.activate-rift-panel {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  padding: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.activate-title {
+  font-size: 16px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+
+.activate-desc {
+  font-size: 13px;
+  color: var(--wf-text-light);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.activate-status {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.activate-status .status-item {
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.activate-status .status-item.ok {
+  color: #88ee88;
+}
+
+.activate-status .status-item.missing {
+  color: #ff6666;
+}
+
+.activate-btn {
+  width: 100%;
+  padding: 14px;
+  background: rgba(139, 0, 0, 0.4);
+  border: 1px solid var(--wf-gold);
+  color: var(--wf-gold);
+  font-size: 16px;
+  letter-spacing: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s;
+}
+
+.activate-btn:hover:not(:disabled) {
+  background: rgba(139, 0, 0, 0.7);
+}
+
+.activate-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
