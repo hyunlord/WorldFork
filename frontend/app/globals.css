@@ -232,3 +232,236 @@ body {
   color: var(--wf-warm-gray);
   padding: 48px 0;
 }
+
+/* ─── Phase 7c: Main Screen 본격 (★ Phase 6 main_screen.html 정합) ─── */
+
+.main-screen-bg {
+  position: relative;
+  min-height: 1080px;
+  width: 100%;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.85)),
+    url("/assets/worldfork/ui_main_bg.png");
+  background-size: cover;
+  background-position: center;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+}
+
+/* Logo */
+.main-logo {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.main-logo h1 {
+  font-size: 96px;
+  font-weight: 900;
+  color: var(--wf-gold);
+  text-shadow: 0 0 30px var(--wf-blood),
+    0 0 60px rgba(139, 0, 0, 0.5);
+  letter-spacing: 12px;
+  margin: 0;
+}
+
+.main-logo-subtitle {
+  font-size: 28px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 8px;
+  margin-top: 16px;
+}
+
+/* Main menu */
+.main-menu-nav {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: center;
+  min-width: 360px;
+}
+
+.menu-item {
+  display: block;
+  padding: 16px 48px;
+  font-size: 28px;
+  color: var(--wf-gold);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--wf-border-gold);
+  cursor: pointer;
+  transition: background-color 0.3s, border-color 0.3s,
+    text-shadow 0.3s;
+  letter-spacing: 4px;
+  text-decoration: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+.menu-item:hover:not(.disabled) {
+  background: rgba(139, 0, 0, 0.4);
+  border-color: var(--wf-gold);
+  text-shadow: 0 0 20px var(--wf-gold);
+}
+
+.menu-item.primary {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 0, 0, 0.6),
+    rgba(0, 0, 0, 0.6)
+  );
+  border-color: var(--wf-gold);
+  font-weight: 700;
+}
+
+.menu-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Character portrait (left/right) */
+.character-portrait {
+  position: absolute;
+  bottom: 40px;
+  width: 280px;
+}
+
+.character-portrait.left {
+  left: 80px;
+}
+
+.character-portrait.right {
+  right: 80px;
+}
+
+.portrait-image {
+  width: 280px;
+  height: 360px;
+  background-size: cover;
+  background-position: top center;
+  border: 2px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+.portrait-info {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.portrait-name {
+  font-size: 22px;
+  color: var(--wf-gold);
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+
+.portrait-race {
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+.portrait-hp {
+  font-size: 13px;
+  color: var(--wf-text-light);
+  margin-top: 6px;
+}
+
+/* Dungeon timer (top-right) */
+.dungeon-timer {
+  position: absolute;
+  top: 40px;
+  right: 80px;
+  text-align: right;
+  font-family: "Noto Serif KR", serif;
+}
+
+.timer-label {
+  font-size: 18px;
+  color: var(--wf-blood);
+  letter-spacing: 4px;
+  margin-bottom: 4px;
+}
+
+.timer-hours {
+  font-size: 42px;
+  font-weight: 700;
+  color: #ff4444;
+  text-shadow: 0 0 16px var(--wf-blood);
+}
+
+.timer-max {
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+}
+
+.dungeon-timer.low .timer-hours {
+  animation: wf-pulse-red 1.5s ease-in-out infinite;
+}
+
+@keyframes wf-pulse-red {
+  0%,
+  100% {
+    color: #ff4444;
+  }
+  50% {
+    color: #ff8888;
+    text-shadow: 0 0 24px #ff4444;
+  }
+}
+
+/* Party stats (mid-left + mid-right) */
+.party-stats {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+.party-stats.left {
+  left: 80px;
+  text-align: left;
+}
+
+.party-stats.right {
+  right: 80px;
+  text-align: right;
+}
+
+.party-stats .stat-label {
+  color: #6b5d3f;
+  font-size: 13px;
+}
+
+.party-stats .stat-value {
+  color: var(--wf-gold);
+  font-size: 20px;
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+/* Loading / error 본격 center */
+.loading-center,
+.error-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  color: var(--wf-gold);
+  letter-spacing: 4px;
+}
+
+.error-center {
+  color: var(--wf-error);
+}
