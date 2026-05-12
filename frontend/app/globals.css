@@ -465,3 +465,294 @@ body {
 .error-center {
   color: var(--wf-error);
 }
+
+/* ─── Phase 7d: Gameplay Screen (★ Phase 6 gameplay_screen.html 정합) ─── */
+
+.gameplay-screen-bg {
+  position: relative;
+  min-height: 1080px;
+  width: 100%;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.7)),
+    url("/assets/worldfork/ui_gameplay_bg_crystal.png");
+  background-size: cover;
+  background-position: center;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  font-family: "Noto Serif KR", serif;
+}
+
+/* HUD Left */
+.game-hud-left {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 360px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 4px;
+}
+
+.hp-bar-row,
+.light-charges-row {
+  margin-bottom: 14px;
+}
+
+.hp-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.hp-value {
+  color: var(--wf-gold);
+  font-weight: 700;
+}
+
+.hp-bar {
+  width: 100%;
+  height: 14px;
+  background: rgba(60, 0, 0, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b0000, #d4af37);
+  transition: width 0.3s ease;
+}
+
+.light-charges {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.light-charge {
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(
+    circle,
+    #d4af37 30%,
+    rgba(212, 175, 55, 0.2) 70%
+  );
+  border: 1px solid var(--wf-gold);
+  border-radius: 50%;
+}
+
+.light-charge.spent {
+  background: rgba(40, 40, 40, 0.5);
+  border-color: #5a4a3a;
+}
+
+/* HUD Right (game-specific — 본 commit 별도 .hud-right 본격 X 본격) */
+.game-hud-right {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 280px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  text-align: right;
+}
+
+.dungeon-time-hud .time-label {
+  font-size: 13px;
+  color: var(--wf-blood);
+  letter-spacing: 3px;
+}
+
+.hours-remaining {
+  font-size: 32px;
+  color: #ff4444;
+  text-shadow: 0 0 12px var(--wf-blood);
+  font-weight: 700;
+}
+
+.location-info {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--wf-warm-gray);
+}
+
+.location-name {
+  color: var(--wf-gold);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+/* Party portraits (center-top) */
+.party-portraits {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 32px;
+  pointer-events: none;
+}
+
+.party-member {
+  width: 180px;
+  height: 240px;
+  background-size: cover;
+  background-position: top center;
+  border: 2px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
+  position: relative;
+}
+
+.party-name {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--wf-gold);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px;
+  letter-spacing: 2px;
+}
+
+/* Minimap */
+.minimap {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  width: 320px;
+  height: 320px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.minimap-title {
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.minimap-grid {
+  position: relative;
+  width: 100%;
+  height: 270px;
+}
+
+.sub-area {
+  position: absolute;
+  width: 70px;
+  height: 50px;
+  background: rgba(40, 30, 20, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--wf-warm-gray);
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.sub-area.current {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: var(--wf-gold);
+  color: var(--wf-gold);
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.5);
+}
+
+/* Narrative */
+.narrative {
+  position: absolute;
+  bottom: 320px;
+  left: 380px;
+  right: 440px;
+  height: 220px;
+  padding: 24px 32px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  overflow-y: auto;
+  font-size: 19px;
+  line-height: 1.8;
+  color: var(--wf-text-light);
+}
+
+.narrative .gm-prefix {
+  color: var(--wf-blood);
+  font-weight: 700;
+  margin-right: 12px;
+}
+
+.turn-label {
+  color: var(--wf-warm-gray);
+  font-size: 13px;
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+
+/* Actions */
+.actions {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 400px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.actions-title {
+  font-size: 13px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.action-btn {
+  padding: 10px 4px;
+  background: rgba(40, 30, 20, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #c4a437;
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  font-family: inherit;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: rgba(139, 0, 0, 0.4);
+  border-color: var(--wf-gold);
+  color: #fff;
+}
+
+.action-btn.primary {
+  background: rgba(139, 0, 0, 0.4);
+  border-color: var(--wf-blood);
+  color: #ff8888;
+}
+
+.action-btn.disabled,
+.action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
