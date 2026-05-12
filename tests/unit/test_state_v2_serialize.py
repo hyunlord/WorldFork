@@ -200,3 +200,13 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
     assert parsed["location"]["realm"] == "균열"
     assert parsed["location"]["rift_id"] == "bloody_castle"
     assert parsed["world"]["active_rifts"] == ["bloody_castle"]
+
+
+# ─── Phase 7j: PlayerActionType 정합 ───
+
+
+def test_player_action_type_count_13() -> None:
+    """★ Phase 7j: PlayerActionType 본격 13개 본문 정합 (★ /action endpoint)."""
+    from service.sim.types import PlayerActionType
+
+    assert len(list(PlayerActionType)) == 13

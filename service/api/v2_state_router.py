@@ -1,17 +1,18 @@
-"""Tier 2 state API (★ Phase 7a).
+"""Tier 2 state API (★ Phase 7a + 7j).
 
 본 router 본격:
 - GET /api/v2/state — 현재 (party + world + location) JSON 본격
 - GET /api/v2/state/recent_actions — 최근 N 행동 본격
 - POST /api/v2/state/reset — 새 본격 default 본격
+- POST /api/v2/action — 13 PlayerActionType 본격 execute (★ Phase 7j)
 
-본격 본질 (★ Phase 7a 첫 commit):
-- singleton holder (★ 본격 단순 — 후속 7h session-aware 본격)
+본격 본질:
+- singleton holder (★ 본격 단순 — 후속 session-aware 본격)
 - default party/world/location (★ E2E 본격 패턴 동일):
   비요른 (바바리안) + 에르웬 (요정), 1층 진입점 DUNGEON
-- recent_actions 본격 빈 list 본격 (★ 후속 7h turn 본격 등록)
+- recent_actions 본격 빈 list (★ 본 commit /action 시 본격 append)
 
-frontend 본격 (Phase 7b 이하 enabler).
+frontend 본격 (Phase 7b 이하 + 본 commit).
 """
 
 from __future__ import annotations
@@ -29,6 +30,8 @@ from service.game.state_v2 import (
     WorldState,
 )
 from service.game.state_v2_serialize import game_state_v2_to_dict
+from service.sim.sim_runner import _execute_action
+from service.sim.types import PlayerAction, PlayerActionType
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-state"])
 
@@ -171,3 +174,104 @@ async def reset_state() -> ResetResponse:
     h = get_holder()
     h.reset()
     return ResetResponse(status="reset", turn=h.turn)
+
+
+# ─── Phase 7j: action endpoint ───
+
+
+class ActionRequest(BaseModel):
+    """Player action 본격 request (★ Phase 7j)."""
+
+    action_type: str = Field(
+        description="13 PlayerActionType (★ value 본격, e.g. 'attack', 'enter_rift')"
+    )
+    actor: str | None = Field(
+        default=None,
+        description="실행 캐릭터 이름 (★ 본격 X 시 첫 party member)",
+    )
+    target: str | None = Field(
+        default=None,
+        description="target (★ monster/rift_id/sub_area/essence 본격)",
+    )
+    rationale: str = Field(default="", description="선택 이유 (★ LLM 본격 분석용)")
+
+
+class ActionResponse(BaseModel):
+    """action 본격 response."""
+
+    success: bool = Field(description="_execute_action 본격 성공")
+    message: str = Field(description="결과 메시지 (★ turn_handler 본격)")
+    side_effects: list[str] = Field(description="state side effects 본격")
+    state: dict[str, Any] = Field(description="post-action state 본격")
+    turn: int = Field(description="post-action turn 본격")
+
+
+def _resolve_actor(holder: _V2StateHolder, actor: str | None) -> str:
+    """actor 본격 — None 시 첫 party member 본격."""
+    if actor and actor in holder.party:
+        return actor
+    if holder.party:
+        return next(iter(holder.party.keys()))
+    return ""
+
+
+@router.post("/action", response_model=ActionResponse)
+async def post_action(req: ActionRequest) -> ActionResponse:
+    """Player action 본격 execute + state mutation (★ Phase 7j).
+
+    flow:
+    1. action_type 본격 PlayerActionType 본격 검증 (★ 400 unknown)
+    2. PlayerAction 본격 build
+    3. sim_runner._execute_action(action, party, world, location)
+    4. holder.turn++, recent_actions 본격 append
+    5. ActionResponse 본격 반환
+    """
+    # ★ PlayerActionType StrEnum 본격 — value 본격 lookup
+    try:
+        action_type = PlayerActionType(req.action_type)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown action_type: {req.action_type}",
+        ) from exc
+
+    h = get_holder()
+    actor_name = _resolve_actor(h, req.actor)
+    if not actor_name:
+        raise HTTPException(
+            status_code=400,
+            detail="No actor available (★ party empty)",
+        )
+
+    action = PlayerAction(
+        action_type=action_type,
+        actor_name=actor_name,
+        target=req.target,
+        rationale=req.rationale,
+    )
+
+    success, message, side_effects = _execute_action(
+        action, h.party, h.world, h.location
+    )
+
+    # ★ recent_actions 본격 append (★ frontend recent_actions API 본격)
+    h.turn += 1
+    h.recent_actions.append(
+        {
+            "turn": h.turn,
+            "actor": actor_name,
+            "action_type": action_type.value,
+            "target": req.target,
+            "success": success,
+            "message": message,
+            "side_effects": side_effects,
+        }
+    )
+
+    return ActionResponse(
+        success=success,
+        message=message,
+        side_effects=side_effects,
+        state=game_state_v2_to_dict(h.party, h.world, h.location),
+        turn=h.turn,
+    )
