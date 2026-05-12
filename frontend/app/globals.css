@@ -1,5 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
 body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ─── Phase 7b: 다크 판타지 톤 (★ Phase 6 mockup 정합) ─── */
+
+:root {
+  --wf-gold: #d4af37;
+  --wf-blood: #8b0000;
+  --wf-dark-bg: #0a0606;
+  --wf-warm-gray: #8b7355;
+  --wf-text-light: #e8d8a8;
+  --wf-border-gold: rgba(212, 175, 55, 0.3);
+  --wf-error: #ff6b6b;
+}
+
+.game-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--wf-dark-bg);
+  color: var(--wf-gold);
+  font-family: 'Noto Serif KR', serif;
+}
+
+.game-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom: 1px solid var(--wf-border-gold);
+}
+
+.game-nav-link {
+  color: var(--wf-warm-gray);
+  text-decoration: none;
+  padding: 6px 12px;
+  letter-spacing: 2px;
+  font-size: 14px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.game-nav-link:hover {
+  color: var(--wf-gold);
+  background: rgba(139, 0, 0, 0.3);
+}
+
+.game-content {
+  flex: 1;
+  padding: 24px;
+}
+
+.game-footer {
+  padding: 8px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  font-size: 12px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 2px;
+}
+
+.screen {
+  background: rgba(20, 15, 10, 0.7);
+  border: 1px solid var(--wf-border-gold);
+  padding: 24px;
+  min-height: 600px;
+}
+
+.screen h2 {
+  font-size: 28px;
+  letter-spacing: 6px;
+  margin-bottom: 16px;
+  color: var(--wf-gold);
+  text-shadow: 0 0 16px var(--wf-blood);
+}
+
+.screen h3 {
+  color: var(--wf-gold);
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+
+/* Start Menu */
+.start-menu {
+  text-align: center;
+  padding-top: 120px;
+}
+
+.start-logo {
+  font-size: 96px;
+  font-weight: 900;
+  letter-spacing: 16px;
+  text-shadow: 0 0 32px var(--wf-blood);
+  margin-bottom: 16px;
+  color: var(--wf-gold);
+}
+
+.start-subtitle {
+  font-size: 20px;
+  color: var(--wf-warm-gray);
+  letter-spacing: 8px;
+  margin-bottom: 64px;
+}
+
+.main-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.main-menu-item {
+  display: inline-block;
+  padding: 14px 48px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--wf-border-gold);
+  color: var(--wf-gold);
+  text-decoration: none;
+  font-size: 20px;
+  letter-spacing: 6px;
+  min-width: 240px;
+  transition: background-color 0.25s, border-color 0.25s;
+  font-family: 'Noto Serif KR', serif;
+}
+
+.main-menu-item:hover {
+  background: rgba(139, 0, 0, 0.4);
+  border-color: var(--wf-gold);
+}
+
+.main-menu-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Loading / Error */
+.loading {
+  color: var(--wf-warm-gray);
+  font-style: italic;
+  padding: 24px;
+}
+
+.error {
+  color: var(--wf-error);
+  background: rgba(139, 0, 0, 0.2);
+  padding: 12px 16px;
+  border-left: 3px solid var(--wf-error);
+  margin-bottom: 16px;
+}
+
+.empty {
+  color: var(--wf-warm-gray);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* State preview */
+.state-preview {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--wf-text-light);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin-top: 8px;
+}
+
+/* Gameplay HUD */
+.gameplay-screen {
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  gap: 16px;
+}
+
+.character-hud {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--wf-border-gold);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.hud-center {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.hud-right ul {
+  list-style: none;
+  padding: 0;
+}
+
+.hud-right li {
+  padding: 4px 0;
+  color: var(--wf-text-light);
+}
+
+/* Character / Rift */
+.character-section {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.rift-info {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--wf-text-light);
+}
+
+.rift-info ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.rift-info li {
+  padding: 4px 0;
+  color: var(--wf-gold);
+}
+
+.combat-placeholder,
+.dialogue-placeholder {
+  text-align: center;
+  font-size: 24px;
+  color: var(--wf-warm-gray);
+  padding: 48px 0;
 }
