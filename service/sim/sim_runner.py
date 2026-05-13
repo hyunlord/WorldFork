@@ -12,6 +12,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from service.game.floors.floor1 import get_floor1_definition
 from service.game.state_v2 import (
     Character,
     Location,
@@ -554,6 +555,10 @@ class SimRunner:
                 end_reason="empty_party",
             )
 
+        # ★ R1 — 본 sim 본격 floor_def (★ FLOOR_REGISTRY 본격 R2 본격).
+        # check_time_limit 본격 floor_def.base_time_hours 본격 전달.
+        floor_def = get_floor1_definition()
+
         start_time = time.monotonic()
         turn_logs: list[TurnLog] = []
         latency_total_seconds = 0.0
@@ -652,7 +657,12 @@ class SimRunner:
 
             # ★ Phase 8 A4 — 1층 종료 조건 state mutate
             # (★ time 누적/HP mutate 직후 호출 → _check_end_condition source).
-            check_time_limit(world, turn_number=current_turn)
+            # ★ R1: floor_def.base_time_hours 본격 전달 (★ module 상수 제거 후 단일 source).
+            check_time_limit(
+                world,
+                time_limit_hours=floor_def.base_time_hours,
+                turn_number=current_turn,
+            )
             check_party_defeated(
                 list(party.values()), world, turn_number=current_turn
             )

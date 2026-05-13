@@ -36,8 +36,9 @@ from .state_v2 import (
     level_for_exp,
 )
 
-# ★ Phase 8 A4 — 1층 시간 한도. 본문 1차 자료: 7일 (168h).
-TIME_LIMIT_HOURS: int = 168
+# ★ Phase 8 R1 — TIME_LIMIT_HOURS module 상수 제거. 본 시간 한도는 floor 본격
+# (★ FloorDefinition.base_time_hours)에서 가져옴 (★ 단일 source of truth).
+# 2층+ 본격 다른 한도 정의 가능 enabler.
 
 # ★ Phase 8 B — 등급별 base exp (★ 9 = 1층 본격 본격, 0 = 계층군주).
 # 본인 #19: 1차 자료 명시 X → 추측. balance commit 본격 정정 가능.
@@ -985,23 +986,32 @@ def _award_kill_exp(
 
 def check_time_limit(
     world: WorldState,
+    time_limit_hours: int,
     turn_number: int | None = None,
 ) -> bool:
-    """168h 도달 시 simulation_status → TIME_LIMIT_REACHED 본격 mutation.
+    """시간 한도 도달 시 simulation_status → TIME_LIMIT_REACHED mutation.
 
-    본질 (★ Phase 8 A4):
-    - 7일 (168h) 만료 = 1층 강제 종료 → 마을 자동 귀환 (★ 후속 location mutate)
+    본질 (★ Phase 8 A4 + R1):
+    - time_limit_hours 본격 caller가 FloorDefinition.base_time_hours 본격 전달
+      (★ R1: module 상수 본격 단일 source of truth — FloorDefinition.base_time_hours)
+    - 1층 본격: 7일 (168h) — 본문 1차 자료
     - 이미 종료 상태 (status != ACTIVE)면 no-op (★ idempotent)
+
+    Args:
+        world: WorldState (★ status mutate)
+        time_limit_hours: 본 층 시간 한도 (★ FloorDefinition.base_time_hours)
+        turn_number: trace 본격 turn (optional)
 
     Returns:
         True = 본 호출에서 신규 종료 발현. False = 이미 종료 또는 미달.
     """
     if world.simulation_status != SimulationStatus.ACTIVE:
         return False
-    if world.hours_in_dungeon >= TIME_LIMIT_HOURS:
+    if world.hours_in_dungeon >= time_limit_hours:
         world.simulation_status = SimulationStatus.TIME_LIMIT_REACHED
+        days = time_limit_hours // 24
         world.simulation_over_reason = (
-            f"7일 ({TIME_LIMIT_HOURS}시간) 만료. "
+            f"{days}일 ({time_limit_hours}시간) 만료. "
             "미궁 자동 마을 포탈 귀환."
         )
         world.simulation_over_turn = turn_number

@@ -18,10 +18,13 @@ from service.game.state_v2 import (
     WorldState,
 )
 from service.game.turn_handler_v2 import (
-    TIME_LIMIT_HOURS,
     check_party_defeated,
     check_time_limit,
 )
+
+# ★ Phase 8 R1 — TIME_LIMIT_HOURS module 상수 제거, FloorDefinition.base_time_hours
+# 본격 단일 source. 본 테스트는 1층 168h 본격 본격 전달.
+_FLOOR1_TIME_LIMIT = 168
 
 # ─── 1. Enum ───
 
@@ -44,15 +47,19 @@ def test_world_state_default_active() -> None:
 
 def test_time_limit_under_threshold_no_change() -> None:
     world = WorldState(hours_in_dungeon=100)
-    triggered = check_time_limit(world, turn_number=10)
+    triggered = check_time_limit(
+        world, time_limit_hours=_FLOOR1_TIME_LIMIT, turn_number=10
+    )
     assert triggered is False
     assert world.simulation_status == SimulationStatus.ACTIVE
     assert world.simulation_over_reason is None
 
 
 def test_time_limit_at_threshold_triggers() -> None:
-    world = WorldState(hours_in_dungeon=TIME_LIMIT_HOURS)
-    triggered = check_time_limit(world, turn_number=81)
+    world = WorldState(hours_in_dungeon=_FLOOR1_TIME_LIMIT)
+    triggered = check_time_limit(
+        world, time_limit_hours=_FLOOR1_TIME_LIMIT, turn_number=81
+    )
     assert triggered is True
     assert world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
     assert world.simulation_over_reason is not None
@@ -62,7 +69,9 @@ def test_time_limit_at_threshold_triggers() -> None:
 
 def test_time_limit_above_threshold_triggers() -> None:
     world = WorldState(hours_in_dungeon=200)
-    triggered = check_time_limit(world, turn_number=5)
+    triggered = check_time_limit(
+        world, time_limit_hours=_FLOOR1_TIME_LIMIT, turn_number=5
+    )
     assert triggered is True
     assert world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
 
@@ -74,12 +83,51 @@ def test_time_limit_idempotent_when_already_over() -> None:
         simulation_over_reason="기존 사유",
         simulation_over_turn=10,
     )
-    triggered = check_time_limit(world, turn_number=20)
+    triggered = check_time_limit(
+        world, time_limit_hours=_FLOOR1_TIME_LIMIT, turn_number=20
+    )
     assert triggered is False
     # 기존 상태 보존 (★ time_limit override X)
     assert world.simulation_status == SimulationStatus.PARTY_DEFEATED
     assert world.simulation_over_reason == "기존 사유"
     assert world.simulation_over_turn == 10
+
+
+# ─── Phase 8 R1 — floor-specific time limit (★ 2층 enabler) ───
+
+
+def test_time_limit_different_floor_different_limit() -> None:
+    """다른 floor 본격 다른 한도 (★ R1 fix: module 상수 제거 enabler)."""
+    # 가상 2층: 240h (10일) 한도
+    world = WorldState(hours_in_dungeon=200)
+    triggered_floor2 = check_time_limit(
+        world, time_limit_hours=240, turn_number=10
+    )
+    assert triggered_floor2 is False  # 200 < 240
+    assert world.simulation_status == SimulationStatus.ACTIVE
+
+    # 200h ≥ 168h → 1층 한도 본격 도달
+    world2 = WorldState(hours_in_dungeon=200)
+    triggered_floor1 = check_time_limit(
+        world2, time_limit_hours=168, turn_number=10
+    )
+    assert triggered_floor1 is True
+    assert world2.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
+
+
+def test_time_limit_reason_includes_days_calculation() -> None:
+    """over_reason 본격 days = hours // 24 본격 계산 본격 본격."""
+    # 168h = 7일
+    world = WorldState(hours_in_dungeon=168)
+    check_time_limit(world, time_limit_hours=168, turn_number=1)
+    assert "7일" in (world.simulation_over_reason or "")
+    assert "168시간" in (world.simulation_over_reason or "")
+
+    # 240h = 10일 (★ 2층 본격 본격)
+    world2 = WorldState(hours_in_dungeon=240)
+    check_time_limit(world2, time_limit_hours=240, turn_number=1)
+    assert "10일" in (world2.simulation_over_reason or "")
+    assert "240시간" in (world2.simulation_over_reason or "")
 
 
 # ─── 3. check_party_defeated ───

@@ -24,14 +24,14 @@
 
 ### 1-2. 균열 (히든 던전)
 
-| 균열 ID | 일반 보스 | grade | 변종 보스 | grade | trigger |
-|---|---|---|---|---|---|
-| bloody_castle (핏빛성채) | 저주받은 기사 블라터 | 6 | 뱀파이어 공작 캠보르미어 | 5 | base 0.02 |
-| glacier_cave (빙하굴) | 폭군 타룬바스 | 7 | 타락한 짐승 키르뒤 | **None** ⚠ | base 0.02 |
-| green_mine (녹색 탄광) | 킹 슬라임 | 8 | — | — | — |
-| iron_tomb (강철의 묘) | 철인 일디움 | 8 | — | — | — |
+| 균열 ID | 일반 보스 | grade | 변종 보스 | grade (RiftDef) | 변종 grade (런타임) | trigger |
+|---|---|---|---|---|---|---|
+| bloody_castle (핏빛성채) | 저주받은 기사 블라터 | 6 | 뱀파이어 공작 캠보르미어 | 5 | 5 | base 0.02 |
+| glacier_cave (빙하굴) | 폭군 타룬바스 | 7 | 타락한 짐승 키르뒤 | **None** (data gap) | **7 (fallback)** | base 0.02 |
+| green_mine (녹색 탄광) | 킹 슬라임 | 8 | — | — | — | — |
+| iron_tomb (강철의 묘) | 철인 일디움 | 8 | — | — | — | — |
 
-- ⚠ **finding**: `glacier_cave.variant_boss_grade` is `None` despite trigger being set — `MONSTER_EXP_BY_GRADE.get(grade, 50)` would fall back to 50 exp on variant kill (★ B 본격 exp drop 정합 X).
+- **`RiftDef.variant_boss_grade=None` 본격 spec/data gap** (★ namu 본문 명시 X — `docs/floor1_rifts_spec.md` §8 후속 진단). **런타임은 정상**: `_spawn_boss_encounter` 본격 fallback `variant_boss_grade or normal_boss_grade` 본격 본격 본격 `BossEncounter.boss_grade=7` 본격 정합. 즉 변종 처치 시 `MONSTER_EXP_BY_GRADE[7]=200` exp 본격 정상 drop. (★ 초기 review docs는 false alarm — 본 R1 commit 정정.)
 - 변종 spawn mechanism (A2): 확률 + RNG → 정상 작동. LLM 운용 finding (A3 E2E REPORT)은 별개.
 - 보스 처치 → 보상 + 정수 spawn + cleared_rifts 추가 (A3) 정상.
 - 의도적 진입 mechanism (★ 2층 8등급 마석 → 비석 제단) `docs/floor1_rifts_spec.md` 본문에 명시되어 있으나 **코드 미구현** (★ OFFER_TO_STONE은 단순 marker 본격).
@@ -95,16 +95,19 @@
 
 ### 2-2. 미완성 / 후속 commit 본격
 
+★ Phase 8 R1 (2026-05-13) 본격 update:
+- ~~#1 (glacier_cave grade) 본격 false alarm 정정~~ — `_spawn_boss_encounter` 본격 runtime fallback 본격 존재 (★ §1-2 표 참고). spec/data gap만 남음 (★ #8 본격 정합).
+- 미완성 항목 본격 8 → 7개.
+
 | # | 항목 | 영향 | 본인 답 본격 |
 |---|---|---|---|
-| 1 | `glacier_cave.variant_boss_grade = None` — 변종 처치 시 exp 0 fallback (★ 50) | 변종 보스 1개 본격 정합 X | spec §8 정합 본격 |
-| 2 | 마을 location mutation 미구현 — A4 `simulation_over_reason="자동 마을 포탈 귀환"` 텍스트만, `location.realm/sub_area` mutation X | TIME_LIMIT_REACHED 후 location 본격 의미 X | location 본격 town realm 본격 |
-| 3 | 죽음 narrative — `PARTY_DEFEATED` 후 GM prompt header 본격 진행 본격, narrative 본격 본격 X | 본격 본격 본격 본격 본격 본격 (★ 본인 답 본격 본격 본격) | GM prompt 본격 narrative 본격 본격 |
-| 4 | `use_item` no-op stub (★ turn_handler:927) — item effect 본격 본격 X | USE_ITEM 호출되지만 실제 효과 X (★ inventory 본격 본격 X) | item 본격 effect 본격 본격 |
-| 5 | spec §8: 의도적 균열 진입 (★ 2층 8등급 마석 → 1층 비석 제단) 미구현 | OFFER_TO_STONE은 본격 marker 본격 (★ 본문 정합 X) | 2층 콘텐츠 본격 본격 |
-| 6 | LLM 변종 회피 (A3 LLM trace finding) — 변종 본격 본격 진행 X | LLM 운용 본격 본격 본격 (★ scripted 본격 정상) | Player LLM 본격 본격 |
-| 7 | 인벤토리 weight balance 미진단 — 1층 마석 + 정수 + 빛 자원 본격 본격 본격 본격 본격 본격 | 실제 인벤토리 한계 본격 본격 X | 후속 balance commit |
-| 8 | `floor1_rifts_spec.md` 본격 §8 본격 후속 — 블라터/킹 슬라임/일디움 본문 grade 정합 | 보상 + 변종 grade 본문 정합 본격 본격 본격 | spec 본격 본격 본격 |
+| 1 | 마을 location mutation 미구현 — A4 `simulation_over_reason="자동 마을 포탈 귀환"` 텍스트만, `location.realm/sub_area` mutation X | TIME_LIMIT_REACHED 후 location 본격 의미 X | location 본격 town realm 본격 |
+| 2 | 죽음 narrative — `PARTY_DEFEATED` 후 GM prompt header 본격 진행 본격, narrative 본격 본격 X | 본격 본격 본격 본격 본격 본격 (★ 본인 답 본격 본격 본격) | GM prompt 본격 narrative 본격 본격 |
+| 3 | `use_item` no-op stub (★ turn_handler:927) — item effect 본격 본격 X | USE_ITEM 호출되지만 실제 효과 X (★ inventory 본격 본격 X) | item 본격 effect 본격 본격 |
+| 4 | spec §8: 의도적 균열 진입 (★ 2층 8등급 마석 → 1층 비석 제단) 미구현 | OFFER_TO_STONE은 본격 marker 본격 (★ 본문 정합 X) | 2층 콘텐츠 본격 본격 |
+| 5 | LLM 변종 회피 (A3 LLM trace finding) — 변종 본격 본격 진행 X | LLM 운용 본격 본격 본격 (★ scripted 본격 정상) | Player LLM 본격 본격 |
+| 6 | 인벤토리 weight balance 미진단 — 1층 마석 + 정수 + 빛 자원 본격 본격 본격 본격 본격 본격 | 실제 인벤토리 한계 본격 본격 X | 후속 balance commit |
+| 7 | `floor1_rifts_spec.md` 본격 §8 본격 후속 — 블라터/킹 슬라임/일디움 본문 grade 정합 + 키르뒤 grade 명시 | 보상 + 변종 grade 본문 정합 본격 본격 본격 | spec 본격 본격 본격 |
 
 ### 2-3. 1층 본격 작동 결론
 
@@ -166,11 +169,11 @@ def get_floor_definition(floor: int) -> FloorDefinition:
 | `LEVEL_EXP_THRESHOLDS` | `state_v2.py` (module-level) | global (★ 캐릭터 본격) | 유지 |
 | `LEVEL_TO_ESSENCE_SLOT_MAX` | `state_v2.py` | global | 유지 |
 | `MONSTER_EXP_BY_GRADE` | `turn_handler_v2.py` | global (★ grade 본격) | 유지 |
-| `TIME_LIMIT_HOURS = 168` | `turn_handler_v2.py` module-level | **floor 1 본격** | → `FloorDefinition.base_time_hours` 본격 사용 (★ 이미 field 본격 — duplicate!) |
+| ~~`TIME_LIMIT_HOURS = 168`~~ | **R1 commit 본격 제거** | ~~floor 1 본격~~ | **★ R1 fix**: `FloorDefinition.base_time_hours` 본격 단일 source. `check_time_limit(world, time_limit_hours, ...)` signature. |
 | `FIRST_FLOOR_TWO_ENTRY_EXP_BONUS = 500` | `turn_handler_v2.py` | floor-pair 본격 | → `FloorDefinition.first_entry_bonus_exp` 본격 본격 (★ 3층 본격 본격) |
 | `FLOOR_TWO_PORTAL_SUB_AREAS` | `floors/floor1.py` | floor 본격 본격 | → `FloorDefinition.portals_to_next: frozenset[str]` 본격 nest |
 
-⚠ **Duplicate**: `TIME_LIMIT_HOURS = 168` (module-level) **와** `Floor1Definition.base_time_hours = 168` **둘 다 존재**. `check_time_limit`은 module 상수 본격 사용 → 2층 본격 base_time_hours 본격 본격 X. 본격 단일 source 본격 통합 본격.
+★ ~~Duplicate~~ **R1 본격 fix**: `TIME_LIMIT_HOURS` module 상수 제거, `Floor1Definition.base_time_hours` 본격 단일 source. `check_time_limit` 본격 caller (`sim_runner.run`)에서 `floor_def.base_time_hours` 전달. 2층 본격 다른 한도 enabler.
 
 ### 3-3. Actions — `ENTER_FLOOR_TWO` / `EXIT_TO_FLOOR_ONE`은 floor-specific
 
@@ -248,15 +251,15 @@ class WorldState:
 
 ## 4. Refactor 권고 우선순위 (★ 후속 별도 commit)
 
-| 우선 | 항목 | 영향 | 난이도 |
-|---|---|---|---|
-| **1** | `TIME_LIMIT_HOURS` duplicate 통합 (★ Floor1Definition.base_time_hours 본격 사용) | bug 본격 (2층 시간 한도 본격 본격 X) | 낮 |
-| **2** | `Floor1Definition` → `FloorDefinition` rename + `FLOOR_REGISTRY` 추가 | 2층 enabler 핵심 | 중 |
-| **3** | `ENTER_FLOOR_TWO`/`EXIT_TO_FLOOR_ONE` → `ENTER_NEXT_FLOOR`/`EXIT_TO_PREV_FLOOR` generic | N층 enabler | 중 |
-| **4** | `FloorTwoState` → `FloorTransitionState` + `floor_states: dict[int, ...]` | N층 state enabler | 중 |
-| **5** | `glacier_cave.variant_boss_grade = None` 본격 정합 (★ spec §8) | bug — 변종 exp 0 fallback | 낮 |
-| 6 | Test fixture `build_floor_party(floor=1)` | 본격 refactor enabler | 중 |
-| 7 | `Floor1Definition.first_entry_bonus_exp` field 본격 본격 | 2층 본격 본격 본격 본격 본격 | 낮 |
+| 우선 | 항목 | 영향 | 난이도 | 상태 |
+|---|---|---|---|---|
+| ~~1~~ | ~~`TIME_LIMIT_HOURS` duplicate 통합~~ | ~~bug 본격 (2층 시간 한도 X)~~ | 낮 | ✅ **R1 commit 완료** |
+| **2** | `Floor1Definition` → `FloorDefinition` rename + `FLOOR_REGISTRY` 추가 | 2층 enabler 핵심 | 중 | R2 (다음) |
+| **3** | `ENTER_FLOOR_TWO`/`EXIT_TO_FLOOR_ONE` → `ENTER_NEXT_FLOOR`/`EXIT_TO_PREV_FLOOR` generic | N층 enabler | 중 | R3 |
+| **4** | `FloorTwoState` → `FloorTransitionState` + `floor_states: dict[int, ...]` | N층 state enabler | 중 | R4 |
+| ~~5~~ | ~~`glacier_cave.variant_boss_grade = None` 정합~~ | ~~bug — 변종 exp 0 fallback~~ | 낮 | ✅ **R1 false alarm 정정** (★ runtime fallback 존재, spec §8 data gap만) |
+| 6 | Test fixture `build_floor_party(floor=1)` | 본격 refactor enabler | 중 | R4+ |
+| 7 | `Floor1Definition.first_entry_bonus_exp` field 본격 본격 | 2층 본격 본격 본격 본격 본격 | 낮 | R2+ |
 
 ---
 
@@ -291,3 +294,5 @@ class WorldState:
 | `a311aea` C | 2층 진입 + 4 경로 + 보너스 |
 | `ec531eb` C refactor | FLOOR_TRANSITION 위치 marker 본격 |
 | `2e47051` C simplify | 3-agent review 답 (4 findings) |
+| `643176d` review docs | 1층 마무리 진단 + 확장 구조 (★ 본 docs 초안) |
+| R1 (★ 본 commit) | TIME_LIMIT duplicate fix + #5 false alarm 정정 |
