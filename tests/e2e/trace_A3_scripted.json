@@ -1,0 +1,667 @@
+{
+  "config": {
+    "harness": "scripted",
+    "scenario_id": "A3_scripted_bloody_castle_variant"
+  },
+  "end_reason": "complete",
+  "completed_turns": 16,
+  "final_hours_in_dungeon": 72,
+  "final_hp_by_actor": {
+    "비요른": 200
+  },
+  "final_inventory": {
+    "비요른": [
+      {
+        "name": "뱀파이어 공작 캠보르미어의 마석",
+        "category": "재료"
+      }
+    ]
+  },
+  "turn_logs": [
+    {
+      "turn": 1,
+      "actor": "비요른",
+      "action_type": "ENTER_RIFT",
+      "action_target": "bloody_castle",
+      "success": true,
+      "message": "균열 bloody_castle 진입 → bc_ch1. ⚠ 공기가 다르다. 평소와 다른 무엇이 기다린다.",
+      "side_effects": [
+        "target_realm=RIFT",
+        "target_rift_id=bloody_castle",
+        "target_rift_sub_area=bc_ch1",
+        "target_rift_is_variant=True",
+        "시간 0.5h"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch1",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 2,
+      "actor": "비요른",
+      "action_type": "MOVE",
+      "action_target": "bc_ch2",
+      "success": true,
+      "message": "[핏빛성채] 외곽 검문소 → 도개교.",
+      "side_effects": [
+        "target_rift_sub_area=bc_ch2",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch2",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 3,
+      "actor": "비요른",
+      "action_type": "MOVE",
+      "action_target": "bc_ch3",
+      "success": true,
+      "message": "[핏빛성채] 도개교 → 외성벽 시가지.",
+      "side_effects": [
+        "target_rift_sub_area=bc_ch3",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch3",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 4,
+      "actor": "비요른",
+      "action_type": "MOVE",
+      "action_target": "bc_ch4",
+      "success": true,
+      "message": "[핏빛성채] 외성벽 시가지 → 내성벽 지하 감옥.",
+      "side_effects": [
+        "target_rift_sub_area=bc_ch4",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch4",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 5,
+      "actor": "비요른",
+      "action_type": "MOVE",
+      "action_target": "bc_ch5",
+      "success": true,
+      "message": "[핏빛성채] 내성벽 지하 감옥 → 영주성 악마 숭배실. ⚔ 뱀파이어 공작 캠보르미어 (변종) 등장 (HP 600/600, 5등급).",
+      "side_effects": [
+        "target_rift_sub_area=bc_ch5",
+        "시간 0.5h 경과",
+        "boss_spawned=bloody_castle_variant"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 600,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 6,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 540/600.",
+      "side_effects": [
+        "boss_hp=540/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 540,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 7,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 480/600.",
+      "side_effects": [
+        "boss_hp=480/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 480,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 8,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 420/600.",
+      "side_effects": [
+        "boss_hp=420/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 420,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 9,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 360/600.",
+      "side_effects": [
+        "boss_hp=360/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 360,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 10,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 300/600.",
+      "side_effects": [
+        "boss_hp=300/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 300,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 11,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 240/600.",
+      "side_effects": [
+        "boss_hp=240/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 240,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 12,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 180/600.",
+      "side_effects": [
+        "boss_hp=180/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 180,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 13,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 120/600.",
+      "side_effects": [
+        "boss_hp=120/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 120,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 14,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "비요른 → 뱀파이어 공작 캠보르미어 공격 (60 데미지). HP 60/600.",
+      "side_effects": [
+        "boss_hp=60/600",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [
+          "bloody_castle"
+        ],
+        "defeated_bosses": [],
+        "cleared_rifts": [],
+        "active_boss_encounter": {
+          "rift_id": "bloody_castle",
+          "boss_id": "bloody_castle_variant",
+          "boss_name": "뱀파이어 공작 캠보르미어",
+          "boss_grade": 5,
+          "is_variant": true,
+          "hp": 60,
+          "hp_max": 600,
+          "weakness_element": null
+        }
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 15,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "뱀파이어 공작 캠보르미어",
+      "success": true,
+      "message": "⚔ 뱀파이어 공작 캠보르미어 (변종) 처치! (60 데미지) 보상: red 정수, 뱀파이어 공작 캠보르미어의 마석. 균열 '핏빛성채' 클리어 — 포탈이 열렸다 (EXIT_RIFT).",
+      "side_effects": [
+        "essence_spawn=red",
+        "boss_defeated=bloody_castle_variant",
+        "rift_cleared=bloody_castle",
+        "시간 0.5h 경과"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [],
+        "defeated_bosses": [
+          "bloody_castle_variant"
+        ],
+        "cleared_rifts": [
+          "bloody_castle"
+        ],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "균열",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": "bloody_castle",
+        "rift_sub_area": "bc_ch5",
+        "rift_is_variant": true
+      }
+    },
+    {
+      "turn": 16,
+      "actor": "비요른",
+      "action_type": "EXIT_RIFT",
+      "action_target": "bloody_castle",
+      "success": true,
+      "message": "균열 bloody_castle 탈출 → 1층.",
+      "side_effects": [
+        "target_realm=DUNGEON",
+        "시간 0.5h"
+      ],
+      "hp_before": 200,
+      "hp_after": 200,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72,
+      "world_snapshot": {
+        "hours_in_dungeon": 72,
+        "active_rifts": [],
+        "defeated_bosses": [
+          "bloody_castle_variant"
+        ],
+        "cleared_rifts": [
+          "bloody_castle"
+        ],
+        "active_boss_encounter": null
+      },
+      "location_snapshot": {
+        "realm": "미궁",
+        "floor": 1,
+        "sub_area": "비석 공동",
+        "rift_id": null,
+        "rift_sub_area": null,
+        "rift_is_variant": false
+      }
+    }
+  ],
+  "elapsed_seconds": 0.0
+}

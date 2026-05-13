@@ -54,6 +54,43 @@ _BOSS_REWARD_ESSENCE_LABEL: dict[str, str] = {
 }
 
 
+def _world_snapshot(world: WorldState) -> dict[str, Any]:
+    """A3 E2E trace용 WorldState 직렬화 (★ per-turn snapshot)."""
+    boss = world.active_boss_encounter
+    return {
+        "hours_in_dungeon": world.hours_in_dungeon,
+        "active_rifts": list(world.active_rifts),
+        "defeated_bosses": list(world.defeated_bosses),
+        "cleared_rifts": list(world.cleared_rifts),
+        "active_boss_encounter": (
+            None
+            if boss is None
+            else {
+                "rift_id": boss.rift_id,
+                "boss_id": boss.boss_id,
+                "boss_name": boss.boss_name,
+                "boss_grade": boss.boss_grade,
+                "is_variant": boss.is_variant,
+                "hp": boss.hp,
+                "hp_max": boss.hp_max,
+                "weakness_element": boss.weakness_element,
+            }
+        ),
+    }
+
+
+def _location_snapshot(location: Location) -> dict[str, Any]:
+    """A3 E2E trace용 Location 직렬화."""
+    return {
+        "realm": location.realm.value,
+        "floor": location.floor,
+        "sub_area": location.sub_area,
+        "rift_id": location.rift_id,
+        "rift_sub_area": location.rift_sub_area,
+        "rift_is_variant": location.rift_is_variant,
+    }
+
+
 def _action_to_turn_log(
     turn_number: int,
     action: PlayerAction,
@@ -63,6 +100,7 @@ def _action_to_turn_log(
     message: str,
     side_effects: list[str],
     hp_before: int,
+    location: Location | None = None,
 ) -> TurnLog:
     actor = party.get(action.actor_name)
     return TurnLog(
@@ -77,6 +115,10 @@ def _action_to_turn_log(
         essence_slots_used=actor.essence_slots_used() if actor else 0,
         has_active_light=actor.has_active_light() if actor else False,
         hours_in_dungeon=world.hours_in_dungeon,
+        world_snapshot=_world_snapshot(world),
+        location_snapshot=(
+            _location_snapshot(location) if location is not None else None
+        ),
     )
 
 
@@ -85,10 +127,14 @@ def _execute_action(
     party: dict[str, Character],
     world: WorldState,
     location: Location,
+    force_variant: bool | None = None,
 ) -> tuple[bool, str, list[str]]:
     """PlayerAction → turn_handler 매핑 (★ 13 ActionType 모두 mutate).
 
     본 commit 3차 본격: 모든 ActionType이 진짜 production 함수 호출.
+
+    Phase 8 A3 E2E:
+    - force_variant: SimConfig 본격 ENTER_RIFT 변종 강제 (★ True/False/None).
     """
     actor = party.get(action.actor_name)
     party_list = list(party.values())
@@ -166,7 +212,10 @@ def _execute_action(
     if action.action_type == PlayerActionType.ENTER_RIFT:
         if not action.target:
             return False, "target rift 없음.", []
-        r = enter_rift(party_list, world, action.target)
+        # ★ Phase 8 A3 E2E — config.force_variant 본격 enter_rift 전달
+        r = enter_rift(
+            party_list, world, action.target, force_variant=force_variant
+        )
         if r.success:
             # ★ F7: location 본격 변경 — RIFT realm + canonical rift_id
             # ★ Phase 8 A1: rift_sub_area 본격 entrance_id 전파
@@ -377,7 +426,7 @@ class SimRunner:
         action = response.action
 
         success, message, side_effects = _execute_action(
-            action, party, world, location
+            action, party, world, location, self.config.force_variant
         )
 
         # ★ Phase 8 A3 — execute_attack 보스 처치 시 'essence_spawn={color}'
@@ -412,6 +461,7 @@ class SimRunner:
             message=message,
             side_effects=side_effects,
             hp_before=hp_before,
+            location=location,
         )
 
     def run(

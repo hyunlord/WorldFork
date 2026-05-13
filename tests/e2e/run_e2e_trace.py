@@ -55,10 +55,12 @@ def _llm_alive(url: str) -> bool:
 def run_trace(
     target_turns: int = 100,
     initial_hours: float = 0.0,
+    force_variant: bool | None = None,
 ) -> tuple[SimResult, float]:
     """본 commit 본격 100턴 시뮬 (★ Player 9B + GM 27B if alive).
 
     ★ F5b: initial_hours 본격 (★ 0.0=ENTRY, 72.0=RIFT phase 시작).
+    ★ Phase 8 A3 E2E: force_variant 본격 ENTER_RIFT 변종 강제.
     """
     player_client = make_player_llm_client(timeout=60)
     player_agent = PlayerAgent(llm_client=player_client)
@@ -81,6 +83,8 @@ def run_trace(
             # ★ F3: initial_hours=0 (ENTRY phase 시작, 전 phase 본격 test)
             # ★ F5b: 72.0 본격 (RIFT phase 별도 검증 본격)
             initial_hours_in_dungeon=initial_hours,
+            # ★ Phase 8 A3 E2E — ENTER_RIFT 변종 강제
+            force_variant=force_variant,
         ),
         player_agent=player_agent,
         gm_agent=gm_agent,
@@ -222,6 +226,8 @@ def detect_findings(result: SimResult) -> dict[str, Any]:
 
 
 def main() -> int:
+    import random as _random
+
     parser = argparse.ArgumentParser(
         description="E2E trace 캡처 + finding 검출"
     )
@@ -237,7 +243,22 @@ def main() -> int:
         type=Path,
         default=Path("tests/e2e/trace_F1.json"),
     )
+    # ★ Phase 8 A3 E2E
+    parser.add_argument(
+        "--force-variant",
+        action="store_true",
+        help="ENTER_RIFT 시 변종 강제 (★ A3 E2E)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Python RNG seed (★ LLM 비결정성 본격 외 본격 정합)",
+    )
     args = parser.parse_args()
+
+    if args.seed is not None:
+        _random.seed(args.seed)
 
     print(
         f"E2E {args.turns}턴 시뮬 "
@@ -250,7 +271,11 @@ def main() -> int:
         print(f"  GM:     {QWEN35_9B_Q3_BASE_URL} (9B Q3 fallback)")
     print()
 
-    result, elapsed = run_trace(args.turns, initial_hours=args.initial_hours)
+    result, elapsed = run_trace(
+        args.turns,
+        initial_hours=args.initial_hours,
+        force_variant=True if args.force_variant else None,
+    )
     findings = detect_findings(result)
 
     print(f"\n시뮬 시간: {elapsed:.1f}s ({elapsed / 60:.1f}분)")
@@ -263,6 +288,8 @@ def main() -> int:
         "config": {
             "target_turns": args.turns,
             "initial_hours": args.initial_hours,
+            "force_variant": bool(args.force_variant),
+            "seed": args.seed,
             "scenario_id": (
                 f"F1_e2e_{args.turns}turn_h{int(args.initial_hours)}"
             ),
@@ -272,6 +299,8 @@ def main() -> int:
         "end_reason": result.end_reason,
         "final_hp_by_actor": dict(result.final_hp_by_actor),
         "final_hours_in_dungeon": result.final_hours_in_dungeon,
+        "gm_fallback_count": result.gm_fallback_count,
+        "player_fallback_count": result.player_fallback_count,
         "findings": findings,
         "turn_logs": [
             {
@@ -280,11 +309,16 @@ def main() -> int:
                 "action_type": log.action.action_type.name,
                 "action_target": log.action.target,
                 "success": log.success,
+                "message": log.message,
+                "side_effects": list(log.side_effects),
                 "hp_before": log.hp_before,
                 "hp_after": log.hp_after,
                 "essence_slots_used": log.essence_slots_used,
                 "has_active_light": log.has_active_light,
                 "hours_in_dungeon": log.hours_in_dungeon,
+                # ★ Phase 8 A3 E2E — per-turn 보스 / 위치 snapshot
+                "world_snapshot": log.world_snapshot,
+                "location_snapshot": log.location_snapshot,
             }
             for log in result.turn_logs
         ],

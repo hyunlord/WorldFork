@@ -296,6 +296,11 @@ class TurnLog:
     has_active_light: bool = False
     hours_in_dungeon: int = 0
 
+    # ★ Phase 8 A3 E2E — 보스 사이클 trace용 per-turn snapshot
+    # (서비스 운용 시 None — sim_runner._action_to_turn_log 본격 population)
+    world_snapshot: dict[str, Any] | None = None
+    location_snapshot: dict[str, Any] | None = None
+
 
 @dataclass
 class SimResult:
@@ -357,3 +362,9 @@ class SimConfig:
     # H 48.0 → I 72.0 (★ 첫 turn부터 RIFT phase 본격)
     initial_hours_in_dungeon: float = 72.0  # ★ I: RIFT phase 시작
     time_scale: float = 2.0                 # ★ H delta 2배 본격
+
+    # ★ Phase 8 A3 E2E — ENTER_RIFT 시 변종 강제 옵션
+    # None: 기본 (★ rng 본격 base_probability)
+    # True/False: 결정적 — A2 decide_variant 본격 우회 (variant_boss_name X
+    # 균열은 True여도 일반 fallback, A1 본격)
+    force_variant: bool | None = None
