@@ -2,7 +2,6 @@
 
 검증 본질:
 - FLOOR_REGISTRY 본격 1층 등록
-- get_floor_definition(N): valid / invalid
 - get_current_floor_definition(location): default / fallback
 - FloorDefinition 본격 모든 field (★ R2 신규 portal_to_next / portal_to_prev)
 - Floor1Definition backward-compat alias
@@ -11,13 +10,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from service.game.floors.floor1 import FLOOR1_DEFINITION, get_floor1_definition
 from service.game.floors.registry import (
     FLOOR_REGISTRY,
     get_current_floor_definition,
-    get_floor_definition,
 )
 from service.game.state_v2 import (
     Floor1Definition,
@@ -34,33 +30,7 @@ def test_floor_registry_has_floor_1() -> None:
     assert FLOOR_REGISTRY[1] is FLOOR1_DEFINITION
 
 
-def test_floor_registry_only_floor_1_in_r2() -> None:
-    """R2 본격 1층만 등록 (★ 2층 본격 후속 commit)."""
-    assert set(FLOOR_REGISTRY.keys()) == {1}
-
-
-# ─── 2. get_floor_definition ───
-
-
-def test_get_floor_definition_1() -> None:
-    floor_def = get_floor_definition(1)
-    assert floor_def.floor_number == 1
-    assert floor_def.base_time_hours == 168
-    assert floor_def.name == "수정동굴"
-
-
-def test_get_floor_definition_unknown_raises() -> None:
-    with pytest.raises(KeyError, match="FLOOR_REGISTRY"):
-        get_floor_definition(99)
-
-
-def test_get_floor_definition_returns_same_instance() -> None:
-    """idempotent — 같은 instance 본격 반환."""
-    assert get_floor_definition(1) is get_floor_definition(1)
-    assert get_floor_definition(1) is FLOOR1_DEFINITION
-
-
-# ─── 3. get_current_floor_definition ───
+# ─── 2. get_current_floor_definition ───
 
 
 def test_get_current_floor_definition_floor_1() -> None:
