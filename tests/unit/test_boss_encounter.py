@@ -34,20 +34,19 @@ from service.game.turn_handler_v2 import (
 def test_spawn_normal_bloody_castle() -> None:
     """일반 spawn: 핏빛성채 → 저주받은 기사 블라터 (6등급)."""
     bc = FLOOR1_RIFT_DEFS["bloody_castle"]
-    boss = _spawn_boss_encounter(bc, is_variant=False, turn=10)
+    boss = _spawn_boss_encounter(bc, is_variant=False)
     assert boss.boss_name == "저주받은 기사 블라터"
     assert boss.is_variant is False
     assert boss.boss_grade == 6
     assert boss.hp == boss.hp_max == _BOSS_HP_BY_GRADE[6]
     assert boss.boss_id == "bloody_castle_normal"
     assert boss.rift_id == "bloody_castle"
-    assert boss.spawned_at_turn == 10
 
 
 def test_spawn_variant_bloody_castle() -> None:
     """변종 spawn: 핏빛성채 → 캠보르미어 (5등급)."""
     bc = FLOOR1_RIFT_DEFS["bloody_castle"]
-    boss = _spawn_boss_encounter(bc, is_variant=True, turn=20)
+    boss = _spawn_boss_encounter(bc, is_variant=True)
     assert boss.boss_name == "뱀파이어 공작 캠보르미어"
     assert boss.is_variant is True
     assert boss.boss_grade == 5
@@ -58,7 +57,7 @@ def test_spawn_variant_bloody_castle() -> None:
 def test_spawn_glacier_weakness_inherit() -> None:
     """빙하굴 — namu 명시 전격 약점 inherit."""
     gc = FLOOR1_RIFT_DEFS["glacier_cave"]
-    boss = _spawn_boss_encounter(gc, is_variant=False, turn=0)
+    boss = _spawn_boss_encounter(gc, is_variant=False)
     assert boss.weakness_element == "전격"
     assert boss.weakness_strategy is not None
     assert "타룬바스" in boss.weakness_strategy
@@ -68,7 +67,7 @@ def test_spawn_no_variant_falls_back_to_normal() -> None:
     """variant_boss_name None 균열 (★ green_mine): is_variant=True 본격
     fallback 본격 일반 본격."""
     gm = FLOOR1_RIFT_DEFS["green_mine"]
-    boss = _spawn_boss_encounter(gm, is_variant=True, turn=0)
+    boss = _spawn_boss_encounter(gm, is_variant=True)
     # 일반 fallback
     assert boss.is_variant is False
     assert boss.boss_name == gm.normal_boss_name
@@ -189,7 +188,7 @@ def test_attack_reduces_boss_hp() -> None:
     attacker = _moderate_attacker()  # damage 50 < boss hp 400
     world = WorldState(active_rifts=["bloody_castle"])
     world.active_boss_encounter = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False
     )
     before_hp = world.active_boss_encounter.hp
     r = execute_attack(attacker, "보스", [attacker], world)
@@ -205,7 +204,7 @@ def test_attack_weakness_doubles_damage() -> None:
     attacker = _moderate_attacker()  # damage 50, weakness 100 (< gc hp 300)
     world = WorldState(active_rifts=["glacier_cave"])
     world.active_boss_encounter = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["glacier_cave"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["glacier_cave"], is_variant=False
     )
     boss = world.active_boss_encounter
     assert boss is not None
@@ -232,7 +231,7 @@ def test_attack_kill_triggers_defeat_path() -> None:
     attacker = _strong_attacker()
     world = WorldState(active_rifts=["bloody_castle"])
     world.active_boss_encounter = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False
     )
     # 강제로 hp 1 본격 본격 본격 처치
     world.active_boss_encounter.hp = 1
@@ -250,7 +249,7 @@ def test_defeat_emits_essence_spawn_marker() -> None:
     attacker = _strong_attacker()
     world = WorldState(active_rifts=["bloody_castle"])
     world.active_boss_encounter = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False
     )
     world.active_boss_encounter.hp = 1
 
@@ -269,7 +268,7 @@ def test_defeat_adds_mage_stone_to_inventory() -> None:
     attacker = _strong_attacker()
     world = WorldState(active_rifts=["bloody_castle"])
     world.active_boss_encounter = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False
     )
     world.active_boss_encounter.hp = 1
 
@@ -330,7 +329,7 @@ def _ctx_at_bloody_castle_boss_chamber(
 def test_prompt_active_boss_shows_hp() -> None:
     """active_boss_encounter 본격 본격 HP 본격 prompt 본격 표시."""
     boss = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["bloody_castle"], is_variant=False
     )
     boss.hp = boss.hp_max // 2
     ctx = _ctx_at_bloody_castle_boss_chamber(
@@ -345,7 +344,7 @@ def test_prompt_active_boss_shows_hp() -> None:
 def test_prompt_active_boss_shows_weakness() -> None:
     """boss.weakness_element 본격 본격 prompt 본격 약점 표시."""
     boss = _spawn_boss_encounter(
-        FLOOR1_RIFT_DEFS["glacier_cave"], is_variant=False, turn=0
+        FLOOR1_RIFT_DEFS["glacier_cave"], is_variant=False
     )
     # 빙하굴 보스방은 gc_ch4 — 본격 핏빛성채 ctx 본격 본격 rift_id 본격 비매칭.
     # 본격 본격 본격 본격 본격 본격 본격 본격 본격 본격 본격 본격 본격 본격

@@ -568,8 +568,6 @@ class BossEncounter:
     hp: int
     hp_max: int
 
-    spawned_at_turn: int
-
     weakness_element: str | None = None
     weakness_strategy: str | None = None
 

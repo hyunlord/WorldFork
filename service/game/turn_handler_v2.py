@@ -48,7 +48,6 @@ _BOSS_HP_BY_GRADE: dict[int, int] = {
 def _spawn_boss_encounter(
     rift_def: RiftDef,
     is_variant: bool,
-    turn: int,
 ) -> BossEncounter:
     """boss_chamber 도달 시 spawn (★ Phase 8 A3).
 
@@ -82,7 +81,6 @@ def _spawn_boss_encounter(
         is_variant=variant_flag,
         hp=base_hp,
         hp_max=base_hp,
-        spawned_at_turn=turn,
         weakness_element=weakness_element,
         weakness_strategy=weakness_strategy,
     )
@@ -320,7 +318,6 @@ def move_to_sub_area(
             boss = _spawn_boss_encounter(
                 rift_def=rift_def,
                 is_variant=current_location.rift_is_variant,
-                turn=world.hours_in_dungeon,
             )
             world.active_boss_encounter = boss
             variant_label = " (변종)" if boss.is_variant else ""
