@@ -203,7 +203,16 @@ _SOUTH_PASSAGE = SubArea(
 _STONE_HALL = SubArea(
     name="비석 공동",
     description="반경 30m 공동 (★ 374화). 균열을 의도적으로 여는 비석 위치.",
-    accessible_from=("북쪽 통로", "남쪽 통로", "동쪽 통로"),
+    # ★ Phase 8 C — 2층 진입 4 포탈 통로 (★ 동/서/남/북) 연결 추가
+    accessible_from=(
+        "북쪽 통로",
+        "남쪽 통로",
+        "동쪽 통로",
+        "동쪽 포탈 통로",
+        "서쪽 포탈 통로",
+        "남쪽 포탈 통로",
+        "북쪽 포탈 통로",
+    ),
     monster_names=(),  # ★ 안전 영역
     is_dark=True,
     has_landmark=True,
@@ -230,6 +239,61 @@ _ENTRANCE = SubArea(
 )
 
 
+# ─── Phase 8 C — 2층 진입 4 포탈 통로 (★ 본인 답: 1층 동/서/남/북) ───
+
+
+_EAST_PORTAL_PATH = SubArea(
+    name="동쪽 포탈 통로",
+    description="1층 동쪽 끝 — 2층 진입 포탈이 자체 발광.",
+    accessible_from=("비석 공동",),
+    monster_names=(),  # ★ 안전 영역 (★ 포탈 빛 = 몬스터 비활성)
+    is_dark=False,  # ★ 포탈 자체 빛
+    has_landmark=True,
+    landmark_type="2층 포탈",
+)
+
+_WEST_PORTAL_PATH = SubArea(
+    name="서쪽 포탈 통로",
+    description="1층 서쪽 끝 — 2층 진입 포탈이 자체 발광.",
+    accessible_from=("비석 공동",),
+    monster_names=(),
+    is_dark=False,
+    has_landmark=True,
+    landmark_type="2층 포탈",
+)
+
+_SOUTH_PORTAL_PATH = SubArea(
+    name="남쪽 포탈 통로",
+    description="1층 남쪽 끝 — 2층 진입 포탈이 자체 발광.",
+    accessible_from=("비석 공동",),
+    monster_names=(),
+    is_dark=False,
+    has_landmark=True,
+    landmark_type="2층 포탈",
+)
+
+_NORTH_PORTAL_PATH = SubArea(
+    name="북쪽 포탈 통로",
+    description="1층 북쪽 끝 — 2층 진입 포탈이 자체 발광.",
+    accessible_from=("비석 공동",),
+    monster_names=(),
+    is_dark=False,
+    has_landmark=True,
+    landmark_type="2층 포탈",
+)
+
+
+# ★ Phase 8 C — ENTER_FLOOR_TWO 본격 portal sub_area whitelist.
+# 본인 답: "1층 동/서/남/북 = 2층 진입 경로" — Location.sub_area 본격
+# 본 set에 속하면 진입 가능, 외에는 거부.
+FLOOR_TWO_PORTAL_SUB_AREAS: frozenset[str] = frozenset({
+    "동쪽 포탈 통로",
+    "서쪽 포탈 통로",
+    "남쪽 포탈 통로",
+    "북쪽 포탈 통로",
+})
+
+
 FLOOR1_SUB_AREAS: tuple[SubArea, ...] = (
     _ENTRANCE,
     _PORTAL_NEAR,
@@ -237,6 +301,11 @@ FLOOR1_SUB_AREAS: tuple[SubArea, ...] = (
     _SOUTH_PASSAGE,
     _STONE_HALL,
     _EAST_PASSAGE,
+    # ★ Phase 8 C — 4 portal 통로
+    _EAST_PORTAL_PATH,
+    _WEST_PORTAL_PATH,
+    _SOUTH_PORTAL_PATH,
+    _NORTH_PORTAL_PATH,
 )
 
 

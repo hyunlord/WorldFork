@@ -363,7 +363,7 @@ def test_init_floor_definition_for_floor1() -> None:
 
     assert fd["name"] == "수정동굴"
     assert fd["floor_number"] == 1
-    assert len(fd["sub_areas"]) == 6
+    assert len(fd["sub_areas"]) == 10  # ★ Phase 8 C — 4 portal 통로 추가
     assert len(fd["monsters"]) == 8  # ★ F2 위치스램프 추가
 
     # ★ 노움 = 남쪽 검증 (27화 본문)
@@ -380,7 +380,7 @@ def test_build_game_context_includes_floor_definition() -> None:
     assert "v2_floor_definition" in ctx
     fd = ctx["v2_floor_definition"]
     assert fd["name"] == "수정동굴"
-    assert len(fd["sub_areas"]) == 6
+    assert len(fd["sub_areas"]) == 10  # ★ Phase 8 C — 4 portal 통로 추가
     assert len(fd["monsters"]) == 8  # ★ F2 위치스램프 추가
 
 

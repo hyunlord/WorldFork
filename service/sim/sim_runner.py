@@ -26,9 +26,11 @@ from service.game.turn_handler_v2 import (
     advance_time,
     check_party_defeated,
     check_time_limit,
+    enter_floor_two,
     enter_rift,
     execute_attack,
     exit_rift,
+    exit_to_floor_one,
     explore_area,
     flee_from_threat,
     move_to_sub_area,
@@ -90,6 +92,17 @@ def _world_snapshot(world: WorldState) -> dict[str, Any]:
         "simulation_over_turn": world.simulation_over_turn,
         # ★ Phase 8 B — first kill mechanism trace (★ 정렬 본격 결정적)
         "first_killed_species": sorted(world.first_killed_species),
+        # ★ Phase 8 C — 2층 진입 / 한달마다 최초 보너스 trace
+        "floor_two": {
+            "entered": world.floor_two.entered,
+            "entry_turn": world.floor_two.entry_turn,
+            "entry_sub_area_from_floor1": (
+                world.floor_two.entry_sub_area_from_floor1
+            ),
+            "current_sub_area": world.floor_two.current_sub_area,
+            "returned_to_floor1": world.floor_two.returned_to_floor1,
+        },
+        "first_floor_two_entry_party": world.first_floor_two_entry_party,
     }
 
 
@@ -259,6 +272,15 @@ def _execute_action(
             location.rift_is_variant = False
         return r.success, r.message, r.side_effects
 
+    # ★ Phase 8 C — 2층 진입 / 1층 복귀
+    if action.action_type == PlayerActionType.ENTER_FLOOR_TWO:
+        r = enter_floor_two(party_list, world, location)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.EXIT_TO_FLOOR_ONE:
+        r = exit_to_floor_one(party_list, world, location)
+        return r.success, r.message, r.side_effects
+
     return False, f"unknown action: {action.action_type.value}", []
 
 
@@ -333,6 +355,12 @@ def _refresh_context(
             "simulation_over_turn": world.simulation_over_turn,
             # ★ Phase 8 B — first kill species (★ GM 본격 본격 노출)
             "first_killed_species": sorted(world.first_killed_species),
+            # ★ Phase 8 C — 2층 진입 state (★ GM prompt 본격 본격)
+            "floor_two_entered": world.floor_two.entered,
+            "floor_two_entry_sub_area": (
+                world.floor_two.entry_sub_area_from_floor1
+            ),
+            "first_floor_two_entry_party": world.first_floor_two_entry_party,
         }
     )
     ctx["v2_world_state"] = world_ctx
@@ -393,11 +421,15 @@ def _check_end_condition(
             if c.is_player and not c.is_alive():
                 return "permadeath"
 
-    # ★ Phase 8 A4 — state-level 종료 source of truth
+    # ★ Phase 8 A4 / C — state-level 종료 source of truth
     if world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED:
         return "time_limit_168h"
     if world.simulation_status == SimulationStatus.PARTY_DEFEATED:
         return "party_defeated"
+    # ★ Phase 8 C — 2층 진입 시 1층 sim instance 본격 종료 (★ 본인 spec literal).
+    # 2층 sim은 후속 commit 본격 별도 runner / 본 sim 본격 1층 단위.
+    if world.simulation_status == SimulationStatus.FLOOR_TRANSITION:
+        return "floor_transition"
 
     return None
 

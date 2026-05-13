@@ -1033,3 +1033,150 @@ def check_party_defeated(
     world.simulation_over_reason = "탐사대 전원 사망."
     world.simulation_over_turn = turn_number
     return True
+
+
+# ─── 15. 2층 진입 / 1층 복귀 (★ Phase 8 C) ───
+
+# 본인 답 (2026-05-13): "한달마다 열리는 미궁에서 최초로 다음층 진입 파티 →
+# 경험치 보너스". 본 sim instance 본격 "1 미궁 인스턴스" 본격 매핑 → 본 sim에서
+# 최초 진입 시 1회만 적용.
+FIRST_FLOOR_TWO_ENTRY_EXP_BONUS: int = 500
+
+
+def enter_floor_two(
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+    turn_number: int | None = None,
+) -> TurnResult:
+    """1층 4 포탈 통로 → 2층 진입 본격 (★ Phase 8 C).
+
+    본질 (★ 본인 답):
+    - 1층 동/서/남/북 포탈 통로 (FLOOR_TWO_PORTAL_SUB_AREAS) 본격 진입 가능
+    - simulation_status → FLOOR_TRANSITION (★ A4 enum 본격 본격 사용처)
+    - 본 sim 본격 최초 진입 파티 → 전 alive 멤버 +500 exp + level up
+
+    실패:
+    - simulation_status != ACTIVE (★ 본격 종료 상태)
+    - location.sub_area not in FLOOR_TWO_PORTAL_SUB_AREAS
+    """
+    from .floors.floor1 import FLOOR_TWO_PORTAL_SUB_AREAS
+
+    if world.simulation_status != SimulationStatus.ACTIVE:
+        return TurnResult(
+            success=False,
+            action_type="enter_floor_two",
+            message=(
+                "Simulation 종료 상태 — 2층 진입 X "
+                f"({world.simulation_status.value})."
+            ),
+        )
+
+    current = location.sub_area
+    if current not in FLOOR_TWO_PORTAL_SUB_AREAS:
+        return TurnResult(
+            success=False,
+            action_type="enter_floor_two",
+            message=(
+                f"여기는 2층 포탈 통로가 아니다 (현 위치: {current}). "
+                "동/서/남/북 포탈 통로로 이동 후 진입."
+            ),
+        )
+
+    # 1) FloorTwoState 본격 mutate
+    world.floor_two.entered = True
+    world.floor_two.entry_turn = turn_number
+    world.floor_two.entry_sub_area_from_floor1 = current
+
+    # 2) 최초 진입 보너스 (★ 본인 답: 한달마다 1회)
+    side: list[str] = ["floor_transition=2", f"entry_from={current}"]
+    bonus_tail = ""
+    if not world.first_floor_two_entry_party:
+        world.first_floor_two_entry_party = True
+        for member in party:
+            if not member.is_alive():
+                continue  # ★ 사망자 본격 X
+            member.experience += FIRST_FLOOR_TWO_ENTRY_EXP_BONUS
+            side.append(
+                f"exp_gained={member.name}:"
+                f"{FIRST_FLOOR_TWO_ENTRY_EXP_BONUS}"
+            )
+            new_level = level_for_exp(member.experience)
+            if new_level > member.level:
+                member.level = new_level
+                side.append(f"level_up={member.name}:{new_level}")
+        side.append("first_floor_two_party=true")
+        bonus_tail = (
+            f"\n⭐ 본 미궁 최초 2층 진입 파티 — 전원 +"
+            f"{FIRST_FLOOR_TWO_ENTRY_EXP_BONUS} exp 보너스."
+        )
+
+    # 3) Location 본격 2층 전환
+    location.floor = 2
+    location.sub_area = world.floor_two.current_sub_area
+
+    # 4) simulation_status 본격 FLOOR_TRANSITION
+    world.simulation_status = SimulationStatus.FLOOR_TRANSITION
+    world.simulation_over_reason = (
+        f"2층 진입: {current} → {world.floor_two.current_sub_area}"
+    )
+    world.simulation_over_turn = turn_number
+
+    advance_time(party, world, elapsed_hours=0.5)
+
+    return TurnResult(
+        success=True,
+        action_type="enter_floor_two",
+        message=(
+            f"2층 진입 — {current} 포탈 통과 → "
+            f"{world.floor_two.current_sub_area}.{bonus_tail}"
+        ),
+        side_effects=side,
+    )
+
+
+def exit_to_floor_one(
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+    turn_number: int | None = None,
+) -> TurnResult:
+    """2층 → 1층 복귀 (★ Phase 8 C — 본인 답 "왕복 가능").
+
+    본 commit: 본격 minimal — 2층 sim runner 본격 후속 commit에서 본 함수 호출.
+    본 함수 호출 시 location 본격 1층 entry_sub_area_from_floor1 복귀,
+    simulation_status 본격 ACTIVE 복원.
+
+    실패:
+    - floor_two.entered == False (★ 진입한 적 없음)
+    """
+    if not world.floor_two.entered:
+        return TurnResult(
+            success=False,
+            action_type="exit_to_floor_one",
+            message="2층 진입 기록 없음 — 복귀 X.",
+        )
+
+    entry = world.floor_two.entry_sub_area_from_floor1
+    world.floor_two.returned_to_floor1 = True
+
+    # Location 본격 1층 복귀
+    location.floor = 1
+    location.sub_area = entry
+
+    # simulation_status 본격 복원 (★ 왕복 본격)
+    world.simulation_status = SimulationStatus.ACTIVE
+    world.simulation_over_reason = None
+    world.simulation_over_turn = None
+
+    advance_time(party, world, elapsed_hours=0.5)
+
+    return TurnResult(
+        success=True,
+        action_type="exit_to_floor_one",
+        message=f"1층 복귀 — {entry}.",
+        side_effects=[
+            "floor_transition=1",
+            f"return_to={entry}",
+        ],
+    )

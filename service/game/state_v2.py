@@ -627,19 +627,37 @@ class BossEncounter:
 
 
 class SimulationStatus(StrEnum):
-    """1층 simulation 상태 (★ Phase 8 A4).
+    """1층 simulation 상태 (★ Phase 8 A4 / C).
 
-    1층 종료 조건 (★ 본 commit 본격 2개):
-    - 7일 (168h) 만료 → TIME_LIMIT_REACHED → 자동 마을 귀환
-    - 전원 사망 (HP=0) → PARTY_DEFEATED
-
-    2층 진입 본격 status는 실제 사용처 본격 commit (★ Phase 8 C) 본격 추가
-    (★ YAGNI — placeholder enum 본격 X).
+    1층 종료 / 전환 조건:
+    - 7일 (168h) 만료 → TIME_LIMIT_REACHED → 자동 마을 귀환 (★ A4)
+    - 전원 사망 (HP=0) → PARTY_DEFEATED (★ A4)
+    - 2층 진입 → FLOOR_TRANSITION (★ C — 본 sim 본격 종료, 후속 2층 sim)
     """
 
     ACTIVE = "active"
     TIME_LIMIT_REACHED = "time_limit"
     PARTY_DEFEATED = "party_defeated"
+    FLOOR_TRANSITION = "transition"
+
+
+@dataclass
+class FloorTwoState:
+    """2층 minimal state (★ Phase 8 C — skeleton, 콘텐츠 후속).
+
+    본질:
+    - 1층 → 2층 진입 본격 transition state 추적
+    - entry_sub_area_from_floor1: 1층 어느 포탈 통로로 진입했는지
+      (★ EXIT_TO_FLOOR_ONE 본격 복귀 지점)
+    - returned_to_floor1: 한 번이라도 1층 복귀한 적 있는가
+      (★ 후속 2층 sim에서 본격 트래킹)
+    """
+
+    entered: bool = False
+    entry_turn: int | None = None
+    entry_sub_area_from_floor1: str | None = None
+    current_sub_area: str = "2층 도착 지점"  # ★ minimal — 후속 본격 확장
+    returned_to_floor1: bool = False
 
 
 @dataclass
@@ -683,6 +701,12 @@ class WorldState:
     # party 본격 본격 사냥 본격 species id set (★ MonsterDef.name / Boss.boss_id).
     # 같은 species 두 번째 사냥 → exp 0.
     first_killed_species: set[str] = field(default_factory=set)
+
+    # ★ Phase 8 C — 2층 진입 + 한달마다 미궁 최초 진입 파티 본격 exp 보너스.
+    floor_two: FloorTwoState = field(default_factory=FloorTwoState)
+    # 본 sim instance 본격 2층 최초 진입 파티 여부 (★ 본인 답: 한달마다 1회).
+    # 일단 True 되면 같은 sim에서 재진입 시 보너스 없음.
+    first_floor_two_entry_party: bool = False
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───

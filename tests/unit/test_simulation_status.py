@@ -26,10 +26,10 @@ from service.game.turn_handler_v2 import (
 # ─── 1. Enum ───
 
 
-def test_simulation_status_has_3_values() -> None:
-    """1층 본격 3 status (★ Phase 8 C 본격 FLOOR_TRANSITION 본격 추가)."""
+def test_simulation_status_has_4_values() -> None:
+    """4 status (★ Phase 8 A4 본격 3개 + Phase 8 C FLOOR_TRANSITION 재도입)."""
     values = {s.value for s in SimulationStatus}
-    assert values == {"active", "time_limit", "party_defeated"}
+    assert values == {"active", "time_limit", "party_defeated", "transition"}
 
 
 def test_world_state_default_active() -> None:

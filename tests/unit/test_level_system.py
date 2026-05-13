@@ -29,7 +29,6 @@ from service.game.turn_handler_v2 import (
     _award_kill_exp,
 )
 
-
 # ─── 1. Threshold / slot table ───
 
 

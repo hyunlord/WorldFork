@@ -95,6 +95,16 @@ def _format_simulation_status(ctx: dict[str, Any]) -> str:
             "- 마지막 순간의 묘사만 (★ 짧은 종결 문단).\n"
             "- 회생 / 부활 / 재시작 X (★ 본 회차 종료).\n\n"
         )
+    if status == "transition":
+        # ★ Phase 8 C — 2층 진입 본격 (★ 본 sim 본격 종료, 2층 sim 후속).
+        return (
+            f"⬆ **1층 → 2층 진입 완료**{turn_str}\n"
+            f"{reason}\n\n"
+            "본 시점부터:\n"
+            "- 본 1층 sim 본격 종료 (★ 2층 sim 본격 후속).\n"
+            "- 2층 도착 지점 도착 묘사만 (★ 짧은 전환 문단).\n"
+            "- 1층 행동 / 새 사건 생성 X.\n\n"
+        )
     return ""
 
 

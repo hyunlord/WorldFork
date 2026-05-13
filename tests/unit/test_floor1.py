@@ -65,13 +65,18 @@ def test_blade_wolf_no_light_required() -> None:
     assert not bw.requires_light
 
 
-def test_floor1_has_6_sub_areas() -> None:
-    """1층 sub_area 6개."""
-    assert len(FLOOR1_SUB_AREAS) == 6
+def test_floor1_has_10_sub_areas() -> None:
+    """1층 sub_area 10개 (★ Phase 8 C — 4 portal 통로 추가)."""
+    assert len(FLOOR1_SUB_AREAS) == 10
     names = {sa.name for sa in FLOOR1_SUB_AREAS}
     assert "진입점" in names
     assert "비석 공동" in names
     assert "포탈 근처" in names
+    # ★ Phase 8 C — 4 2층 진입 포탈 통로
+    assert "동쪽 포탈 통로" in names
+    assert "서쪽 포탈 통로" in names
+    assert "남쪽 포탈 통로" in names
+    assert "북쪽 포탈 통로" in names
 
 
 def test_stone_hall_landmark() -> None:
@@ -94,7 +99,7 @@ def test_get_floor1_definition_complete() -> None:
     f1 = get_floor1_definition()
     assert f1.name == "수정동굴"
     assert len(f1.monsters) == 8  # ★ F2 위치스램프 추가
-    assert len(f1.sub_areas) == 6
+    assert len(f1.sub_areas) == 10  # ★ Phase 8 C — 4 portal 통로 추가
     assert f1.is_dark_default
     assert f1.base_time_hours == 168
 
