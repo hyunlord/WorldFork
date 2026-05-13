@@ -413,6 +413,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                             line += chap_line
 
                     # ★ Phase 8 A2 — boss chamber 도달 시 변종 시각 표시
+                    # ★ Phase 8 A3 — active_boss_encounter / 클리어 분기 보강
                     rift_sub_area_id = (loc or {}).get("rift_sub_area")
                     boss_chamber_id = r.get("boss_chamber_id")
                     at_boss_chamber = bool(
@@ -421,27 +422,67 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                         and rift_sub_area_id == boss_chamber_id
                     )
                     if at_boss_chamber:
-                        is_variant = bool((loc or {}).get("rift_is_variant"))
-                        if is_variant and r.get("variant_boss_name"):
-                            v_name = r.get("variant_boss_name")
-                            v_grade = r.get("variant_boss_grade")
-                            grade_s = (
-                                f"{v_grade}등급" if v_grade else "등급 X"
+                        rift_id = r.get("rift_id")
+                        cleared = (world_state or {}).get(
+                            "cleared_rifts"
+                        ) or []
+                        active_boss = (world_state or {}).get(
+                            "active_boss_encounter"
+                        )
+                        if rift_id in cleared:
+                            line += (
+                                "\n  ✓ 균열 클리어 — 포탈이 열렸다. "
+                                "탈출 본격 (EXIT_RIFT)."
+                            )
+                        elif (
+                            active_boss
+                            and active_boss.get("rift_id") == rift_id
+                        ):
+                            v_tag = (
+                                " (변종)"
+                                if active_boss.get("is_variant")
+                                else ""
                             )
                             line += (
-                                "\n  ⚠ 보스방 앞 — 공기가 무겁다. "
-                                "익숙한 수호자가 아니다. 변종이 깨어났다.\n"
-                                f"  수호자: {v_name} "
-                                f"({grade_s}, ★ 일반보다 강함)\n"
-                                "  진입 여부는 파티 결정."
+                                f"\n  ⚔ 전투 중: "
+                                f"{active_boss.get('boss_name', '')}"
+                                f"{v_tag} "
+                                f"({active_boss.get('boss_grade', 0)}등급)\n"
+                                f"     HP: {active_boss.get('hp', 0)}/"
+                                f"{active_boss.get('hp_max', 0)}"
                             )
+                            we = active_boss.get("weakness_element")
+                            if we:
+                                line += f"\n     약점: {we}"
+                            ws = active_boss.get("weakness_strategy")
+                            if ws:
+                                line += f"\n     전략: {ws}"
                         else:
-                            n_name = r.get("normal_boss_name") or "(자료 X)"
-                            n_grade = r.get("normal_boss_grade", 0)
-                            line += (
-                                f"\n  보스방 앞 — 수호자 {n_name} "
-                                f"({n_grade}등급) 대기."
+                            is_variant = bool(
+                                (loc or {}).get("rift_is_variant")
                             )
+                            if is_variant and r.get("variant_boss_name"):
+                                v_name = r.get("variant_boss_name")
+                                v_grade = r.get("variant_boss_grade")
+                                grade_s = (
+                                    f"{v_grade}등급" if v_grade else "등급 X"
+                                )
+                                line += (
+                                    "\n  ⚠ 보스방 앞 — 공기가 무겁다. "
+                                    "익숙한 수호자가 아니다. 변종이 깨어났다.\n"
+                                    f"  수호자: {v_name} "
+                                    f"({grade_s}, ★ 일반보다 강함)\n"
+                                    "  진입 여부는 파티 결정."
+                                )
+                            else:
+                                n_name = (
+                                    r.get("normal_boss_name") or "(자료 X)"
+                                )
+                                n_grade = r.get("normal_boss_grade", 0)
+                                line += (
+                                    f"\n  보스방 앞 — 수호자 {n_name} "
+                                    f"({n_grade}등급) 대기."
+                                )
                 fd_lines.append(line)
 
         v2_block += "\n".join(fd_lines) + "\n\n"

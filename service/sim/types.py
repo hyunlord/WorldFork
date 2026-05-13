@@ -49,6 +49,8 @@ class PlayerAction:
     actor_name: str                        # "비요른" / "에르웬"
     target: str | None = None              # "횃불" / "고블린" / "북쪽 통로" 등
     rationale: str = ""                    # LLM 선택 이유 (★ 분석용)
+    # ★ Phase 8 A3 — 옵션 메타 (예: ATTACK의 attack_element → 보스 약점 2배)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class EncounterType(StrEnum):

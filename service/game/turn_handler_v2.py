@@ -18,17 +18,74 @@ from dataclasses import dataclass, field
 from .floors.floor1 import get_floor1_definition
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
 from .state_v2 import (
+    BossEncounter,
     Character,
     Essence,
     EssenceColor,
     EssenceGrade,
     EssenceOrigin,
     EssenceType,
+    Item,
+    ItemCategory,
     Location,
     Realm,
+    RiftDef,
     RiftSubAreaDef,
     WorldState,
 )
+
+# ★ Phase 8 A3 — boss grade → 기본 HP (★ 5등급=600, 8등급=200; spec X 시 추측,
+# 후속 balance commit에서 본문 정합 본격 조정).
+_BOSS_HP_BY_GRADE: dict[int, int] = {
+    5: 600,
+    6: 400,
+    7: 300,
+    8: 200,
+    9: 150,
+}
+
+
+def _spawn_boss_encounter(
+    rift_def: RiftDef,
+    is_variant: bool,
+    turn: int,
+) -> BossEncounter:
+    """boss_chamber 도달 시 spawn (★ Phase 8 A3).
+
+    is_variant True + variant_boss_name 정의 시 변종, 아니면 일반.
+    A1의 BossWeakness 본격 inherit.
+    """
+    if is_variant and rift_def.variant_boss_name is not None:
+        boss_name = rift_def.variant_boss_name
+        boss_grade = rift_def.variant_boss_grade or rift_def.normal_boss_grade
+        boss_id = f"{rift_def.rift_id}_variant"
+        variant_flag = True
+    else:
+        boss_name = rift_def.normal_boss_name
+        boss_grade = rift_def.normal_boss_grade
+        boss_id = f"{rift_def.rift_id}_normal"
+        variant_flag = False
+
+    base_hp = _BOSS_HP_BY_GRADE.get(boss_grade, 200)
+
+    weakness_element: str | None = None
+    weakness_strategy: str | None = None
+    if rift_def.boss_weakness is not None:
+        weakness_element = rift_def.boss_weakness.element
+        weakness_strategy = rift_def.boss_weakness.note or None
+
+    return BossEncounter(
+        rift_id=rift_def.rift_id,
+        boss_id=boss_id,
+        boss_name=boss_name,
+        boss_grade=boss_grade,
+        is_variant=variant_flag,
+        hp=base_hp,
+        hp_max=base_hp,
+        spawned_at_turn=turn,
+        weakness_element=weakness_element,
+        weakness_strategy=weakness_strategy,
+    )
 
 
 @dataclass
@@ -247,16 +304,41 @@ def move_to_sub_area(
         from_label = (
             current_rift_sa.name if current_rift_sa is not None else "진입"
         )
+
+        side: list[str] = [
+            f"target_rift_sub_area={target.id}",
+            "시간 0.5h 경과",
+        ]
+
+        # ★ Phase 8 A3 — boss_chamber 도달 시 active_boss_encounter spawn
+        # 본격: 이미 spawn 본격 / 클리어 본격 X 시 신규 spawn 본격.
+        if (
+            target.id == rift_def.boss_chamber_id
+            and world.active_boss_encounter is None
+            and rift_def.rift_id not in world.cleared_rifts
+        ):
+            boss = _spawn_boss_encounter(
+                rift_def=rift_def,
+                is_variant=current_location.rift_is_variant,
+                turn=world.hours_in_dungeon,
+            )
+            world.active_boss_encounter = boss
+            variant_label = " (변종)" if boss.is_variant else ""
+            side.append(f"boss_spawned={boss.boss_id}")
+            extra_msg = (
+                f" ⚔ {boss.boss_name}{variant_label} 등장 "
+                f"(HP {boss.hp}/{boss.hp_max}, {boss.boss_grade}등급)."
+            )
+        else:
+            extra_msg = ""
+
         return TurnResult(
             success=True,
             action_type="move",
             message=(
-                f"[{rift_def.name}] {from_label} → {target.name}."
+                f"[{rift_def.name}] {from_label} → {target.name}." + extra_msg
             ),
-            side_effects=[
-                f"target_rift_sub_area={target.id}",
-                "시간 0.5h 경과",
-            ],
+            side_effects=side,
         )
 
     # ─── 일반 1층 (DUNGEON) 이동 ───
@@ -315,6 +397,7 @@ def execute_attack(
     target_monster_name: str,
     party: list[Character],
     world: WorldState,
+    attack_element: str | None = None,
 ) -> TurnResult:
     """전투 — 단순 공식 (★ 본 commit 본격, LLM 평가 X).
 
@@ -322,7 +405,18 @@ def execute_attack(
     - 공격 = strength + physical
     - 9등급 몬스터 HP 30
     - 공격 < 30이면 처치 X + 받는 데미지 = max(0, 10 - bone_strength//2)
+
+    Phase 8 A3:
+    - world.active_boss_encounter 본격 시 보스 분기 (target string 무관 —
+      보스 chamber 도달 후 모든 ATTACK은 보스 대상).
+    - attack_element == boss.weakness_element → 2배 데미지.
     """
+    # ★ Phase 8 A3 — 보스 encounter 우선 분기
+    if world.active_boss_encounter is not None:
+        return _execute_attack_boss(
+            attacker, world.active_boss_encounter, party, world, attack_element
+        )
+
     f1 = get_floor1_definition()
     monster = next(
         (m for m in f1.monsters if m.name == target_monster_name), None
@@ -363,6 +457,110 @@ def execute_attack(
             f"({grade_value}등급)."
         ),
         side_effects=[f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"],
+    )
+
+
+# ─── 4.b 보스 전투 (★ Phase 8 A3) ───
+
+
+def _execute_attack_boss(
+    attacker: Character,
+    boss: BossEncounter,
+    party: list[Character],
+    world: WorldState,
+    attack_element: str | None,
+) -> TurnResult:
+    """보스 단일 ATTACK — base = strength+physical, 약점 시 2배."""
+    base_damage = attacker.strength + attacker.physical
+    weakness_bonus = 0
+    if (
+        boss.weakness_element is not None
+        and attack_element is not None
+        and attack_element == boss.weakness_element
+    ):
+        weakness_bonus = base_damage  # ★ 2배
+
+    total_damage = base_damage + weakness_bonus
+    new_hp = max(0, boss.hp - total_damage)
+    boss.hp = new_hp
+
+    if new_hp == 0:
+        return _defeat_boss(attacker, boss, party, world, total_damage)
+
+    advance_time(party, world, elapsed_hours=0.5)
+
+    weak_tag = " ⚠ 약점!" if weakness_bonus > 0 else ""
+    return TurnResult(
+        success=True,
+        action_type="attack",
+        message=(
+            f"{attacker.name} → {boss.boss_name} "
+            f"공격 ({total_damage} 데미지).{weak_tag} "
+            f"HP {boss.hp}/{boss.hp_max}."
+        ),
+        side_effects=[
+            f"boss_hp={boss.hp}/{boss.hp_max}",
+            "시간 0.5h 경과",
+        ],
+    )
+
+
+def _defeat_boss(
+    attacker: Character,
+    boss: BossEncounter,
+    party: list[Character],
+    world: WorldState,
+    last_damage: int,
+) -> TurnResult:
+    """보스 처치 — 정수 marker + 마석 inventory + world state mutate."""
+    rift_def = FLOOR1_RIFT_DEFS.get(boss.rift_id)
+    essence_color = rift_def.essence_color if rift_def is not None else "green"
+
+    # 마석 inventory append (★ Inventory.add overweight 시 False)
+    stone = Item(
+        name=f"{boss.boss_name}의 마석",
+        category=ItemCategory.MATERIAL,
+        weight=1,
+        description=(
+            f"균열 수호자 {boss.boss_name} ({boss.boss_grade}등급) 마석."
+        ),
+    )
+    stone_added = attacker.inventory.add(stone)
+
+    # world state mutation
+    if boss.boss_id not in world.defeated_bosses:
+        world.defeated_bosses.append(boss.boss_id)
+    if boss.rift_id not in world.cleared_rifts:
+        world.cleared_rifts.append(boss.rift_id)
+    if boss.rift_id in world.active_rifts:
+        world.active_rifts.remove(boss.rift_id)
+    world.active_boss_encounter = None
+
+    advance_time(party, world, elapsed_hours=0.5)
+
+    rift_name = rift_def.name if rift_def is not None else boss.rift_id
+    variant_label = " (변종)" if boss.is_variant else ""
+    stone_tag = (
+        f"{boss.boss_name}의 마석"
+        if stone_added
+        else f"{boss.boss_name}의 마석 (소지 X — 무게 한계)"
+    )
+    message = (
+        f"⚔ {boss.boss_name}{variant_label} 처치! ({last_damage} 데미지) "
+        f"보상: {essence_color} 정수, {stone_tag}. "
+        f"균열 '{rift_name}' 클리어 — 포탈이 열렸다 (EXIT_RIFT)."
+    )
+
+    return TurnResult(
+        success=True,
+        action_type="attack",
+        message=message,
+        side_effects=[
+            f"essence_spawn={essence_color}",
+            f"boss_defeated={boss.boss_id}",
+            f"rift_cleared={boss.rift_id}",
+            "시간 0.5h 경과",
+        ],
     )
 
 

@@ -35,6 +35,7 @@ from .sim_gm_agent import MockSimGMAgent, SimGMAgent
 from .types import (
     ENCOUNTER_TTL,
     Encounter,
+    EncounterType,
     PlayerAction,
     PlayerActionType,
     SimConfig,
@@ -42,6 +43,15 @@ from .types import (
     TurnLog,
     action_hours_delta,
 )
+
+# ★ Phase 8 A3 — RiftDef.essence_color → 떠다니는 정수 한국어 라벨.
+# 보스 처치 보상 marker 'essence_spawn={color}' 본격 매핑.
+_BOSS_REWARD_ESSENCE_LABEL: dict[str, str] = {
+    "red": "핏빛 정수",     # 핏빛성채 (★ 칼날늑대 정수 alias)
+    "blue": "회청색 정수",   # 빙하굴 (★ 레이스 정수 alias)
+    "green": "녹색 정수",    # 녹색탄광 (★ 위치스램프 정수 alias)
+    "yellow": "노란 정수",   # 강철의 묘 (★ 본격 매핑 없음 — 후속 정합)
+}
 
 
 def _action_to_turn_log(
@@ -107,7 +117,14 @@ def _execute_action(
     if action.action_type == PlayerActionType.ATTACK:
         if not actor or not action.target:
             return False, "actor 또는 target 없음.", []
-        r = execute_attack(actor, action.target, party_list, world)
+        # ★ Phase 8 A3 — attack_element 본격 (보스 약점 2배 enabler)
+        attack_element_val = action.metadata.get("attack_element")
+        attack_element = (
+            attack_element_val if isinstance(attack_element_val, str) else None
+        )
+        r = execute_attack(
+            actor, action.target, party_list, world, attack_element
+        )
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.ABSORB_ESSENCE:
@@ -220,12 +237,30 @@ def _refresh_context(
     ctx["v2_characters"] = chars_ctx
 
     world_ctx = dict(ctx.get("v2_world_state") or {})
+    # ★ Phase 8 A3 — 보스 / 클리어 state 직렬화
+    active_boss = world.active_boss_encounter
+    boss_ctx: dict[str, Any] | None = None
+    if active_boss is not None:
+        boss_ctx = {
+            "rift_id": active_boss.rift_id,
+            "boss_id": active_boss.boss_id,
+            "boss_name": active_boss.boss_name,
+            "boss_grade": active_boss.boss_grade,
+            "is_variant": active_boss.is_variant,
+            "hp": active_boss.hp,
+            "hp_max": active_boss.hp_max,
+            "weakness_element": active_boss.weakness_element,
+            "weakness_strategy": active_boss.weakness_strategy,
+        }
     world_ctx.update(
         {
             "hours_in_dungeon": world.hours_in_dungeon,
             "is_dark_zone": world.is_dark_zone,
             "active_rifts": list(world.active_rifts),
             "party_members": list(world.party_members),
+            "defeated_bosses": list(world.defeated_bosses),
+            "cleared_rifts": list(world.cleared_rifts),
+            "active_boss_encounter": boss_ctx,
         }
     )
     ctx["v2_world_state"] = world_ctx
@@ -238,6 +273,10 @@ def _refresh_context(
             "sub_area": location.sub_area,
             "visibility_meters": location.visibility_meters,
             "has_light": location.has_light,
+            # ★ Phase 8 A3 — RIFT 내부 매 턴 refresh (A1/A2 본격 location 본격)
+            "rift_id": location.rift_id,
+            "rift_sub_area": location.rift_sub_area,
+            "rift_is_variant": location.rift_is_variant,
         }
     )
     ctx["v2_initial_location"] = loc_ctx
@@ -340,6 +379,29 @@ class SimRunner:
         success, message, side_effects = _execute_action(
             action, party, world, location
         )
+
+        # ★ Phase 8 A3 — execute_attack 보스 처치 시 'essence_spawn={color}'
+        # marker 발생 → active_encounters에 떠다니는 정수 Encounter push.
+        # color → 한국어 색명 매핑 (★ floor1_rifts RiftDef.essence_color).
+        for eff in side_effects:
+            if eff.startswith("essence_spawn="):
+                color = eff.split("=", 1)[1]
+                essence_label = _BOSS_REWARD_ESSENCE_LABEL.get(
+                    color, f"{color} 정수"
+                )
+                self._active_encounters.append(
+                    Encounter(
+                        type=EncounterType.ESSENCE,
+                        name=essence_label,
+                        location=location.rift_id or location.sub_area or "",
+                        description=(
+                            "보스 처치 보상 — 떠다니는 정수 "
+                            "(★ ABSORB_ESSENCE 본격)."
+                        ),
+                        spawned_at_turn=turn_number,
+                        ttl_turns=ENCOUNTER_TTL.get(EncounterType.ESSENCE, 30),
+                    )
+                )
 
         return _action_to_turn_log(
             turn_number=turn_number,

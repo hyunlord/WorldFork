@@ -548,6 +548,33 @@ class Location:
 
 
 @dataclass
+class BossEncounter:
+    """균열 수호자 encounter (★ Phase 8 A3 — 1층 균열 핵심).
+
+    rift_def.boss_chamber_id 도달 시 spawn. ATTACK으로 hp 감소,
+    hp=0 도달 시 처치 — defeated_bosses + cleared_rifts append,
+    active_boss_encounter=None, 보상 정수 marker + 마석 inventory append.
+
+    boss_id 규칙: f"{rift_id}_{normal|variant}" (★ 변종 분기).
+    weakness_*: namu spot 정보 (★ A1 BossWeakness 본격 inherit).
+    """
+
+    rift_id: str
+    boss_id: str
+    boss_name: str
+    boss_grade: int
+    is_variant: bool
+
+    hp: int
+    hp_max: int
+
+    spawned_at_turn: int
+
+    weakness_element: str | None = None
+    weakness_strategy: str | None = None
+
+
+@dataclass
 class WorldState:
     """게임 진행 상태 (★ 작품 본질, V4 분석).
 
@@ -562,6 +589,11 @@ class WorldState:
 
     # ★ 균열 시스템
     active_rifts: list[str] = field(default_factory=list)  # rift_id list
+
+    # ★ Phase 8 A3 — 보스 + 클리어 추적
+    defeated_bosses: list[str] = field(default_factory=list)  # boss_id list
+    cleared_rifts: list[str] = field(default_factory=list)  # rift_id list
+    active_boss_encounter: BossEncounter | None = None
 
     # ★ 환경 본질
     is_dark_zone: bool = True  # ★ 1층 기본 True (어둠)
