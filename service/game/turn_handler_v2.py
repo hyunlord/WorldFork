@@ -26,6 +26,7 @@ from .state_v2 import (
     EssenceGrade,
     EssenceOrigin,
     EssenceType,
+    FloorState,
     Item,
     ItemCategory,
     Location,
@@ -1046,128 +1047,152 @@ def check_party_defeated(
     return True
 
 
-# ─── 15. 2층 진입 / 1층 복귀 (★ Phase 8 C) ───
+# ─── 15. 인접 층 진입 / 복귀 (★ Phase 8 C / R3+R4 generic) ───
 
 # 본인 답 (2026-05-13): "한달마다 열리는 미궁에서 최초로 다음층 진입 파티 →
 # 경험치 보너스". 본 sim instance 본격 "1 미궁 인스턴스" 본격 매핑 → 본 sim에서
-# 최초 진입 시 1회만 적용.
-FIRST_FLOOR_TWO_ENTRY_EXP_BONUS: int = 500
+# 최초 진입 시 1회만 적용 (★ floor 본격 별도).
+FIRST_FLOOR_ENTRY_EXP_BONUS: int = 500
+
+# 2층+ 콘텐츠 본격 후속 — 본 default 본격 minimal "도착 지점".
+# 후속 commit 본격 FloorDefinition.arrival_sub_area 본격 본격 본격 정합.
+_FLOOR_ARRIVAL_SUB_AREA: str = "도착 지점"
 
 
-def enter_floor_two(
+def enter_next_floor(
     party: list[Character],
     world: WorldState,
     location: Location,
 ) -> TurnResult:
-    """1층 4 포탈 통로 → 2층 진입 본격 (★ Phase 8 C / R2).
+    """현재 층 → 다음 층 (current+1) 진입 (★ Phase 8 R3 generic).
 
     본질 (★ 본인 답):
-    - 1층 동/서/남/북 포탈 통로 (FloorDefinition.portal_to_next) 본격 진입 가능
-    - simulation_status → FLOOR_TRANSITION (★ A4 enum 본격 본격 사용처)
+    - 현재 층 portal_to_next 본격 sub_area 본격 진입 가능
+    - simulation_status → FLOOR_TRANSITION
     - 본 sim 본격 최초 진입 파티 → 전 alive 멤버 +500 exp + level up
 
     실패:
-    - simulation_status != ACTIVE (★ 본격 종료 상태)
-    - location.sub_area not in current floor 본격 portal_to_next
+    - simulation_status != ACTIVE
+    - location.sub_area not in 현재 층 portal_to_next
     """
     if world.simulation_status != SimulationStatus.ACTIVE:
         return TurnResult(
             success=False,
-            action_type="enter_floor_two",
+            action_type="enter_next_floor",
             message=(
-                "Simulation 종료 상태 — 2층 진입 X "
+                "Simulation 종료 상태 — 층 진입 X "
                 f"({world.simulation_status.value})."
             ),
         )
 
-    floor_def = get_current_floor_definition(location)
-    current = location.sub_area
-    if current not in floor_def.portal_to_next:
+    current_floor = location.floor if location.floor is not None else 1
+    next_floor = current_floor + 1
+
+    current_floor_def = get_current_floor_definition(location)
+    current_sub_area = location.sub_area
+    if current_sub_area not in current_floor_def.portal_to_next:
         return TurnResult(
             success=False,
-            action_type="enter_floor_two",
+            action_type="enter_next_floor",
             message=(
-                f"여기는 2층 포탈 통로가 아니다 (현 위치: {current}). "
-                "동/서/남/북 포탈 통로로 이동 후 진입."
+                f"여기는 다음 층 포탈이 아니다 (현 위치: {current_sub_area}). "
+                f"portal_to_next: {sorted(current_floor_def.portal_to_next)}."
             ),
         )
 
-    world.floor_two.entered = True
-    world.floor_two.entry_sub_area_from_floor1 = current
+    arrival = _FLOOR_ARRIVAL_SUB_AREA
+    floor_state = world.floor_states.setdefault(
+        next_floor, FloorState(floor_number=next_floor, current_sub_area=arrival)
+    )
+    floor_state.entered = True
+    floor_state.entry_sub_area_from_prev = current_sub_area
 
-    side: list[str] = ["floor_transition=2", f"entry_from={current}"]
+    side: list[str] = [
+        f"floor_transition={next_floor}",
+        f"entry_from={current_sub_area}",
+    ]
     bonus_tail = ""
-    if not world.floor_two.first_party_bonus_claimed:
-        world.floor_two.first_party_bonus_claimed = True
+    if next_floor not in world.first_entry_parties:
+        world.first_entry_parties.add(next_floor)
         for member in party:
             if not member.is_alive():
                 continue
-            member.experience += FIRST_FLOOR_TWO_ENTRY_EXP_BONUS
+            member.experience += FIRST_FLOOR_ENTRY_EXP_BONUS
             side.append(
-                f"exp_gained={member.name}:"
-                f"{FIRST_FLOOR_TWO_ENTRY_EXP_BONUS}"
+                f"exp_gained={member.name}:{FIRST_FLOOR_ENTRY_EXP_BONUS}"
             )
             new_level = level_for_exp(member.experience)
             if new_level > member.level:
                 member.level = new_level
                 side.append(f"level_up={member.name}:{new_level}")
-        side.append("first_floor_two_party=true")
+        side.append(f"first_floor_party={next_floor}")
         bonus_tail = (
-            f"\n⭐ 본 미궁 최초 2층 진입 파티 — 전원 +"
-            f"{FIRST_FLOOR_TWO_ENTRY_EXP_BONUS} exp 보너스."
+            f"\n⭐ 본 미궁 최초 {next_floor}층 진입 파티 — 전원 +"
+            f"{FIRST_FLOOR_ENTRY_EXP_BONUS} exp 보너스."
         )
 
-    location.floor = 2
-    location.sub_area = world.floor_two.current_sub_area
+    location.floor = next_floor
+    location.sub_area = floor_state.current_sub_area
 
     world.simulation_status = SimulationStatus.FLOOR_TRANSITION
     world.simulation_over_reason = (
-        f"2층 진입: {current} → {world.floor_two.current_sub_area}"
+        f"{next_floor}층 진입: {current_sub_area} → {floor_state.current_sub_area}"
     )
 
     advance_time(party, world, elapsed_hours=0.5)
 
     return TurnResult(
         success=True,
-        action_type="enter_floor_two",
+        action_type="enter_next_floor",
         message=(
-            f"2층 진입 — {current} 포탈 통과 → "
-            f"{world.floor_two.current_sub_area}.{bonus_tail}"
+            f"{next_floor}층 진입 — {current_sub_area} 포탈 통과 → "
+            f"{floor_state.current_sub_area}.{bonus_tail}"
         ),
         side_effects=side,
     )
 
 
-def exit_to_floor_one(
+def exit_to_prev_floor(
     party: list[Character],
     world: WorldState,
     location: Location,
 ) -> TurnResult:
-    """2층 → 1층 복귀 (★ Phase 8 C — 본인 답 "왕복 가능").
+    """현재 층 → 이전 층 (current-1) 복귀 (★ Phase 8 R3 generic, 본인 답 "왕복").
 
-    본 함수 호출 시 location 본격 1층 entry_sub_area_from_floor1 복귀,
+    본 함수 호출 시 location 본격 이전 층 entry_sub_area_from_prev 복귀,
     simulation_status 본격 ACTIVE 복원.
 
     실패:
-    - floor_two.entered == False (★ 진입한 적 없음)
+    - 현재 층 floor_state 본격 X (★ 진입한 적 없음)
+    - prev_floor < 1 (★ 1층 최하단)
     """
-    if not world.floor_two.entered:
+    current_floor = location.floor if location.floor is not None else 1
+    prev_floor = current_floor - 1
+    if prev_floor < 1:
         return TurnResult(
             success=False,
-            action_type="exit_to_floor_one",
-            message="2층 진입 기록 없음 — 복귀 X.",
+            action_type="exit_to_prev_floor",
+            message="이전 층 X (★ 1층 최하단).",
         )
 
-    # entered=True 이면 enter_floor_two에서 entry_sub_area_from_floor1을
+    floor_state = world.floor_states.get(current_floor)
+    if floor_state is None or not floor_state.entered:
+        return TurnResult(
+            success=False,
+            action_type="exit_to_prev_floor",
+            message=f"{current_floor}층 진입 기록 없음 — 복귀 X.",
+        )
+
+    # entered=True 이면 enter_next_floor에서 entry_sub_area_from_prev를
     # 같은 시점에 set — invariant. None 시 caller가 state를 손상시킨 것.
-    entry = world.floor_two.entry_sub_area_from_floor1
+    entry = floor_state.entry_sub_area_from_prev
     assert entry is not None, (
-        "entry_sub_area_from_floor1 None — floor_two.entered invariant 위반."
+        "entry_sub_area_from_prev None — floor_state.entered invariant 위반."
     )
 
-    world.floor_two.returned_to_floor1 = True
+    floor_state.returned_to_prev = True
 
-    location.floor = 1
+    location.floor = prev_floor
     location.sub_area = entry
 
     world.simulation_status = SimulationStatus.ACTIVE
@@ -1178,10 +1203,10 @@ def exit_to_floor_one(
 
     return TurnResult(
         success=True,
-        action_type="exit_to_floor_one",
-        message=f"1층 복귀 — {entry}.",
+        action_type="exit_to_prev_floor",
+        message=f"{prev_floor}층 복귀 — {entry}.",
         side_effects=[
-            "floor_transition=1",
+            f"floor_transition={prev_floor}",
             f"return_to={entry}",
         ],
     )

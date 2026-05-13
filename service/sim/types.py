@@ -36,9 +36,9 @@ class PlayerActionType(StrEnum):
     WAIT = "wait"                          # 시간 흐름
     COMMUNICATE = "communicate"            # 메시지 스톤 통신
     FLEE = "flee"                          # 도주
-    # ★ Phase 8 C — 2층 진입 / 1층 복귀 (★ 본인 답)
-    ENTER_FLOOR_TWO = "enter_floor_two"    # 1층 4 포탈 통로 → 2층
-    EXIT_TO_FLOOR_ONE = "exit_to_floor_one"  # 2층 → 1층 (★ 왕복)
+    # ★ Phase 8 C / R3 — 인접 층 진입 / 복귀 (★ generic)
+    ENTER_NEXT_FLOOR = "enter_next_floor"      # 현재 층 → current+1
+    EXIT_TO_PREV_FLOOR = "exit_to_prev_floor"  # 현재 층 → current-1 (★ 왕복)
 
 
 @dataclass
@@ -165,9 +165,9 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.FLEE: 0.5,
     PlayerActionType.ENTER_RIFT: 0.5,
     PlayerActionType.EXIT_RIFT: 0.5,
-    # ★ Phase 8 C — 층 전환 본격 RIFT 본격 정합 (★ 0.5h)
-    PlayerActionType.ENTER_FLOOR_TWO: 0.5,
-    PlayerActionType.EXIT_TO_FLOOR_ONE: 0.5,
+    # ★ Phase 8 C / R3 — 층 전환 본격 RIFT 본격 정합 (★ 0.5h)
+    PlayerActionType.ENTER_NEXT_FLOOR: 0.5,
+    PlayerActionType.EXIT_TO_PREV_FLOOR: 0.5,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

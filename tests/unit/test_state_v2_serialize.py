@@ -206,11 +206,11 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 
 
 def test_player_action_type_count_15() -> None:
-    """PlayerActionType 본격 15개 (★ Phase 7j 13 + Phase 8 C 2개 추가).
+    """PlayerActionType 본격 15개 (★ Phase 7j 13 + Phase 8 C/R3 2개 추가).
 
-    Phase 8 C 추가:
-    - ENTER_FLOOR_TWO (★ 1층 → 2층)
-    - EXIT_TO_FLOOR_ONE (★ 2층 → 1층 왕복)
+    Phase 8 C / R3 추가:
+    - ENTER_NEXT_FLOOR (★ generic, R3 rename from ENTER_FLOOR_TWO)
+    - EXIT_TO_PREV_FLOOR (★ generic, R3 rename from EXIT_TO_FLOOR_ONE)
     """
     from service.sim.types import PlayerActionType
 

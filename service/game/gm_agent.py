@@ -97,13 +97,13 @@ def _format_simulation_status(ctx: dict[str, Any]) -> str:
         )
     if status == "transition":
         # ★ Phase 8 C — 2층 진입 본격 (★ sim 종료 X — 본인 답 왕복 가능).
-        # FLOOR_TRANSITION = 위치 marker (1층 vs 2층); EXIT_TO_FLOOR_ONE 본격 복귀.
+        # FLOOR_TRANSITION = 위치 marker (1층 vs 2층); EXIT_TO_PREV_FLOOR 본격 복귀.
         return (
             f"⬆ **현재 2층**{turn_str}\n"
             f"{reason}\n\n"
             "본 시점부터:\n"
             "- 2층 도착 지점 묘사 + 행동 (★ 2층 콘텐츠 후속).\n"
-            "- EXIT_TO_FLOOR_ONE 본격 1층 복귀 가능 (★ 왕복).\n"
+            "- EXIT_TO_PREV_FLOOR 본격 이전 층 복귀 가능 (★ 왕복).\n"
             "- 1층 전용 행동 (sub_area MOVE 등)은 1층 복귀 후 본격.\n\n"
         )
     return ""

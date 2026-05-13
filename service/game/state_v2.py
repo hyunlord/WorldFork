@@ -642,24 +642,26 @@ class SimulationStatus(StrEnum):
 
 
 @dataclass
-class FloorTwoState:
-    """2층 minimal state (★ Phase 8 C — skeleton, 콘텐츠 후속).
+class FloorState:
+    """본 generic floor state (★ Phase 8 R4 — N층 enabler).
 
     본질:
-    - 1층 → 2층 진입 본격 transition state 추적
-    - entry_sub_area_from_floor1: 1층 어느 포탈 통로로 진입했는지
-      (★ EXIT_TO_FLOOR_ONE 본격 복귀 지점)
-    - returned_to_floor1: 한 번이라도 1층 복귀한 적 있는가
-      (★ 후속 2층 sim에서 본격 트래킹)
-    - first_party_bonus_claimed: 본 sim에서 최초 진입 보너스 본격 발현 여부
-      (★ "한달마다 미궁 1회"; True 되면 재진입 시 보너스 X)
+    - 본 층 transition state 추적 (★ floor_number 본격 어느 층인지)
+    - entry_sub_area_from_prev: 이전 층 어느 sub_area에서 진입했는지
+      (★ EXIT_TO_PREV_FLOOR 본격 복귀 지점)
+    - returned_to_prev: 한 번이라도 이전 층 복귀한 적 있는가
+    - current_sub_area: 본 층 내부 현재 sub_area (★ 콘텐츠 본격 후속)
+
+    Phase 8 R4:
+    - FloorTwoState → FloorState generic rename
+    - floor_number field 본격 어느 층 state인지 명시 (★ floor_states[N] key 본격)
     """
 
+    floor_number: int  # ★ 본 state 본격 어느 층 (★ floor_states[N] key 본격)
     entered: bool = False
-    entry_sub_area_from_floor1: str | None = None
-    current_sub_area: str = "2층 도착 지점"  # ★ minimal — 후속 본격 확장
-    returned_to_floor1: bool = False
-    first_party_bonus_claimed: bool = False
+    entry_sub_area_from_prev: str | None = None
+    current_sub_area: str = ""  # ★ 본 층 default — caller 본격 본격 본격
+    returned_to_prev: bool = False
 
 
 @dataclass
@@ -704,8 +706,13 @@ class WorldState:
     # 같은 species 두 번째 사냥 → exp 0.
     first_killed_species: set[str] = field(default_factory=set)
 
-    # ★ Phase 8 C — 2층 진입 state + 최초 진입 보너스 (★ floor_two 본격).
-    floor_two: FloorTwoState = field(default_factory=FloorTwoState)
+    # ★ Phase 8 R4 — generic floor state (★ floor_two 본격 N층 enabler).
+    # floor_states[N] = 본 N층 state (★ enter_next_floor 시 생성 본격).
+    # first_entry_parties: 본 sim에서 최초 진입 보너스 발현한 floor set
+    # (★ N in first_entry_parties → 본격 진입 시 보너스 X).
+    # current_floor 본격 location.floor 본격 단일 source (★ R4 본격 본격 X 본격).
+    floor_states: dict[int, FloorState] = field(default_factory=dict)
+    first_entry_parties: set[int] = field(default_factory=set)
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
