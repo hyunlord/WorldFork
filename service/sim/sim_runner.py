@@ -421,15 +421,13 @@ def _check_end_condition(
             if c.is_player and not c.is_alive():
                 return "permadeath"
 
-    # ★ Phase 8 A4 / C — state-level 종료 source of truth
+    # ★ Phase 8 A4 — state-level 종료 source of truth.
+    # FLOOR_TRANSITION (★ Phase 8 C) 본격 위치 marker (★ 1층 vs 2층) 본격
+    # 종료 X — 본인 답 "2층 ↔ 1층 왕복 가능" 본격 정합.
     if world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED:
         return "time_limit_168h"
     if world.simulation_status == SimulationStatus.PARTY_DEFEATED:
         return "party_defeated"
-    # ★ Phase 8 C — 2층 진입 시 1층 sim instance 본격 종료 (★ 본인 spec literal).
-    # 2층 sim은 후속 commit 본격 별도 runner / 본 sim 본격 1층 단위.
-    if world.simulation_status == SimulationStatus.FLOOR_TRANSITION:
-        return "floor_transition"
 
     return None
 

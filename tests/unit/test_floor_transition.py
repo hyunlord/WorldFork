@@ -258,8 +258,9 @@ def test_format_simulation_status_transition_header() -> None:
     out = _format_simulation_status(ctx)
     assert "2층 진입" in out
     assert "25" in out
-    # GM 행동 가이드 본격
-    assert "1층 행동" in out
+    # FLOOR_TRANSITION = 위치 marker (★ 종료 X) — EXIT 본격 복귀 안내
+    assert "EXIT_TO_FLOOR_ONE" in out
+    assert "왕복" in out
 
 
 def test_format_simulation_status_active_still_empty() -> None:
