@@ -562,12 +562,14 @@ def build_game_context(plan: Plan, state: GameState) -> dict[str, Any]:
             "party_members": list(v2_world.party_members),
             "party_share_ratios": dict(v2_world.party_share_ratios),
         },
-        # ★ Stage 1: Location 진짜 노출
+        # ★ Stage 1: Location 진짜 노출 + Phase 8 A1/A2 rift 본격
         "v2_initial_location": {
             "realm": v2_loc.realm.value,
             "floor": v2_loc.floor,
             "sub_area": v2_loc.sub_area,
             "rift_id": v2_loc.rift_id,
+            "rift_sub_area": v2_loc.rift_sub_area,
+            "rift_is_variant": v2_loc.rift_is_variant,
             "visibility_meters": v2_loc.visibility_meters,
             "has_light": v2_loc.has_light,
         },

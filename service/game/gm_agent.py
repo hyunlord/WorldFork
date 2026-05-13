@@ -411,6 +411,37 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                             if hp := sa.get("hidden_pieces"):
                                 chap_line += f" / 히든: {', '.join(hp)}"
                             line += chap_line
+
+                    # ★ Phase 8 A2 — boss chamber 도달 시 변종 시각 표시
+                    rift_sub_area_id = (loc or {}).get("rift_sub_area")
+                    boss_chamber_id = r.get("boss_chamber_id")
+                    at_boss_chamber = bool(
+                        rift_sub_area_id
+                        and boss_chamber_id
+                        and rift_sub_area_id == boss_chamber_id
+                    )
+                    if at_boss_chamber:
+                        is_variant = bool((loc or {}).get("rift_is_variant"))
+                        if is_variant and r.get("variant_boss_name"):
+                            v_name = r.get("variant_boss_name")
+                            v_grade = r.get("variant_boss_grade")
+                            grade_s = (
+                                f"{v_grade}등급" if v_grade else "등급 X"
+                            )
+                            line += (
+                                "\n  ⚠ 보스방 앞 — 공기가 무겁다. "
+                                "익숙한 수호자가 아니다. 변종이 깨어났다.\n"
+                                f"  수호자: {v_name} "
+                                f"({grade_s}, ★ 일반보다 강함)\n"
+                                "  진입 여부는 파티 결정."
+                            )
+                        else:
+                            n_name = r.get("normal_boss_name") or "(자료 X)"
+                            n_grade = r.get("normal_boss_grade", 0)
+                            line += (
+                                f"\n  보스방 앞 — 수호자 {n_name} "
+                                f"({n_grade}등급) 대기."
+                            )
                 fd_lines.append(line)
 
         v2_block += "\n".join(fd_lines) + "\n\n"

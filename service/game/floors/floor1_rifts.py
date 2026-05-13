@@ -23,12 +23,15 @@
 
 from __future__ import annotations
 
+import random
+
 from ..state_v2 import (
     BossWeakness,
     RiftChamberType,
     RiftDef,
     RiftEntryMethod,
     RiftSubAreaDef,
+    VariantTrigger,
 )
 
 # ─── 1. 핏빛성채 (bloody_castle) — namu 6.1.1, 5 챕터 ───
@@ -44,6 +47,7 @@ _BLOODY_CASTLE = RiftDef(
     variant_possible=True,
     variant_boss_name="뱀파이어 공작 캠보르미어",
     variant_boss_grade=5,  # ★ namu "전례 없는 변종 균열" + 기존 코드 정합
+    variant_trigger=VariantTrigger(base_probability=0.02),  # ★ A2 — namu "매우 드물게"
     entrance_id="bc_ch1",
     boss_chamber_id="bc_ch5",
     sub_areas=(
@@ -141,6 +145,7 @@ _GLACIER_CAVE = RiftDef(
     variant_possible=True,
     variant_boss_name="타락한 짐승 키르뒤",
     variant_boss_grade=None,  # ★ namu 명시 X (★ 후속 진단)
+    variant_trigger=VariantTrigger(base_probability=0.02),  # ★ A2 — namu "매우 드물게"
     boss_weakness=BossWeakness(
         element="전격",
         note="폭군 타룬바스 — namu 명시 전격 속성 약점",
@@ -405,3 +410,27 @@ FLOOR1_RIFT_DEFS: dict[str, RiftDef] = {
 
 # ★ 기존 floor1.py 호환 — Floor1Definition.rifts: tuple[RiftDef, ...]
 FLOOR1_RIFTS: tuple[RiftDef, ...] = tuple(FLOOR1_RIFT_DEFS.values())
+
+
+# ─── Phase 8 A2: variant spawn 결정 ───
+
+
+def decide_variant(
+    rift_def: RiftDef,
+    rng: random.Random | None = None,
+) -> bool:
+    """변종 균열 여부 결정 (★ Phase 8 A2).
+
+    본 commit: 단순 base_probability (★ namu '매우 드물게').
+    후속: trigger condition (★ defeated_bosses / floor_clears).
+
+    rng=None 시 모듈 random — caller가 test 시 Random(seed) inject 본격.
+    """
+    if rift_def.variant_trigger is None:
+        return False
+    if rift_def.variant_boss_name is None:
+        # 변종 보스 정의 X 시 variant 결정 X (★ namu/본인 X)
+        return False
+    if rng is None:
+        return random.random() < rift_def.variant_trigger.base_probability
+    return rng.random() < rift_def.variant_trigger.base_probability

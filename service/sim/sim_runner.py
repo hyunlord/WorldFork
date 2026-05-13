@@ -153,12 +153,17 @@ def _execute_action(
         if r.success:
             # ★ F7: location 본격 변경 — RIFT realm + canonical rift_id
             # ★ Phase 8 A1: rift_sub_area 본격 entrance_id 전파
+            # ★ Phase 8 A2: rift_is_variant 본격 enter_rift 결정 전파
             canonical = _resolve_rift_id(action.target) or action.target
             location.realm = Realm.RIFT
             location.rift_id = canonical
             for eff in r.side_effects:
                 if eff.startswith("target_rift_sub_area="):
                     location.rift_sub_area = eff.split("=", 1)[1]
+                elif eff.startswith("target_rift_is_variant="):
+                    location.rift_is_variant = (
+                        eff.split("=", 1)[1] == "True"
+                    )
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.EXIT_RIFT:

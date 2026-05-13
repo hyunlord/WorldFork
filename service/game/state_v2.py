@@ -674,6 +674,19 @@ class BossWeakness:
 
 
 @dataclass(frozen=True, slots=True)
+class VariantTrigger:
+    """변종 균열 spawn trigger (★ Phase 8 A2 — 본인 가설 + namu '매우 드물게').
+
+    본 commit: 단순 base_probability (★ namu '매우 드물게' ≈ 2%).
+    후속 본격 trigger condition (defeated_bosses / floor_clears) 본격.
+
+    None = 변종 X (★ namu 명시 X 본격 — 녹색 탄광 / 강철의 묘).
+    """
+
+    base_probability: float = 0.02  # ★ namu '매우 드물게'
+
+
+@dataclass(frozen=True, slots=True)
 class RiftDef:
     """균열 정의 — 작품 본질 (★ Phase 8 A1 본격 확장, 2026-05-13).
 
@@ -717,6 +730,8 @@ class RiftDef:
     variant_possible: bool = False
     variant_boss_name: str | None = None
     variant_boss_grade: int | None = None
+    # 변종 trigger (★ Phase 8 A2 — None = 변종 spawn X)
+    variant_trigger: VariantTrigger | None = None
 
     # 보스 약점 (★ namu spot 정보, 옵션)
     boss_weakness: BossWeakness | None = None

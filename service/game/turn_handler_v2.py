@@ -12,10 +12,11 @@ Stage 7 schema 진짜 production mutate (★ 본 commit 3차 — 12 ActionType �
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
 from .floors.floor1 import get_floor1_definition
-from .floors.floor1_rifts import FLOOR1_RIFT_DEFS
+from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
 from .state_v2 import (
     Character,
     Essence,
@@ -556,12 +557,19 @@ def enter_rift(
     party: list[Character],
     world: WorldState,
     rift_id: str,
+    rng: random.Random | None = None,
+    force_variant: bool | None = None,
 ) -> TurnResult:
     """균열 진입 — Location 변경은 caller가 (★ side_effect 명시).
 
     Phase 8 A1:
     - party_capacity 검증 (★ 5명 한도, 본인 결정)
     - entrance_id 발행 → caller가 location.rift_sub_area 설정
+
+    Phase 8 A2:
+    - variant 결정 (★ rift_def.variant_trigger.base_probability)
+    - rng inject 본격 reproducibility (test seed)
+    - force_variant: True/False 본격 강제 (★ test/e2e 본격)
 
     ★ F6: target은 rift_id 또는 한국어 name 본격.
     """
@@ -593,16 +601,30 @@ def enter_rift(
             ),
         )
 
+    # ★ Phase 8 A2 — 변종 결정
+    if force_variant is not None:
+        is_variant = force_variant and rift_def.variant_boss_name is not None
+    else:
+        is_variant = decide_variant(rift_def, rng)
+
     advance_time(party, world, elapsed_hours=0.5)
+
+    variant_msg = ""
+    if is_variant:
+        # ★ 본인 답 6.6 — 진입 시점 시각/공기 hint (★ chamber 도달 시 본격 명시)
+        variant_msg = " ⚠ 공기가 다르다. 평소와 다른 무엇이 기다린다."
 
     return TurnResult(
         success=True,
         action_type="enter_rift",
-        message=f"균열 {canonical} 진입 → {rift_def.entrance_id}.",
+        message=(
+            f"균열 {canonical} 진입 → {rift_def.entrance_id}.{variant_msg}"
+        ),
         side_effects=[
             "target_realm=RIFT",
             f"target_rift_id={canonical}",
             f"target_rift_sub_area={rift_def.entrance_id}",
+            f"target_rift_is_variant={is_variant}",
             "시간 0.5h",
         ],
     )
