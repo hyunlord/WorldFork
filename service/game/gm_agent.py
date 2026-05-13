@@ -334,20 +334,62 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 line = f"- {r.get('name', '')} ({r.get('rift_id', '')})"
                 if desc := r.get("description"):
                     line += f": {desc}"
-                boss_label = r.get("boss_monster_name") or "(자료 X)"
-                line += f"\n  보스: {boss_label} ({r.get('boss_grade', 0)}등급"
-                if r.get("boss_is_variant"):
-                    line += ", 변종"
+                # ★ Phase 8 A1 — 일반/변종 수호자 분리 본격 출력
+                normal_name = r.get("normal_boss_name") or "(자료 X)"
+                normal_grade = r.get("normal_boss_grade", 0)
                 drop_pct = int(r.get("boss_drop_rate", 0) * 100)
-                line += f", {drop_pct}% 정수 드롭)"
-                if regs := r.get("regular_monster_names"):
-                    line += f"\n  일반: {', '.join(regs)}"
+                line += (
+                    f"\n  일반 수호자: {normal_name} "
+                    f"({normal_grade}등급, {drop_pct}% 정수 드롭)"
+                )
+                if r.get("variant_possible") and (
+                    variant_name := r.get("variant_boss_name")
+                ):
+                    variant_grade = r.get("variant_boss_grade")
+                    grade_part = (
+                        f"{variant_grade}등급" if variant_grade else "등급 X"
+                    )
+                    line += (
+                        f"\n  변종 수호자: {variant_name} "
+                        f"({grade_part}, ★ 매우 드물게 출현)"
+                    )
+                if weakness := r.get("boss_weakness"):
+                    line += f"\n  보스 약점: {weakness.get('element', '')}"
+                # 챕터 구조
+                if sub_areas := r.get("sub_areas"):
+                    line += f"\n  챕터 ({len(sub_areas)}):"
+                    for sa in sub_areas:
+                        chap_line = (
+                            f"\n    - {sa.get('name', '')} "
+                            f"[{sa.get('chamber_type', '')}]"
+                        )
+                        if monsters := sa.get("monsters"):
+                            chap_line += f" 몬스터: {', '.join(monsters)}"
+                        if mid := sa.get("mid_boss_name"):
+                            chap_line += f" / 중간보스: {mid}"
+                        if fe := sa.get("field_effect"):
+                            chap_line += f" / 필드효과: {fe}"
+                        if hp := sa.get("hidden_pieces"):
+                            chap_line += f" / 히든: {', '.join(hp)}"
+                        line += chap_line
                 if entries := r.get("entry_methods"):
                     line += f"\n  진입: {', '.join(entries)}"
                     if grade := r.get("intentional_offering_grade"):
-                        line += f" ({grade}등급 마석 공물)"
-                if hidden := r.get("hidden_pieces"):
-                    line += f"\n  히든: {', '.join(hidden)}"
+                        src_floor = r.get(
+                            "intentional_offering_source_floor"
+                        )
+                        src_area = r.get("intentional_offering_source_area")
+                        if src_floor and src_area:
+                            line += (
+                                f" ({src_floor}층 {src_area} "
+                                f"{grade}등급 마석 공물)"
+                            )
+                        else:
+                            line += f" ({grade}등급 마석 공물)"
+                if essence := r.get("essence_color"):
+                    line += f"\n  보상 정수 색: {essence}"
+                if cap := r.get("party_capacity"):
+                    line += f"\n  파티 한도: {cap}명"
                 fd_lines.append(line)
 
         v2_block += "\n".join(fd_lines) + "\n\n"

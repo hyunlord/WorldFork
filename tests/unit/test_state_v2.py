@@ -492,24 +492,74 @@ def test_rift_entry_method_enum() -> None:
 
 
 def test_rift_def_basic() -> None:
-    from service.game.state_v2 import RiftDef, RiftEntryMethod
+    """RiftDef Phase 8 A1 — normal_boss 필수 + sub_areas + chapter_type."""
+    from service.game.state_v2 import (
+        RiftChamberType,
+        RiftDef,
+        RiftEntryMethod,
+        RiftSubAreaDef,
+    )
 
+    sub = RiftSubAreaDef(
+        id="t_ch1",
+        name="진입",
+        chamber_type=RiftChamberType.ENTRANCE,
+    )
+    boss_sub = RiftSubAreaDef(
+        id="t_ch2",
+        name="보스방",
+        chamber_type=RiftChamberType.BOSS,
+        connections=("t_ch1",),
+    )
     r = RiftDef(
         rift_id="test",
         name="테스트 균열",
+        normal_boss_name="테스트 보스",
+        normal_boss_grade=8,
+        sub_areas=(sub, boss_sub),
+        entrance_id="t_ch1",
+        boss_chamber_id="t_ch2",
+        intentional_offering_source_floor=2,
+        intentional_offering_source_area="테스트 지역",
+        intentional_offering_grade=8,
+        essence_color="red",
         entry_methods=(RiftEntryMethod.RANDOM_NATURAL,),
-        boss_monster_name="테스트 보스",
     )
     assert r.boss_drop_rate == 0.33
     assert RiftEntryMethod.RANDOM_NATURAL in r.entry_methods
+    assert r.party_capacity == 5
+    assert len(r.sub_areas) == 2
 
 
-def test_rift_def_unknown_boss_empty() -> None:
-    """boss_monster_name 빈 문자열 = 자료 X (★ 정직)."""
-    from service.game.state_v2 import RiftDef
+def test_rift_def_variant_optional() -> None:
+    """variant_boss_name=None — 본문 X 시 placeholder (★ 정직)."""
+    from service.game.state_v2 import (
+        RiftChamberType,
+        RiftDef,
+        RiftSubAreaDef,
+    )
 
-    r = RiftDef(rift_id="test", name="X")
-    assert r.boss_monster_name == ""
+    sub = RiftSubAreaDef(
+        id="t_ch1",
+        name="진입",
+        chamber_type=RiftChamberType.ENTRANCE,
+    )
+    r = RiftDef(
+        rift_id="test",
+        name="X",
+        normal_boss_name="일반 보스",
+        normal_boss_grade=8,
+        sub_areas=(sub,),
+        entrance_id="t_ch1",
+        boss_chamber_id="t_ch1",
+        intentional_offering_source_floor=2,
+        intentional_offering_source_area="X",
+        intentional_offering_grade=8,
+        essence_color="yellow",
+    )
+    assert r.variant_possible is False
+    assert r.variant_boss_name is None
+    assert r.variant_boss_grade is None
 
 
 def test_floor1_definition_rifts_default_empty() -> None:

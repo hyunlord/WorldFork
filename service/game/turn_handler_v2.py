@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .floors.floor1 import get_floor1_definition
+from .floors.floor1_rifts import FLOOR1_RIFT_DEFS
 from .state_v2 import (
     Character,
     Essence,
@@ -23,6 +24,8 @@ from .state_v2 import (
     EssenceOrigin,
     EssenceType,
     Location,
+    Realm,
+    RiftSubAreaDef,
     WorldState,
 )
 
@@ -161,16 +164,107 @@ def move_to_sub_area(
     current_location: Location,
     target_sub_area: str,
 ) -> TurnResult:
-    """sub_area 이동 — Floor1 정의 본격 활용 + 인접 검증.
+    """sub_area 이동 — Floor1 (DUNGEON) + 균열 내부 (RIFT) 본격.
 
-    accessible_from semantic = OUTBOUND (현재 영역에서 갈 수 있는 곳).
+    accessible_from / connections semantic = OUTBOUND (★ 현재 영역에서
+    갈 수 있는 곳).
+
+    Phase 8 A1: realm == RIFT 시 rift_def.sub_areas + RiftSubAreaDef
+    .connections 본격 사용. target은 sub_area.id 또는 .name 본격.
     """
+    # ★ Phase 8 A1 — 균열 내부 이동
+    if current_location.realm == Realm.RIFT:
+        rift_def = (
+            FLOOR1_RIFT_DEFS.get(current_location.rift_id)
+            if current_location.rift_id
+            else None
+        )
+        if rift_def is None:
+            return TurnResult(
+                success=False,
+                action_type="move",
+                message=(
+                    "현재 균열 정의 X "
+                    f"(rift_id={current_location.rift_id})."
+                ),
+            )
+
+        target = next(
+            (
+                sa
+                for sa in rift_def.sub_areas
+                if sa.id == target_sub_area or sa.name == target_sub_area
+            ),
+            None,
+        )
+        if target is None:
+            return TurnResult(
+                success=False,
+                action_type="move",
+                message=(
+                    f"{target_sub_area} chamber 없음 "
+                    f"(★ {rift_def.name} {len(rift_def.sub_areas)} 챕터)."
+                ),
+            )
+
+        current_id = current_location.rift_sub_area
+        current_rift_sa: RiftSubAreaDef | None = None
+        if current_id:
+            current_rift_sa = next(
+                (sa for sa in rift_def.sub_areas if sa.id == current_id),
+                None,
+            )
+            if current_rift_sa is None:
+                return TurnResult(
+                    success=False,
+                    action_type="move",
+                    message=f"현재 챕터 {current_id} 정의 X.",
+                )
+            if target.id not in current_rift_sa.connections:
+                adj_names = ", ".join(
+                    next(
+                        (
+                            s.name
+                            for s in rift_def.sub_areas
+                            if s.id == cid
+                        ),
+                        cid,
+                    )
+                    for cid in current_rift_sa.connections
+                ) or "없음"
+                return TurnResult(
+                    success=False,
+                    action_type="move",
+                    message=(
+                        f"{current_rift_sa.name} → {target.name} 인접 X "
+                        f"(인접: {adj_names})."
+                    ),
+                )
+
+        advance_time(party, world, elapsed_hours=0.5)
+
+        from_label = (
+            current_rift_sa.name if current_rift_sa is not None else "진입"
+        )
+        return TurnResult(
+            success=True,
+            action_type="move",
+            message=(
+                f"[{rift_def.name}] {from_label} → {target.name}."
+            ),
+            side_effects=[
+                f"target_rift_sub_area={target.id}",
+                "시간 0.5h 경과",
+            ],
+        )
+
+    # ─── 일반 1층 (DUNGEON) 이동 ───
     f1 = get_floor1_definition()
-    target = next(
+    target_sa = next(
         (sa for sa in f1.sub_areas if sa.name == target_sub_area), None
     )
 
-    if target is None:
+    if target_sa is None:
         return TurnResult(
             success=False,
             action_type="move",
@@ -179,22 +273,23 @@ def move_to_sub_area(
 
     current_name = current_location.sub_area
     if current_name:
-        current_sa = next(
+        current_floor_sa = next(
             (sa for sa in f1.sub_areas if sa.name == current_name), None
         )
-        if current_sa is None:
+        if current_floor_sa is None:
             return TurnResult(
                 success=False,
                 action_type="move",
                 message=f"현재 위치 {current_name} 정의 X.",
             )
-        if target_sub_area not in current_sa.accessible_from:
+        if target_sub_area not in current_floor_sa.accessible_from:
             return TurnResult(
                 success=False,
                 action_type="move",
                 message=(
                     f"{current_name} → {target_sub_area} 인접 X "
-                    f"(인접: {', '.join(current_sa.accessible_from) or '없음'})."
+                    f"(인접: "
+                    f"{', '.join(current_floor_sa.accessible_from) or '없음'})."
                 ),
             )
 
@@ -464,6 +559,10 @@ def enter_rift(
 ) -> TurnResult:
     """균열 진입 — Location 변경은 caller가 (★ side_effect 명시).
 
+    Phase 8 A1:
+    - party_capacity 검증 (★ 5명 한도, 본인 결정)
+    - entrance_id 발행 → caller가 location.rift_sub_area 설정
+
     ★ F6: target은 rift_id 또는 한국어 name 본격.
     """
     canonical = _resolve_rift_id(rift_id)
@@ -474,15 +573,36 @@ def enter_rift(
             message=f"균열 {rift_id} 비활성 (먼저 비석 공물).",
         )
 
+    rift_def = FLOOR1_RIFT_DEFS.get(canonical)
+    if rift_def is None:
+        return TurnResult(
+            success=False,
+            action_type="enter_rift",
+            message=f"균열 {canonical} 정의 X.",
+        )
+
+    # ★ Phase 8 A1 — 파티 5명 한도
+    alive_party = [c for c in party if c.is_alive()]
+    if len(alive_party) > rift_def.party_capacity:
+        return TurnResult(
+            success=False,
+            action_type="enter_rift",
+            message=(
+                f"파티 {len(alive_party)}명 — {rift_def.name} 한도 "
+                f"{rift_def.party_capacity}명 초과 (진입 X)."
+            ),
+        )
+
     advance_time(party, world, elapsed_hours=0.5)
 
     return TurnResult(
         success=True,
         action_type="enter_rift",
-        message=f"균열 {canonical} 진입.",
+        message=f"균열 {canonical} 진입 → {rift_def.entrance_id}.",
         side_effects=[
             "target_realm=RIFT",
             f"target_rift_id={canonical}",
+            f"target_rift_sub_area={rift_def.entrance_id}",
             "시간 0.5h",
         ],
     )

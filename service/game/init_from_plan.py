@@ -332,13 +332,47 @@ def _floor_definition_dict_for(floor: int) -> dict[str, Any]:
                 "name": r.name,
                 "entry_methods": [m.value for m in r.entry_methods],
                 "intentional_offering_grade": r.intentional_offering_grade,
+                "intentional_offering_source_floor": (
+                    r.intentional_offering_source_floor
+                ),
+                "intentional_offering_source_area": (
+                    r.intentional_offering_source_area
+                ),
                 "description": r.description,
-                "boss_monster_name": r.boss_monster_name,
-                "boss_grade": r.boss_grade,
+                # ★ Phase 8 A1 — 일반/변종 수호자 분리
+                "normal_boss_name": r.normal_boss_name,
+                "normal_boss_grade": r.normal_boss_grade,
+                "variant_possible": r.variant_possible,
+                "variant_boss_name": r.variant_boss_name,
+                "variant_boss_grade": r.variant_boss_grade,
                 "boss_drop_rate": r.boss_drop_rate,
-                "boss_is_variant": r.boss_is_variant,
-                "regular_monster_names": list(r.regular_monster_names),
-                "hidden_pieces": list(r.hidden_pieces),
+                "boss_weakness": (
+                    {
+                        "element": r.boss_weakness.element,
+                        "note": r.boss_weakness.note,
+                    }
+                    if r.boss_weakness
+                    else None
+                ),
+                "party_capacity": r.party_capacity,
+                "essence_color": r.essence_color,
+                "entrance_id": r.entrance_id,
+                "boss_chamber_id": r.boss_chamber_id,
+                "sub_areas": [
+                    {
+                        "id": sa.id,
+                        "name": sa.name,
+                        "chamber_type": sa.chamber_type.value,
+                        "description": sa.description,
+                        "connections": list(sa.connections),
+                        "monsters": list(sa.monsters),
+                        "mid_boss_name": sa.mid_boss_name,
+                        "mid_boss_grade": sa.mid_boss_grade,
+                        "field_effect": sa.field_effect,
+                        "hidden_pieces": list(sa.hidden_pieces),
+                    }
+                    for sa in r.sub_areas
+                ],
             }
             for r in f1.rifts
         ],

@@ -162,6 +162,22 @@ class RiftEntryMethod(StrEnum):
     INTENTIONAL_OFFERING = "의도적 공물"  # ★ 374화: 비석 + 8등급 마석
 
 
+class RiftChamberType(StrEnum):
+    """균열 sub_area (챕터) 유형 (★ Phase 8 A1 — namu 6장 챕터 구조).
+
+    namu 본격 챕터 구조:
+    - ENTRANCE: 진입 챕터 (외곽 검문소 / 동굴 입구 등)
+    - CORRIDOR: 일반 진행 챕터 (외성벽 시가지 / 절벽 갱도 등)
+    - MID_BOSS: 중간 보스 챕터 (★ 시체골렘 / 고블린 폭탄병 / 상위 변이종 예티)
+    - BOSS: 수호자 챕터 (★ 일반 or 변종 수호자)
+    """
+
+    ENTRANCE = "진입"
+    CORRIDOR = "일반"
+    MID_BOSS = "중간보스"
+    BOSS = "보스"
+
+
 class BountyKillCondition(StrEnum):
     """현상금 처리 조건 (★ Stage 7 동적 시스템)."""
 
@@ -521,6 +537,9 @@ class Location:
     floor: int | None = None  # 1-10 (★ DUNGEON/RIFT/HIDDEN_FIELD)
     sub_area: str | None = None  # "수정동굴 북쪽" / "비석 공동" 등
     rift_id: str | None = None  # "bloody_castle" / "glacier_cave" 등
+    # ★ Phase 8 A1 — 균열 내부 sub_area (RiftSubAreaDef.id) + 변종 표시
+    rift_sub_area: str | None = None  # "bc_ch1" 등 (★ 균열 챕터 id)
+    rift_is_variant: bool = False  # ★ 본 균열 인스턴스가 변종인지
     # 사이드뷰 좌표는 Tier 4 시점에 추가 — 현재 사용 X면 추가 X
 
     # ★ 환경
@@ -613,37 +632,104 @@ class SubArea:
 
 
 @dataclass(frozen=True, slots=True)
+class RiftSubAreaDef:
+    """균열 내부 sub_area (챕터) 정의 (★ Phase 8 A1 — namu 본문 정합).
+
+    별도 dataclass 이유: 1층 SubArea (수정동굴 영역)와 분리. 균열 챕터는
+    BOSS / MID_BOSS / 진입 / 일반의 4 유형 + 단방향/양방향 연결 + 필드
+    효과 + 히든 피스 등 균열 한정 정보를 보유.
+
+    예 (핏빛성채):
+      RiftSubAreaDef(
+          id="bc_ch1",
+          name="외곽 검문소",
+          chamber_type=RiftChamberType.ENTRANCE,
+          connections=("bc_ch2",),
+          monsters=("데드맨", "병사 데드맨", "지휘관 데드맨"),
+      )
+    """
+
+    id: str  # 균열 내부 고유 id (예: "bc_ch1")
+    name: str  # 한국어 이름 (예: "외곽 검문소")
+    chamber_type: RiftChamberType
+    description: str = ""
+    connections: tuple[str, ...] = ()  # 인접 sub_area id (양방향 가정)
+    monsters: tuple[str, ...] = ()  # 등장 몬스터 이름
+    mid_boss_name: str | None = None  # 중간 보스 이름 (★ 시체골렘 등)
+    mid_boss_grade: int | None = None
+    field_effect: str | None = None  # ★ 저체온증 등 (빙하굴 ch3)
+    hidden_pieces: tuple[str, ...] = ()  # 챕터별 히든 피스
+
+
+@dataclass(frozen=True, slots=True)
+class BossWeakness:
+    """보스 약점 정의 (★ Phase 8 A1 — namu 명시 spot 정보).
+
+    예 (폭군 타룬바스):
+      BossWeakness(element="전격", note="namu 명시 — 전격 속성 약점")
+    """
+
+    element: str  # 속성명 (★ 전격/화/냉기 등)
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class RiftDef:
-    """균열 정의 — 작품 본질 (★ Stage 3, 2026-05-07).
+    """균열 정의 — 작품 본질 (★ Phase 8 A1 본격 확장, 2026-05-13).
 
     1층 4종 (★ 핏빛성채/빙하굴/녹색탄광/강철의 묘):
     - 일반 8등급 몬스터 + 33% 수호자 정수 드롭
     - 수호자 처치 → 포탈 → 탈출 (★ 34화)
     - 1-5층 매번 리셋
 
-    boss_monster_name이 빈 문자열이면 '1차 자료에 명시 X' (정직).
+    Phase 8 A1 핵심 변경:
+    - boss_monster_name 단일 필드 → normal/variant 분리
+    - sub_areas (RiftSubAreaDef 튜플) 추가 — namu 본격 챕터 구조
+    - party_capacity 추가 — 5명 한도 (본인 결정)
+    - intentional_offering_source_floor / area 추가 — 2층 망자의 땅 등
+    - essence_color 추가 — 보상 정수 색 (red/blue/green/yellow)
+    - boss_weakness 추가 — namu spot 정보 (★ 폭군 타룬바스 전격 등)
     """
 
     rift_id: str  # "bloody_castle" 등
     name: str  # "핏빛성채" 등
+
+    # 일반 수호자 (★ 6.2 schema 분리)
+    normal_boss_name: str  # ★ "저주받은 기사 블라터" 등
+    normal_boss_grade: int  # ★ 일반 grade (★ namu X 시 placeholder)
+
+    # 챕터 구조 (★ namu 본격 정합)
+    sub_areas: tuple[RiftSubAreaDef, ...]
+    entrance_id: str  # 진입 chamber id (★ "bc_ch1" 등)
+    boss_chamber_id: str  # 보스 chamber id (★ "bc_ch5" 등)
+
+    # 진입 / 공물
+    intentional_offering_source_floor: int  # ★ 2층 본격
+    intentional_offering_source_area: str  # ★ "망자의 땅" 등
+    intentional_offering_grade: int  # ★ 1층 균열 = 8
+
+    # 보상 정수 색 (★ 6.4 spec)
+    essence_color: str  # "red" / "blue" / "green" / "yellow"
+
     floor: int = 1
 
-    # 진입
+    # 변종 수호자 (★ 6.2 schema 분리, namu X 시 None)
+    variant_possible: bool = False
+    variant_boss_name: str | None = None
+    variant_boss_grade: int | None = None
+
+    # 보스 약점 (★ namu spot 정보, 옵션)
+    boss_weakness: BossWeakness | None = None
+
+    # 진입 방식 + 파티 한도
     entry_methods: tuple[RiftEntryMethod, ...] = ()
-    intentional_offering_grade: int | None = None  # 1층 균열 = 8
+    party_capacity: int = 5  # ★ 본인 결정 (namu 본격 후속 진단)
+
+    # 드롭률
+    boss_drop_rate: float = 0.33
 
     # 환경
     description: str = ""
-
-    # 몬스터
-    boss_monster_name: str = ""  # ★ 빈 문자열 = 자료 X (정직)
-    boss_grade: int = 8  # 일반 1층 균열 = 8, 변종은 5
-    boss_drop_rate: float = 0.33
-    boss_is_variant: bool = False  # ★ 핏빛성채 뱀파이어 = 변종
-    regular_monster_names: tuple[str, ...] = ()
-
-    # 보상
-    hidden_pieces: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

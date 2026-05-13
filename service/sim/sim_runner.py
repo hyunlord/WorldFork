@@ -97,6 +97,11 @@ def _execute_action(
         if not action.target:
             return False, "target sub_area 없음.", []
         r = move_to_sub_area(party_list, world, location, action.target)
+        # ★ Phase 8 A1 — RIFT 내부 이동 성공 시 rift_sub_area 본격 갱신
+        if r.success and location.realm == Realm.RIFT:
+            for eff in r.side_effects:
+                if eff.startswith("target_rift_sub_area="):
+                    location.rift_sub_area = eff.split("=", 1)[1]
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.ATTACK:
@@ -147,9 +152,13 @@ def _execute_action(
         r = enter_rift(party_list, world, action.target)
         if r.success:
             # ★ F7: location 본격 변경 — RIFT realm + canonical rift_id
+            # ★ Phase 8 A1: rift_sub_area 본격 entrance_id 전파
             canonical = _resolve_rift_id(action.target) or action.target
             location.realm = Realm.RIFT
             location.rift_id = canonical
+            for eff in r.side_effects:
+                if eff.startswith("target_rift_sub_area="):
+                    location.rift_sub_area = eff.split("=", 1)[1]
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.EXIT_RIFT:
@@ -158,8 +167,11 @@ def _execute_action(
         r = exit_rift(party_list, world, action.target)
         if r.success:
             # ★ F7: location 1층 복귀 — DUNGEON realm + rift_id 해제
+            # ★ Phase 8 A1: rift_sub_area / rift_is_variant 본격 reset
             location.realm = Realm.DUNGEON
             location.rift_id = None
+            location.rift_sub_area = None
+            location.rift_is_variant = False
         return r.success, r.message, r.side_effects
 
     return False, f"unknown action: {action.action_type.value}", []

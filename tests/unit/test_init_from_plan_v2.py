@@ -396,12 +396,16 @@ def test_init_floor_definition_includes_rifts() -> None:
     assert "rifts" in fd
     assert len(fd["rifts"]) == 4
 
-    # 핏빛성채 검증
+    # 핏빛성채 검증 (★ Phase 8 A1 — 일반/변종 분리 + sub_areas)
     bc = next(r for r in fd["rifts"] if r["rift_id"] == "bloody_castle")
-    assert bc["boss_grade"] == 5
-    assert bc["boss_is_variant"]
-    assert bc["boss_monster_name"] == "뱀파이어 공작 캠브로미어"
-    assert "네크로노미콘" in bc["hidden_pieces"]
+    assert bc["normal_boss_name"] == "저주받은 기사 블라터"
+    assert bc["variant_possible"] is True
+    assert bc["variant_boss_name"] == "뱀파이어 공작 캠보르미어"
+    assert bc["variant_boss_grade"] == 5
+    assert bc["essence_color"] == "red"
+    assert bc["party_capacity"] == 5
+    assert len(bc["sub_areas"]) == 5
+    assert bc["sub_areas"][0]["name"] == "외곽 검문소"
 
 
 def test_build_game_context_includes_rifts() -> None:

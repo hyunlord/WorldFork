@@ -118,9 +118,9 @@ def test_e2e_floor1_prompt_full_output(floor1_plan: Plan) -> None:
     assert "고블린" in prompt
     assert "노움" in prompt
 
-    # Rifts
+    # Rifts (★ Phase 8 A1 — 캠보르미어 표기 통일)
     assert "핏빛성채" in prompt
-    assert "캠브로미어" in prompt or "변종" in prompt
+    assert "캠보르미어" in prompt or "변종" in prompt
 
     # Light Sources
     assert "횃불" in prompt

@@ -654,13 +654,35 @@ class TestGMPromptStage3Rifts:
                         "name": "핏빛성채",
                         "entry_methods": ["무작위 자연", "의도적 공물"],
                         "intentional_offering_grade": 8,
+                        "intentional_offering_source_floor": 2,
+                        "intentional_offering_source_area": "망자의 땅",
                         "description": "핏빛 성채 내부",
-                        "boss_monster_name": "뱀파이어 공작 캠브로미어",
-                        "boss_grade": 5,
+                        # ★ Phase 8 A1 — 일반/변종 수호자 분리
+                        "normal_boss_name": "저주받은 기사 블라터",
+                        "normal_boss_grade": 6,
+                        "variant_possible": True,
+                        "variant_boss_name": "뱀파이어 공작 캠보르미어",
+                        "variant_boss_grade": 5,
                         "boss_drop_rate": 0.33,
-                        "boss_is_variant": True,
-                        "regular_monster_names": ["시체골렘"],
-                        "hidden_pieces": ["네크로노미콘", "여신의 눈물"],
+                        "boss_weakness": None,
+                        "party_capacity": 5,
+                        "essence_color": "red",
+                        "entrance_id": "bc_ch1",
+                        "boss_chamber_id": "bc_ch5",
+                        "sub_areas": [
+                            {
+                                "id": "bc_ch1",
+                                "name": "외곽 검문소",
+                                "chamber_type": "진입",
+                                "description": "데드맨 무리.",
+                                "connections": ["bc_ch2"],
+                                "monsters": ["데드맨"],
+                                "mid_boss_name": None,
+                                "mid_boss_grade": None,
+                                "field_effect": None,
+                                "hidden_pieces": [],
+                            },
+                        ],
                     },
                 ],
             },
@@ -670,12 +692,12 @@ class TestGMPromptStage3Rifts:
         from service.game.gm_agent import _gm_system_prompt
 
         prompt = _gm_system_prompt(self._ctx_with_rifts())
-        # 균열 본문
+        # 균열 본문 (★ Phase 8 A1 — 일반/변종 수호자 분리 출력)
         assert "핏빛성채" in prompt
-        assert "뱀파이어 공작 캠브로미어" in prompt
+        assert "저주받은 기사 블라터" in prompt
+        assert "뱀파이어 공작 캠보르미어" in prompt
         assert "변종" in prompt
         assert "33%" in prompt
-        assert "네크로노미콘" in prompt
         # 진입
         assert "8등급 마석" in prompt
         # 일반 룰
