@@ -1,0 +1,201 @@
+{
+  "config": {
+    "target_turns": 10,
+    "initial_hours": 72.0,
+    "scenario_id": "F1_e2e_10turn_h72"
+  },
+  "elapsed_seconds": 80.4,
+  "completed_turns": 10,
+  "end_reason": "max_turns",
+  "final_hp_by_actor": {
+    "비요른": 150,
+    "에르웬": 85
+  },
+  "final_hours_in_dungeon": 84,
+  "findings": {
+    "F2_차단": {
+      "completed_turns": 10,
+      "end_reason": "max_turns",
+      "max_turns": 10,
+      "early_termination_lt_30": true,
+      "gm_fallback_count": 0,
+      "player_fallback_count": 0,
+      "gm_retry_count": 0,
+      "player_retry_count": 0
+    },
+    "F3_균형": {
+      "hp_curve_by_actor": {
+        "비요른": {
+          "min": 150,
+          "max": 150,
+          "final": 150
+        },
+        "에르웬": {
+          "min": 85,
+          "max": 90,
+          "final": 85
+        }
+      },
+      "essences_max": 0,
+      "final_hp_by_actor": {
+        "비요른": 150,
+        "에르웬": 85
+      },
+      "essences_absorbed_by_actor": {
+        "비요른": 0,
+        "에르웬": 0
+      }
+    },
+    "F4_다양성": {
+      "action_types_used": 6,
+      "action_types_total": 13,
+      "action_counter": {
+        "OFFER_TO_STONE": 2,
+        "EXPLORE": 2,
+        "ACTIVATE_LIGHT": 2,
+        "ATTACK": 2,
+        "FLEE": 1,
+        "MOVE": 1
+      },
+      "actor_counter": {
+        "비요른": 5,
+        "에르웬": 5
+      },
+      "light_active_turn_count": 7
+    },
+    "F5_본문_정합": {
+      "final_hours_in_dungeon": 84,
+      "hours_consumed": 84,
+      "max_hours_limit_168": 168,
+      "reached_time_limit": false,
+      "rift_entered": false,
+      "rift_exited": false,
+      "absorb_essence_count": 0,
+      "attack_count": 2,
+      "offer_to_stone_count": 2,
+      "communicate_count": 0
+    }
+  },
+  "turn_logs": [
+    {
+      "turn": 1,
+      "actor": "비요른",
+      "action_type": "OFFER_TO_STONE",
+      "action_target": "강철의 묘",
+      "success": true,
+      "hp_before": 150,
+      "hp_after": 150,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 72
+    },
+    {
+      "turn": 2,
+      "actor": "에르웬",
+      "action_type": "FLEE",
+      "action_target": "칼날늑대",
+      "success": true,
+      "hp_before": 90,
+      "hp_after": 90,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 74
+    },
+    {
+      "turn": 3,
+      "actor": "비요른",
+      "action_type": "EXPLORE",
+      "action_target": null,
+      "success": true,
+      "hp_before": 150,
+      "hp_after": 150,
+      "essence_slots_used": 0,
+      "has_active_light": false,
+      "hours_in_dungeon": 75
+    },
+    {
+      "turn": 4,
+      "actor": "에르웬",
+      "action_type": "ACTIVATE_LIGHT",
+      "action_target": "횃불",
+      "success": true,
+      "hp_before": 90,
+      "hp_after": 90,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 77
+    },
+    {
+      "turn": 5,
+      "actor": "비요른",
+      "action_type": "ACTIVATE_LIGHT",
+      "action_target": "횃불",
+      "success": true,
+      "hp_before": 150,
+      "hp_after": 150,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 77
+    },
+    {
+      "turn": 6,
+      "actor": "에르웬",
+      "action_type": "MOVE",
+      "action_target": "남쪽 통로",
+      "success": false,
+      "hp_before": 90,
+      "hp_after": 90,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 77
+    },
+    {
+      "turn": 7,
+      "actor": "비요른",
+      "action_type": "ATTACK",
+      "action_target": "노움",
+      "success": true,
+      "hp_before": 150,
+      "hp_after": 150,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 78
+    },
+    {
+      "turn": 8,
+      "actor": "에르웬",
+      "action_type": "ATTACK",
+      "action_target": "노움",
+      "success": false,
+      "hp_before": 90,
+      "hp_after": 85,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 79
+    },
+    {
+      "turn": 9,
+      "actor": "비요른",
+      "action_type": "EXPLORE",
+      "action_target": null,
+      "success": true,
+      "hp_before": 150,
+      "hp_after": 150,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 80
+    },
+    {
+      "turn": 10,
+      "actor": "에르웬",
+      "action_type": "OFFER_TO_STONE",
+      "action_target": "강철의 묘",
+      "success": true,
+      "hp_before": 85,
+      "hp_after": 85,
+      "essence_slots_used": 0,
+      "has_active_light": true,
+      "hours_in_dungeon": 82
+    }
+  ]
+}

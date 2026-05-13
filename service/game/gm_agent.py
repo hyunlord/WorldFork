@@ -18,6 +18,7 @@ from service.pipeline.types import Plan
 
 from .init_from_plan import build_game_context
 from .state import GameState
+from .state_v2 import Realm
 
 # ★ 게임 응답 검증 기준 (★ Cross-Model LLM Judge용, A1.5)
 GAME_CRITERIA = JudgeCriteria(
@@ -329,12 +330,23 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
 
         rifts = floor_def.get("rifts") or []
         if rifts:
+            # ★ Phase 8 D 다이어트 — 현재 rift만 챕터 detail, 나머지는 1-line summary
+            # (9B Q3 context 한도 회피 — A1 trace skip 본격 회복)
+            current_rift_id = (loc or {}).get("rift_id") if loc else None
+            in_rift = (
+                (loc or {}).get("realm") == Realm.RIFT.value
+                if loc
+                else False
+            )
+
             fd_lines.append(f"\n균열 ({len(rifts)}):")
             for r in rifts:
+                is_current = bool(current_rift_id) and (
+                    r.get("rift_id") == current_rift_id
+                )
                 line = f"- {r.get('name', '')} ({r.get('rift_id', '')})"
-                if desc := r.get("description"):
-                    line += f": {desc}"
-                # ★ Phase 8 A1 — 일반/변종 수호자 분리 본격 출력
+
+                # 일반/변종 수호자 (★ 항상)
                 normal_name = r.get("normal_boss_name") or "(자료 X)"
                 normal_grade = r.get("normal_boss_grade", 0)
                 drop_pct = int(r.get("boss_drop_rate", 0) * 100)
@@ -353,25 +365,8 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                         f"\n  변종 수호자: {variant_name} "
                         f"({grade_part}, ★ 매우 드물게 출현)"
                     )
-                if weakness := r.get("boss_weakness"):
-                    line += f"\n  보스 약점: {weakness.get('element', '')}"
-                # 챕터 구조
-                if sub_areas := r.get("sub_areas"):
-                    line += f"\n  챕터 ({len(sub_areas)}):"
-                    for sa in sub_areas:
-                        chap_line = (
-                            f"\n    - {sa.get('name', '')} "
-                            f"[{sa.get('chamber_type', '')}]"
-                        )
-                        if monsters := sa.get("monsters"):
-                            chap_line += f" 몬스터: {', '.join(monsters)}"
-                        if mid := sa.get("mid_boss_name"):
-                            chap_line += f" / 중간보스: {mid}"
-                        if fe := sa.get("field_effect"):
-                            chap_line += f" / 필드효과: {fe}"
-                        if hp := sa.get("hidden_pieces"):
-                            chap_line += f" / 히든: {', '.join(hp)}"
-                        line += chap_line
+
+                # 진입 / 보상 / 파티 한도 (★ 항상 — 짧음)
                 if entries := r.get("entry_methods"):
                     line += f"\n  진입: {', '.join(entries)}"
                     if grade := r.get("intentional_offering_grade"):
@@ -390,6 +385,32 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     line += f"\n  보상 정수 색: {essence}"
                 if cap := r.get("party_capacity"):
                     line += f"\n  파티 한도: {cap}명"
+
+                # 챕터 detail — 현재 rift 본격만 (★ 다이어트 핵심)
+                # rift 외부면 모두 X, rift 내부면 현재 rift만 O
+                if in_rift and is_current:
+                    if desc := r.get("description"):
+                        line += f"\n  본질: {desc}"
+                    if weakness := r.get("boss_weakness"):
+                        line += f"\n  보스 약점: {weakness.get('element', '')}"
+                    if sub_areas := r.get("sub_areas"):
+                        line += f"\n  챕터 ({len(sub_areas)}):"
+                        for sa in sub_areas:
+                            chap_line = (
+                                f"\n    - {sa.get('name', '')} "
+                                f"[{sa.get('chamber_type', '')}]"
+                            )
+                            if monsters := sa.get("monsters"):
+                                chap_line += (
+                                    f" 몬스터: {', '.join(monsters)}"
+                                )
+                            if mid := sa.get("mid_boss_name"):
+                                chap_line += f" / 중간보스: {mid}"
+                            if fe := sa.get("field_effect"):
+                                chap_line += f" / 필드효과: {fe}"
+                            if hp := sa.get("hidden_pieces"):
+                                chap_line += f" / 히든: {', '.join(hp)}"
+                            line += chap_line
                 fd_lines.append(line)
 
         v2_block += "\n".join(fd_lines) + "\n\n"
