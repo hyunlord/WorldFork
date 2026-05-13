@@ -588,13 +588,16 @@ class Location:
     """
 
     realm: Realm
-    floor: int | None = None  # 1-10 (★ DUNGEON/RIFT/HIDDEN_FIELD)
+    floor: int | None = None  # 1-10 (★ DUNGEON/RIFT/HIDDEN_FIELD), 0 = 마을
     sub_area: str | None = None  # "수정동굴 북쪽" / "비석 공동" 등
     rift_id: str | None = None  # "bloody_castle" / "glacier_cave" 등
     # ★ Phase 8 A1 — 균열 내부 sub_area (RiftSubAreaDef.id) + 변종 표시
     rift_sub_area: str | None = None  # "bc_ch1" 등 (★ 균열 챕터 id)
     rift_is_variant: bool = False  # ★ 본 균열 인스턴스가 변종인지
     # 사이드뷰 좌표는 Tier 4 시점에 추가 — 현재 사용 X면 추가 X
+
+    # ★ Phase 8 a-3 — 마을 식별자 (★ realm=CITY 시 — 본인 답 7.2 "별개 구역")
+    city_id: str | None = None
 
     # ★ 환경
     visibility_meters: int = 10  # 가시거리 (★ 1차 자료 — 어둠 기본 10)

@@ -25,6 +25,7 @@ from service.game.turn_handler_v2 import (
     absorb_floating_essence,
     activate_light,
     advance_time,
+    apply_time_limit_village_return,
     check_party_defeated,
     check_time_limit,
     enter_next_floor,
@@ -655,7 +656,7 @@ class SimRunner:
             # ★ Phase 8 A4 — 1층 종료 조건 state mutate
             # (★ time 누적/HP mutate 직후 호출 → _check_end_condition source).
             # ★ R1: floor_def.base_time_hours 본격 전달 (★ module 상수 제거 후 단일 source).
-            check_time_limit(
+            time_limit_triggered = check_time_limit(
                 world,
                 time_limit_hours=floor_def.base_time_hours,
                 turn_number=current_turn,
@@ -663,6 +664,12 @@ class SimRunner:
             check_party_defeated(
                 list(party.values()), world, turn_number=current_turn
             )
+
+            # ★ Phase 8 a-3 — TIME_LIMIT_REACHED 시 마을 자동 귀환 location mutation
+            # (★ docs/village_spec.md §7.1 정합: 라프도니아 7구역 중앙 광장).
+            # PARTY_DEFEATED 본격 본격 X (★ 사망 = 미궁 연료, 본인 답).
+            if time_limit_triggered:
+                apply_time_limit_village_return(location)
 
             reason = _check_end_condition(self.config, party, world, completed)
             if reason is not None:

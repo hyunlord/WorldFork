@@ -1047,6 +1047,34 @@ def check_party_defeated(
     return True
 
 
+def apply_time_limit_village_return(location: Location) -> None:
+    """A4 TIME_LIMIT_REACHED 시 location → 마을 도착 mutation (★ Phase 8 a-3).
+
+    본인 답 정합 (docs/village_spec.md §7):
+    - 7일 (168h) 만료 → 자동 마을 포탈 귀환 (★ A4 simulation_over_reason)
+    - 도착 = 라프도니아 7구역 중앙 광장 (★ 162화 본문 정합)
+    - floor=0 (★ 본인 답 7.2: "미궁의 층수와 마을은 별개")
+    - realm=CITY (★ existing Realm.CITY enum)
+
+    PARTY_DEFEATED 본격 본격 마을 X (★ 본인 답: 시신 = 사물, 미궁 연료).
+    FLOOR_TRANSITION 본격 본격 X (★ C 본격, 2층 본격).
+    """
+    # Local import 본격 — service/game/cities/ module 본격 단일 production caller.
+    from .cities.registry import DEFAULT_CITY_ENTRY_SUB_AREA, DEFAULT_CITY_ID
+
+    location.realm = Realm.CITY
+    location.floor = 0
+    location.sub_area = DEFAULT_CITY_ENTRY_SUB_AREA
+    location.city_id = DEFAULT_CITY_ID
+    # 균열 본격 reset (★ 마을 본격 균열 본격 X)
+    location.rift_id = None
+    location.rift_sub_area = None
+    location.rift_is_variant = False
+    # 마을 = 빛 환경 (★ namu §4 라프도니아 도시)
+    location.has_light = True
+    location.visibility_meters = 100
+
+
 # ─── 15. 인접 층 진입 / 복귀 (★ Phase 8 C / R3+R4 generic) ───
 
 # 본인 답 (2026-05-13): "한달마다 열리는 미궁에서 최초로 다음층 진입 파티 →
