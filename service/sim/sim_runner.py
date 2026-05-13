@@ -95,14 +95,15 @@ def _world_snapshot(world: WorldState) -> dict[str, Any]:
         # ★ Phase 8 C — 2층 진입 / 한달마다 최초 보너스 trace
         "floor_two": {
             "entered": world.floor_two.entered,
-            "entry_turn": world.floor_two.entry_turn,
             "entry_sub_area_from_floor1": (
                 world.floor_two.entry_sub_area_from_floor1
             ),
             "current_sub_area": world.floor_two.current_sub_area,
             "returned_to_floor1": world.floor_two.returned_to_floor1,
+            "first_party_bonus_claimed": (
+                world.floor_two.first_party_bonus_claimed
+            ),
         },
-        "first_floor_two_entry_party": world.first_floor_two_entry_party,
     }
 
 
@@ -360,7 +361,9 @@ def _refresh_context(
             "floor_two_entry_sub_area": (
                 world.floor_two.entry_sub_area_from_floor1
             ),
-            "first_floor_two_entry_party": world.first_floor_two_entry_party,
+            "first_floor_two_party_bonus_claimed": (
+                world.floor_two.first_party_bonus_claimed
+            ),
         }
     )
     ctx["v2_world_state"] = world_ctx

@@ -85,17 +85,17 @@ def test_floor_transition_status_re_added() -> None:
 def test_floor_two_state_defaults() -> None:
     s = FloorTwoState()
     assert s.entered is False
-    assert s.entry_turn is None
     assert s.entry_sub_area_from_floor1 is None
     assert s.returned_to_floor1 is False
     assert s.current_sub_area == "2층 도착 지점"
+    assert s.first_party_bonus_claimed is False
 
 
 def test_world_state_floor_two_defaults() -> None:
     w = WorldState()
     assert isinstance(w.floor_two, FloorTwoState)
     assert w.floor_two.entered is False
-    assert w.first_floor_two_entry_party is False
+    assert w.floor_two.first_party_bonus_claimed is False
 
 
 # ─── 4. enter_floor_two ───
@@ -105,7 +105,7 @@ def test_enter_floor_two_fails_when_not_at_portal() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("진입점")
-    result = enter_floor_two(party, world, loc, turn_number=1)
+    result = enter_floor_two(party, world, loc)
     assert result.success is False
     assert "포탈 통로가 아니다" in result.message
     assert world.floor_two.entered is False
@@ -117,7 +117,7 @@ def test_enter_floor_two_fails_when_sim_not_active() -> None:
     party = _strong_party()
     world = WorldState(simulation_status=SimulationStatus.TIME_LIMIT_REACHED)
     loc = _loc("동쪽 포탈 통로")
-    result = enter_floor_two(party, world, loc, turn_number=10)
+    result = enter_floor_two(party, world, loc)
     assert result.success is False
     assert "Simulation 종료" in result.message
     assert world.floor_two.entered is False
@@ -128,11 +128,10 @@ def test_enter_floor_two_succeeds_at_each_portal() -> None:
         party = _strong_party()
         world = WorldState()
         loc = _loc(portal)
-        result = enter_floor_two(party, world, loc, turn_number=20)
+        result = enter_floor_two(party, world, loc)
         assert result.success is True, f"{portal} 실패"
         assert world.floor_two.entered is True
         assert world.floor_two.entry_sub_area_from_floor1 == portal
-        assert world.floor_two.entry_turn == 20
         assert world.simulation_status == SimulationStatus.FLOOR_TRANSITION
         assert loc.floor == 2
         assert loc.sub_area == "2층 도착 지점"
@@ -142,7 +141,7 @@ def test_enter_floor_two_side_effect_markers() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("동쪽 포탈 통로")
-    result = enter_floor_two(party, world, loc, turn_number=15)
+    result = enter_floor_two(party, world, loc)
     assert result.success is True
     assert "floor_transition=2" in result.side_effects
     assert "entry_from=동쪽 포탈 통로" in result.side_effects
@@ -155,9 +154,9 @@ def test_first_entry_grants_bonus_to_all_alive() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("동쪽 포탈 통로")
-    result = enter_floor_two(party, world, loc, turn_number=10)
+    result = enter_floor_two(party, world, loc)
     assert result.success is True
-    assert world.first_floor_two_entry_party is True
+    assert world.floor_two.first_party_bonus_claimed is True
     for m in party:
         assert m.experience == FIRST_FLOOR_TWO_ENTRY_EXP_BONUS == 500
         # threshold 500 = level 4
@@ -176,13 +175,13 @@ def test_second_entry_no_bonus() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("동쪽 포탈 통로")
-    enter_floor_two(party, world, loc, turn_number=10)
+    enter_floor_two(party, world, loc)
     # 1층 복귀 후 재진입
-    exit_to_floor_one(party, world, loc, turn_number=20)
+    exit_to_floor_one(party, world, loc)
     loc.sub_area = "서쪽 포탈 통로"  # 다른 portal
     pre_exp = {m.name: m.experience for m in party}
 
-    result = enter_floor_two(party, world, loc, turn_number=30)
+    result = enter_floor_two(party, world, loc)
 
     assert result.success is True
     # 보너스 두 번째 X
@@ -200,7 +199,7 @@ def test_first_entry_dead_member_no_bonus() -> None:
     party[1].hp = 0  # 셰인 사망
     world = WorldState()
     loc = _loc("동쪽 포탈 통로")
-    result = enter_floor_two(party, world, loc, turn_number=10)
+    result = enter_floor_two(party, world, loc)
     assert result.success is True
     # 투르윈만 보너스
     assert party[0].experience == FIRST_FLOOR_TWO_ENTRY_EXP_BONUS
@@ -215,7 +214,7 @@ def test_exit_fails_when_not_entered() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("진입점")
-    result = exit_to_floor_one(party, world, loc, turn_number=1)
+    result = exit_to_floor_one(party, world, loc)
     assert result.success is False
     assert "진입 기록 없음" in result.message
 
@@ -224,12 +223,12 @@ def test_exit_restores_location_and_status() -> None:
     party = _strong_party()
     world = WorldState()
     loc = _loc("남쪽 포탈 통로")
-    enter_floor_two(party, world, loc, turn_number=10)
+    enter_floor_two(party, world, loc)
     # 진입 후 상태 본격
     assert loc.floor == 2
     assert world.simulation_status == SimulationStatus.FLOOR_TRANSITION
 
-    result = exit_to_floor_one(party, world, loc, turn_number=15)
+    result = exit_to_floor_one(party, world, loc)
 
     assert result.success is True
     assert loc.floor == 1

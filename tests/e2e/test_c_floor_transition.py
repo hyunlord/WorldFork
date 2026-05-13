@@ -113,7 +113,7 @@ def test_scripted_first_party_bonus_applied() -> None:
     # ENTER_FLOOR_TWO 본격 sim 종료 X — max_turns 본격 도달 (★ 1턴 본격 진행)
     assert result.end_reason == "max_turns"
     assert world.simulation_status == SimulationStatus.FLOOR_TRANSITION
-    assert world.first_floor_two_entry_party is True
+    assert world.floor_two.first_party_bonus_claimed is True
     for m in party.values():
         assert m.experience == 500
         assert m.level == 4 == level_for_exp(500)
@@ -172,7 +172,7 @@ def test_scripted_round_trip_floor_one_two_one_two() -> None:
     assert world.floor_two.returned_to_floor1 is True
 
     # 보너스 1회만 (★ 본인 답 "한달마다 1회")
-    assert world.first_floor_two_entry_party is True
+    assert world.floor_two.first_party_bonus_claimed is True
     for m in party.values():
         assert m.experience == 500  # ★ 본격 1회 보너스만 누적
 
@@ -212,7 +212,7 @@ def test_scripted_enter_at_non_portal_does_not_terminate() -> None:
     assert world.simulation_status == SimulationStatus.ACTIVE
     assert world.floor_two.entered is False
     # 보너스 발현 X
-    assert world.first_floor_two_entry_party is False
+    assert world.floor_two.first_party_bonus_claimed is False
     for m in party.values():
         assert m.experience == 0
 
@@ -243,11 +243,12 @@ def test_scripted_trace_world_snapshot_floor_two() -> None:
     )
     result = runner.run(party=party, world=world, location=loc)
 
-    # 모든 turn snapshot 본격 floor_two key 존재
+    # 모든 turn snapshot 본격 floor_two key 존재 (★ first_party_bonus_claimed
+    # 본격 floor_two dict 내부로 이동, simplify 답 정합)
     for log in result.turn_logs:
         snap = log.world_snapshot
         assert "floor_two" in snap
-        assert "first_floor_two_entry_party" in snap
+        assert "first_party_bonus_claimed" in snap["floor_two"]
         assert "entered" in snap["floor_two"]
 
     # snapshot은 action mutate 후 캡처 — entered=True + entry_sub_area 기록
@@ -258,6 +259,6 @@ def test_scripted_trace_world_snapshot_floor_two() -> None:
         only_log["floor_two"]["entry_sub_area_from_floor1"]
         == "서쪽 포탈 통로"
     )
-    assert only_log["first_floor_two_entry_party"] is True
+    assert only_log["floor_two"]["first_party_bonus_claimed"] is True
     # 종료 후 state 본격 일치
     assert world.floor_two.entered is True
