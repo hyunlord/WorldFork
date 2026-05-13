@@ -964,14 +964,19 @@ class BountyConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class Floor1Definition:
-    """1층 (수정동굴) 풀 정의 — 작품 본질.
+class FloorDefinition:
+    """본 floor 풀 정의 — N층 generic (★ Phase 8 R2).
 
-    1차 자료:
+    1차 자료 (1층 본격):
     - 168시간 한도 (★ 1주)
     - 가시거리 10m (★ 빛 없으면)
     - 어둠 기본 (★ 빛 없으면 몬스터 활성화 X)
     - 1-5층 매번 리셋
+
+    Phase 8 R2:
+    - Floor1Definition → FloorDefinition rename (★ N층 enabler)
+    - portal_to_next / portal_to_prev: 본 층 ↔ 인접 층 진입 sub_area whitelist
+    - Floor1Definition은 backward-compat alias 본격 본격
     """
 
     name: str = "수정동굴"
@@ -985,3 +990,14 @@ class Floor1Definition:
     rifts: tuple[RiftDef, ...] = ()
     light_sources: tuple[LightSource, ...] = ()
     bounty_config: BountyConfig | None = None
+
+    # ★ Phase 8 R2 — 인접 층 진입 sub_area whitelist (★ N층 enabler).
+    # 1층: portal_to_next = 4 portal 통로 (C commit), portal_to_prev = empty.
+    # 후속 2층: portal_to_prev = {2층 도착 지점 ...} (★ R3+R4 본격 정합).
+    portal_to_next: frozenset[str] = frozenset()
+    portal_to_prev: frozenset[str] = frozenset()
+
+
+# ★ Phase 8 R2 — backward-compat alias. 본 commit 본격 caller 본격 다수
+# (`get_floor1_definition() -> Floor1Definition` 등) 본격 본격 본격.
+Floor1Definition = FloorDefinition

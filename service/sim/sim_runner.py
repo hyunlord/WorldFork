@@ -12,7 +12,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from service.game.floors.floor1 import get_floor1_definition
+from service.game.floors.registry import get_current_floor_definition
 from service.game.state_v2 import (
     Character,
     Location,
@@ -555,9 +555,11 @@ class SimRunner:
                 end_reason="empty_party",
             )
 
-        # ★ R1 — 본 sim 본격 floor_def (★ FLOOR_REGISTRY 본격 R2 본격).
+        # ★ R1/R2 — 본 sim 본격 floor_def (★ FLOOR_REGISTRY 본격 location.floor).
         # check_time_limit 본격 floor_def.base_time_hours 본격 전달.
-        floor_def = get_floor1_definition()
+        # R2: get_floor1_definition() → get_current_floor_definition(location)
+        # (★ 2층 본격 본격 자동 정합).
+        floor_def = get_current_floor_definition(location)
 
         start_time = time.monotonic()
         turn_logs: list[TurnLog] = []

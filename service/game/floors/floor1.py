@@ -323,6 +323,10 @@ FLOOR1_DEFINITION = Floor1Definition(
     rifts=FLOOR1_RIFTS,
     light_sources=FLOOR1_LIGHT_SOURCES,
     bounty_config=FLOOR1_BOUNTY_CONFIG,
+    # ★ Phase 8 R2 — 4 portal 통로 = 2층 진입 (★ C commit 본격).
+    # 1층은 최하단 본격 X — portal_to_prev = empty.
+    portal_to_next=FLOOR_TWO_PORTAL_SUB_AREAS,
+    portal_to_prev=frozenset(),
 )
 
 

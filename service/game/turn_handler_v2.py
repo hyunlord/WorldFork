@@ -15,8 +15,9 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from .floors.floor1 import FLOOR_TWO_PORTAL_SUB_AREAS, get_floor1_definition
+from .floors.floor1 import get_floor1_definition
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
+from .floors.registry import get_current_floor_definition
 from .state_v2 import (
     BossEncounter,
     Character,
@@ -1058,16 +1059,16 @@ def enter_floor_two(
     world: WorldState,
     location: Location,
 ) -> TurnResult:
-    """1층 4 포탈 통로 → 2층 진입 본격 (★ Phase 8 C).
+    """1층 4 포탈 통로 → 2층 진입 본격 (★ Phase 8 C / R2).
 
     본질 (★ 본인 답):
-    - 1층 동/서/남/북 포탈 통로 (FLOOR_TWO_PORTAL_SUB_AREAS) 본격 진입 가능
+    - 1층 동/서/남/북 포탈 통로 (FloorDefinition.portal_to_next) 본격 진입 가능
     - simulation_status → FLOOR_TRANSITION (★ A4 enum 본격 본격 사용처)
     - 본 sim 본격 최초 진입 파티 → 전 alive 멤버 +500 exp + level up
 
     실패:
     - simulation_status != ACTIVE (★ 본격 종료 상태)
-    - location.sub_area not in FLOOR_TWO_PORTAL_SUB_AREAS
+    - location.sub_area not in current floor 본격 portal_to_next
     """
     if world.simulation_status != SimulationStatus.ACTIVE:
         return TurnResult(
@@ -1079,8 +1080,9 @@ def enter_floor_two(
             ),
         )
 
+    floor_def = get_current_floor_definition(location)
     current = location.sub_area
-    if current not in FLOOR_TWO_PORTAL_SUB_AREAS:
+    if current not in floor_def.portal_to_next:
         return TurnResult(
             success=False,
             action_type="enter_floor_two",
