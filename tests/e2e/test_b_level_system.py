@@ -110,15 +110,15 @@ def test_scripted_different_species_each_grants() -> None:
 
 
 def test_scripted_level_up_slot_max_increases() -> None:
-    """level 1 → 2 시 essence_slot_max 5 → 6."""
+    """level 1 → 2 시 essence_slot_max 1 → 2 (★ Phase 8 A-2 22화 본문 N=N)."""
     actor = _strong_attacker()
     world = WorldState()
-    assert actor.essence_slot_max() == 5
+    assert actor.essence_slot_max() == 1
 
     execute_attack(actor, "고블린", [actor], world)
     execute_attack(actor, "노움", [actor], world)
     assert actor.level == 2
-    assert actor.essence_slot_max() == LEVEL_TO_ESSENCE_SLOT_MAX[2] == 6
+    assert actor.essence_slot_max() == LEVEL_TO_ESSENCE_SLOT_MAX[2] == 2
 
 
 # ─── 2. 보스 처치 본격 exp (★ A3 _defeat_boss 본격) ───

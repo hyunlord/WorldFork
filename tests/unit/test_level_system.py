@@ -3,7 +3,7 @@
 검증 본질:
 - LEVEL_EXP_THRESHOLDS monotonic + LEVEL_TO_ESSENCE_SLOT_MAX monotonic
 - level_for_exp / slot_max_for_level / next_level_threshold
-- Character.essence_slot_max() 본격 level driven (★ 7e finding level 1=5 정합)
+- Character.essence_slot_max() 본격 level driven (★ Phase 8 A-2: 22화 본문 N=N)
 - _award_kill_exp:
   * first kill → base exp + species 등록
   * second kill → 0 exp ("딱 한번")
@@ -46,9 +46,20 @@ def test_slot_table_monotonic_non_decreasing() -> None:
         )
 
 
-def test_level_1_slot_5_matches_7e_finding() -> None:
-    """7e finding: essence_slot_max(level=1) == 5 (★ 본문 1차 자료)."""
-    assert slot_max_for_level(1) == 5
+def test_level_1_slot_1_matches_ep22() -> None:
+    """22화 본문: 1레벨 = 정수 1개 흡수 (★ Phase 8 A-2 본문 정합)."""
+    assert slot_max_for_level(1) == 1
+
+
+def test_level_2_slot_2_matches_ep22() -> None:
+    """22화 본문: 2레벨 = 정수 2개 흡수 (★ "최대 두 개까지 가능")."""
+    assert slot_max_for_level(2) == 2
+
+
+def test_slot_n_equals_n() -> None:
+    """N=N 공식 (★ 22화 본문 정합, 3+ 레벨 추정)."""
+    for level in range(1, 11):
+        assert slot_max_for_level(level) == level
 
 
 def test_slot_max_caps_at_top_level() -> None:
@@ -98,10 +109,11 @@ def test_next_threshold_at_max_returns_self() -> None:
 # ─── 4. Character.essence_slot_max() level driven ───
 
 
-def test_character_slot_max_level_1_returns_5() -> None:
+def test_character_slot_max_level_1_returns_1() -> None:
+    """★ Phase 8 A-2 — 22화 본문 N=N (★ 1레벨 = 1)."""
     c = Character(name="투르윈", race=Race.HUMAN)
     assert c.level == 1
-    assert c.essence_slot_max() == 5
+    assert c.essence_slot_max() == 1
 
 
 def test_character_slot_max_grows_with_level() -> None:
@@ -166,7 +178,7 @@ def test_no_level_up_below_threshold_9grade() -> None:
     world = WorldState()
     _award_kill_exp(actor, "고블린", 9, world)
     assert actor.level == 1
-    assert actor.essence_slot_max() == 5
+    assert actor.essence_slot_max() == 1  # ★ Phase 8 A-2 본문 정합 N=N
 
 
 def test_boss_high_grade_jumps_levels() -> None:

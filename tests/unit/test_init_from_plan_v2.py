@@ -210,7 +210,8 @@ def test_build_game_context_includes_v2_characters() -> None:
     v2c = ctx["v2_characters"]
     assert "투르윈" in v2c
     assert v2c["투르윈"]["race"] == "바바리안"
-    assert v2c["투르윈"]["essence_slot_max"] == 5
+    # ★ Phase 8 A-2 — 22화 본문 N=N (★ level=1 default → 1 슬롯)
+    assert v2c["투르윈"]["essence_slot_max"] == 1
     assert v2c["투르윈"]["hp"] == 150  # ★ 바바리안 HP
     assert v2c["미샤"]["sub_race"] == "적묘족"
 

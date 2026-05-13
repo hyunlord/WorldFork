@@ -78,7 +78,8 @@ def test_can_absorb_essence_when_slot_empty() -> None:
 
 
 def test_cannot_absorb_when_slots_full() -> None:
-    c = Character(name="비요른", race=Race.BARBARIAN)
+    # ★ Phase 8 A-2: slot=level. 5 슬롯 full 검증 본격 level=5.
+    c = Character(name="비요른", race=Race.BARBARIAN, level=5)
     for i in range(5):
         assert c.absorb_essence(_make_essence(f"e{i}", f"스킬{i}"))
     assert c.essence_slots_used() == 5
@@ -95,7 +96,8 @@ def test_cannot_absorb_duplicate_active_skill() -> None:
 
 
 def test_layer_lord_essence_separate_slot() -> None:
-    c = Character(name="비요른", race=Race.BARBARIAN)
+    # ★ Phase 8 A-2: slot=level. 5 슬롯 + layer_lord 별도 검증 본격 level=5.
+    c = Character(name="비요른", race=Race.BARBARIAN, level=5)
     for i in range(5):
         assert c.absorb_essence(_make_essence(f"e{i}", f"스킬{i}"))
     # 일반 5칸 다 찼지만 계층군주는 별도
@@ -204,6 +206,8 @@ def test_human_base_height() -> None:
     assert c.height == 170  # ★ default
 
 
-def test_essence_slot_max_human_5() -> None:
+def test_essence_slot_max_level_1_is_1() -> None:
+    """★ Phase 8 A-2 — 22화 본문 정합 N=N (★ 1레벨 = 1 슬롯)."""
     c = Character(name="X", race=Race.HUMAN)
-    assert c.essence_slot_max() == 5
+    assert c.level == 1
+    assert c.essence_slot_max() == 1

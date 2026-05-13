@@ -172,7 +172,8 @@ def test_equipment_aggregate_bonuses() -> None:
 def test_character_basic() -> None:
     c = Character(name="비요른", race=Race.BARBARIAN, is_player=True)
     assert c.is_alive()
-    assert c.essence_slot_max() == 5
+    # ★ Phase 8 A-2 — 22화 본문 정합 N=N (★ default level=1 → 1 슬롯)
+    assert c.essence_slot_max() == 1
 
 
 def test_character_dead_at_zero_hp() -> None:
@@ -204,7 +205,8 @@ def test_essence_absorb_basic() -> None:
 
 
 def test_essence_absorb_slot_full() -> None:
-    c = Character(name="비요른", race=Race.BARBARIAN)
+    # ★ Phase 8 A-2: slot=level (N=N). 5 슬롯 overflow 검증 본격 level=5.
+    c = Character(name="비요른", race=Race.BARBARIAN, level=5)
     for i in range(5):
         e = Essence(
             name=f"정수_{i}",
