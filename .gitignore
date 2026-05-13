@@ -67,3 +67,6 @@ docs/scenarios/
 
 # Visual generated assets (★ git X, 자료 본격 보존만)
 /tmp/visual/
+
+# Local novel bodies (★ 저작권 — 외부 source, repo 제외)
+.local/
