@@ -242,7 +242,7 @@ _GREEN_MINE = RiftDef(
     name="녹색 탄광",
     floor=1,
     normal_boss_name="킹 슬라임",
-    # ★ namu 명시 X — 챕터 4 슬라임 9등급 → 일반 보스 8 placeholder (★ 후속)
+    # ★ namu 명시 X — 챕터 4 슬라임 9등급 → 일반 보스 8 임시 (★ 후속 진단)
     normal_boss_grade=8,
     variant_possible=True,
     variant_boss_name=None,  # ★ namu/본인 둘 다 X (★ 후속 진단)
@@ -329,7 +329,7 @@ _IRON_TOMB = RiftDef(
     name="강철의 묘",
     floor=1,
     normal_boss_name="철인 일디움",
-    # ★ namu 명시 X — 챕터 1-3 7등급 → 일반 보스 8 placeholder (★ 후속)
+    # ★ namu 명시 X — 챕터 1-3 7등급 → 일반 보스 8 임시 (★ 후속 진단)
     normal_boss_grade=8,
     variant_possible=True,
     variant_boss_name=None,  # ★ namu/본인 둘 다 X (★ 후속 진단)

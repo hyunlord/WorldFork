@@ -532,7 +532,7 @@ def test_rift_def_basic() -> None:
 
 
 def test_rift_def_variant_optional() -> None:
-    """variant_boss_name=None — 본문 X 시 placeholder (★ 정직)."""
+    """variant_boss_name=None — 본문 X 시 미지정 (★ 정직)."""
     from service.game.state_v2 import (
         RiftChamberType,
         RiftDef,

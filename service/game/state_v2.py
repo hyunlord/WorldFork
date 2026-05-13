@@ -696,7 +696,7 @@ class RiftDef:
 
     # 일반 수호자 (★ 6.2 schema 분리)
     normal_boss_name: str  # ★ "저주받은 기사 블라터" 등
-    normal_boss_grade: int  # ★ 일반 grade (★ namu X 시 placeholder)
+    normal_boss_grade: int  # ★ 일반 grade (★ namu X 시 후속 진단)
 
     # 챕터 구조 (★ namu 본격 정합)
     sub_areas: tuple[RiftSubAreaDef, ...]

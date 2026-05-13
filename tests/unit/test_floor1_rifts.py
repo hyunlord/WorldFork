@@ -32,7 +32,7 @@ def test_bloody_castle_normal_and_variant() -> None:
     assert bc is not None
     # ★ 일반 수호자
     assert bc.normal_boss_name == "저주받은 기사 블라터"
-    assert bc.normal_boss_grade == 6  # ★ placeholder, 후속 진단
+    assert bc.normal_boss_grade == 6  # ★ 임시값, 후속 진단
     # ★ 변종 수호자 (표기 통일: 캠보르미어)
     assert bc.variant_possible is True
     assert bc.variant_boss_name == "뱀파이어 공작 캠보르미어"
@@ -93,7 +93,7 @@ def test_green_mine_hidden_pieces() -> None:
     gm = _find_rift("green_mine")
     assert gm is not None
     assert gm.normal_boss_name == "킹 슬라임"
-    # ★ namu X — 변종 placeholder
+    # ★ namu X — 변종 명시 X (★ 후속 진단)
     assert gm.variant_boss_name is None
     assert len(gm.sub_areas) == 4
     # ★ 챕터 1 히든: 300만 스톤 초록 보석
