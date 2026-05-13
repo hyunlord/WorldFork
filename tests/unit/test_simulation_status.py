@@ -26,9 +26,10 @@ from service.game.turn_handler_v2 import (
 # ─── 1. Enum ───
 
 
-def test_simulation_status_has_4_values() -> None:
+def test_simulation_status_has_3_values() -> None:
+    """1층 본격 3 status (★ Phase 8 C 본격 FLOOR_TRANSITION 본격 추가)."""
     values = {s.value for s in SimulationStatus}
-    assert values == {"active", "time_limit", "party_defeated", "transition"}
+    assert values == {"active", "time_limit", "party_defeated"}
 
 
 def test_world_state_default_active() -> None:
@@ -177,15 +178,3 @@ def test_prompt_party_defeated_header_present() -> None:
     out = _format_simulation_status(ctx)
     assert "전원 사망" in out
     assert "50" in out
-
-
-def test_prompt_transition_header_present() -> None:
-    """FLOOR_TRANSITION (★ enum 자리만; Phase 8 C 후속) header도 본격."""
-    ctx = {
-        "v2_world_state": {
-            "simulation_status": "transition",
-            "simulation_over_reason": "2층 진입.",
-        }
-    }
-    out = _format_simulation_status(ctx)
-    assert "2층" in out

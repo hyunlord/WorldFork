@@ -391,8 +391,6 @@ def _check_end_condition(
         return "time_limit_168h"
     if world.simulation_status == SimulationStatus.PARTY_DEFEATED:
         return "party_defeated"
-    if world.simulation_status == SimulationStatus.FLOOR_TRANSITION:
-        return "floor_transition"
 
     return None
 

@@ -575,16 +575,17 @@ class BossEncounter:
 class SimulationStatus(StrEnum):
     """1층 simulation 상태 (★ Phase 8 A4).
 
-    1층 종료 조건 3가지:
+    1층 종료 조건 (★ 본 commit 본격 2개):
     - 7일 (168h) 만료 → TIME_LIMIT_REACHED → 자동 마을 귀환
     - 전원 사망 (HP=0) → PARTY_DEFEATED
-    - 2층 진입 → FLOOR_TRANSITION (★ enum 자리만; 본격 사용은 Phase 8 C)
+
+    2층 진입 본격 status는 실제 사용처 본격 commit (★ Phase 8 C) 본격 추가
+    (★ YAGNI — placeholder enum 본격 X).
     """
 
     ACTIVE = "active"
     TIME_LIMIT_REACHED = "time_limit"
     PARTY_DEFEATED = "party_defeated"
-    FLOOR_TRANSITION = "transition"
 
 
 @dataclass
