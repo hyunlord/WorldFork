@@ -59,8 +59,57 @@ class GMResponse:
     error: str | None = None
 
 
+def _format_simulation_status(ctx: dict[str, Any]) -> str:
+    """1층 종료 상태 → GM prompt 본격 (★ Phase 8 A4).
+
+    본질:
+    - ACTIVE → 빈 문자열 (★ 본격 prompt 영향 X)
+    - 그 외 → 종료 헤더 prepend (★ GM이 게임 진행 X, 종료 묘사만)
+
+    호출자는 결과를 prompt 본격 prepend.
+    """
+    world_state = ctx.get("v2_world_state") or {}
+    status = world_state.get("simulation_status", "active")
+    if status == "active":
+        return ""
+
+    reason = world_state.get("simulation_over_reason") or ""
+    over_turn = world_state.get("simulation_over_turn")
+    turn_str = f" (★ 종료 trigger turn {over_turn})" if over_turn else ""
+
+    if status == "time_limit":
+        return (
+            f"⏰ **1층 simulation 종료 — 7일 만료**{turn_str}\n"
+            f"{reason}\n\n"
+            "본 시점부터:\n"
+            "- 더 이상 행동 / 선택지 / 새 사건 생성 X.\n"
+            "- 마을 자동 귀환 묘사만 (★ 짧은 종결 문단).\n"
+            "- 주인공이 떠나는 장면 / 마을 포탈 도착 / 일행 인사 등.\n\n"
+        )
+    if status == "party_defeated":
+        return (
+            f"💀 **1층 simulation 종료 — 탐사대 전원 사망**{turn_str}\n"
+            f"{reason}\n\n"
+            "본 시점부터:\n"
+            "- 더 이상 행동 / 선택지 / 새 사건 생성 X.\n"
+            "- 마지막 순간의 묘사만 (★ 짧은 종결 문단).\n"
+            "- 회생 / 부활 / 재시작 X (★ 본 회차 종료).\n\n"
+        )
+    if status == "transition":
+        return (
+            f"⬆ **1층 → 2층 진입**{turn_str}\n"
+            f"{reason}\n\n"
+            "본 시점부터:\n"
+            "- 1층 행동 X (★ 2층 layer mechanic 본격 후속 Phase 8 C).\n"
+            "- 진입 묘사만 (★ 짧은 전환 문단).\n\n"
+        )
+    return ""
+
+
 def _gm_system_prompt(ctx: dict[str, Any]) -> str:
     """GM system prompt (★ Plan 컨텍스트 + 잘림 방지 명시)."""
+    # ★ Phase 8 A4 — 종료 상태면 헤더 prepend (★ 강제 우선 안내)
+    status_header = _format_simulation_status(ctx)
     supporting_line = ""
     if ctx["supporting_characters"]:
         supporting_line = (
@@ -520,6 +569,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         )
 
     return (
+        f"{status_header}"
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"
         f"- 작품: {ctx['work_name']} ({ctx['work_genre']})\n"

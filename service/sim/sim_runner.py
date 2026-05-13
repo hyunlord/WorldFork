@@ -12,12 +12,20 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from service.game.state_v2 import Character, Location, Realm, WorldState
+from service.game.state_v2 import (
+    Character,
+    Location,
+    Realm,
+    SimulationStatus,
+    WorldState,
+)
 from service.game.turn_handler_v2 import (
     _resolve_rift_id,
     absorb_floating_essence,
     activate_light,
     advance_time,
+    check_party_defeated,
+    check_time_limit,
     enter_rift,
     execute_attack,
     exit_rift,
@@ -76,6 +84,10 @@ def _world_snapshot(world: WorldState) -> dict[str, Any]:
                 "weakness_element": boss.weakness_element,
             }
         ),
+        # ★ Phase 8 A4 — 1층 종료 mechanism trace 본격
+        "simulation_status": world.simulation_status.value,
+        "simulation_over_reason": world.simulation_over_reason,
+        "simulation_over_turn": world.simulation_over_turn,
     }
 
 
@@ -310,6 +322,10 @@ def _refresh_context(
             "defeated_bosses": list(world.defeated_bosses),
             "cleared_rifts": list(world.cleared_rifts),
             "active_boss_encounter": boss_ctx,
+            # ★ Phase 8 A4 — 1층 종료 mechanism (GM prompt 본격)
+            "simulation_status": world.simulation_status.value,
+            "simulation_over_reason": world.simulation_over_reason,
+            "simulation_over_turn": world.simulation_over_turn,
         }
     )
     ctx["v2_world_state"] = world_ctx
@@ -356,7 +372,12 @@ def _check_end_condition(
     world: WorldState,
     completed_turns: int,
 ) -> str | None:
-    """N턴 종료 조건 검증."""
+    """N턴 종료 조건 검증.
+
+    Phase 8 A4: world.simulation_status 본격 state-level 종료를 read.
+    호출자가 turn 직후 check_time_limit/check_party_defeated를 호출해 두면
+    상태 enum이 곧 종료 사유와 매핑된다.
+    """
     if completed_turns >= config.max_turns:
         return "max_turns"
 
@@ -365,8 +386,13 @@ def _check_end_condition(
             if c.is_player and not c.is_alive():
                 return "permadeath"
 
-    if world.hours_in_dungeon >= 168:
+    # ★ Phase 8 A4 — state-level 종료 source of truth
+    if world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED:
         return "time_limit_168h"
+    if world.simulation_status == SimulationStatus.PARTY_DEFEATED:
+        return "party_defeated"
+    if world.simulation_status == SimulationStatus.FLOOR_TRANSITION:
+        return "floor_transition"
 
     return None
 
@@ -585,6 +611,13 @@ class SimRunner:
             )
             hours_float += delta
             world.hours_in_dungeon = int(hours_float)
+
+            # ★ Phase 8 A4 — 1층 종료 조건 state mutate
+            # (★ time 누적/HP mutate 직후 호출 → _check_end_condition source).
+            check_time_limit(world, turn_number=current_turn)
+            check_party_defeated(
+                list(party.values()), world, turn_number=current_turn
+            )
 
             reason = _check_end_condition(self.config, party, world, completed)
             if reason is not None:

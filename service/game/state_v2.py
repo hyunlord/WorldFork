@@ -572,6 +572,21 @@ class BossEncounter:
     weakness_strategy: str | None = None
 
 
+class SimulationStatus(StrEnum):
+    """1층 simulation 상태 (★ Phase 8 A4).
+
+    1층 종료 조건 3가지:
+    - 7일 (168h) 만료 → TIME_LIMIT_REACHED → 자동 마을 귀환
+    - 전원 사망 (HP=0) → PARTY_DEFEATED
+    - 2층 진입 → FLOOR_TRANSITION (★ enum 자리만; 본격 사용은 Phase 8 C)
+    """
+
+    ACTIVE = "active"
+    TIME_LIMIT_REACHED = "time_limit"
+    PARTY_DEFEATED = "party_defeated"
+    FLOOR_TRANSITION = "transition"
+
+
 @dataclass
 class WorldState:
     """게임 진행 상태 (★ 작품 본질, V4 분석).
@@ -603,6 +618,11 @@ class WorldState:
 
     # ★ Stage 7: 동적 현상금 (약탈자 PvP 진행 중 발령/해제)
     active_bounties: list[BountyEntry] = field(default_factory=list)
+
+    # ★ Phase 8 A4 — 1층 simulation 종료 조건 mechanism
+    simulation_status: SimulationStatus = SimulationStatus.ACTIVE
+    simulation_over_reason: str | None = None  # "7일 (168h) 만료..." 등
+    simulation_over_turn: int | None = None  # 종료 trigger turn
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───

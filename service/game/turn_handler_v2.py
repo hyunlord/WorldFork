@@ -31,8 +31,12 @@ from .state_v2 import (
     Realm,
     RiftDef,
     RiftSubAreaDef,
+    SimulationStatus,
     WorldState,
 )
+
+# ★ Phase 8 A4 — 1층 시간 한도. 본문 1차 자료: 7일 (168h).
+TIME_LIMIT_HOURS: int = 168
 
 # ★ Phase 8 A3 — boss grade → 기본 HP (★ 5등급=600, 8등급=200; spec X 시 추측,
 # 후속 balance commit에서 본문 정합 본격 조정).
@@ -882,3 +886,58 @@ def use_item(
         message=f"{character.name}이(가) {item_name} 사용.",
         side_effects=[],
     )
+
+
+# ─── 14. 1층 종료 조건 (★ Phase 8 A4) ───
+
+
+def check_time_limit(
+    world: WorldState,
+    turn_number: int | None = None,
+) -> bool:
+    """168h 도달 시 simulation_status → TIME_LIMIT_REACHED 본격 mutation.
+
+    본질 (★ Phase 8 A4):
+    - 7일 (168h) 만료 = 1층 강제 종료 → 마을 자동 귀환 (★ 후속 location mutate)
+    - 이미 종료 상태 (status != ACTIVE)면 no-op (★ idempotent)
+
+    Returns:
+        True = 본 호출에서 신규 종료 발현. False = 이미 종료 또는 미달.
+    """
+    if world.simulation_status != SimulationStatus.ACTIVE:
+        return False
+    if world.hours_in_dungeon >= TIME_LIMIT_HOURS:
+        world.simulation_status = SimulationStatus.TIME_LIMIT_REACHED
+        world.simulation_over_reason = (
+            f"7일 ({TIME_LIMIT_HOURS}시간) 만료. "
+            "미궁 자동 마을 포탈 귀환."
+        )
+        world.simulation_over_turn = turn_number
+        return True
+    return False
+
+
+def check_party_defeated(
+    party: list[Character],
+    world: WorldState,
+    turn_number: int | None = None,
+) -> bool:
+    """전원 HP=0 시 simulation_status → PARTY_DEFEATED 본격 mutation.
+
+    본질 (★ Phase 8 A4):
+    - 탐사대 전원 사망 = 1층 강제 종료
+    - 부분 사망 (★ 1명 alive) → ACTIVE 유지
+
+    Returns:
+        True = 본 호출에서 신규 종료 발현. False = 이미 종료 또는 미달.
+    """
+    if world.simulation_status != SimulationStatus.ACTIVE:
+        return False
+    if not party:
+        return False
+    if any(c.is_alive() for c in party):
+        return False
+    world.simulation_status = SimulationStatus.PARTY_DEFEATED
+    world.simulation_over_reason = "탐사대 전원 사망."
+    world.simulation_over_turn = turn_number
+    return True
