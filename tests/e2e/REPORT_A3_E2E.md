@@ -78,7 +78,7 @@ T16  EXIT_RIFT   → bloody_castle   target_realm=DUNGEON
 - BC normal (6등급 400 HP) 본격 측정 X — variant trigger 본격 본격
 - 약점 2배가 항상 적용 시 빙하굴 너무 빠를 수 있음 (★ stack metric)
 
-## 4. LLM 100턴 trace
+## 4. LLM 100턴 trace — 실측
 
 `python -m tests.e2e.run_e2e_trace --turns 100 --initial-hours 72.0 --seed 7
 --force-variant --out tests/e2e/trace_A3_llm.json`
@@ -92,31 +92,71 @@ T16  EXIT_RIFT   → bloody_castle   target_realm=DUNGEON
 
 ### 실측 결과
 
-> ★ 본 section은 LLM trace 완료 시점에 본문 정합 본격 보고.
-> 결과는 `trace_A3_llm.json` 본격 자동 검증 (★ `test_a3_boss_cycle.py`).
-
-| 항목 | 본격 | 본격 |
+| 항목 | 측정 | 평가 |
 |------|------|------|
-| completed_turns | (LLM run 결과) | |
-| GM fallback | (context exceeded 본격) | < 5 목표 |
-| ENTER_RIFT 변종 | (LLM이 본격 도달?) | |
-| boss spawn | (boss chamber 도달?) | |
-| boss defeated | (처치 완주?) | |
-| rift_cleared | (cleared_rifts에 추가?) | |
-| EXIT_RIFT post-clear | (LLM이 hint 본격?) | |
-| 마석 inventory | (★ 본격 본격) | |
+| completed_turns | 81 / 100 | `time_limit_168h` (게임 시간 169h) 도달로 조기 종료 |
+| GM fallback | **0** | ✓ context exceeded X (D 다이어트 본격 작동) |
+| Player fallback | **0** | ✓ 9B Q3 안정 |
+| ENTER_RIFT (success) | **12회** | LLM이 균열에 진입은 반복 시도 |
+| → variant=True | 12/12 | ✓ `--force-variant` 본격 매번 변종 강제 |
+| MOVE (within rift) | 4회 | ⚠ entrance(bc_ch1) 이후 거의 안 들어감 |
+| boss chamber 도달 | **0회** | ✗ 변종 경고에 LLM 회피 |
+| boss spawned | **0회** | ✗ chamber 미도달 본격 |
+| ATTACK | 12회 | (★ DUNGEON 일반 몬스터 대상) |
+| FLEE | 18회 | LLM 도주 빈도 高 |
+| EXIT_RIFT | 13회 | 진입 직후 즉시 EXIT 반복 |
+| 마석 inventory | 0개 | 처치 X 본격 |
 
-### Marginal finding 본격 (★ 본인 #19 정직)
+### Marginal finding (★ 본인 #19 정직 reporting)
 
-LLM은 GM 메시지를 받고 행동을 선택. 100턴 안에:
-- 변종 boss chamber 도달 (★ MOVE × 4-5)
-- ATTACK × 10+ (★ 변종 HP 600)
-- 처치 → EXIT_RIFT
+**핵심 finding**: ENTER → 즉시 EXIT 반복 12회. LLM이 변종 경고
+("⚠ 변종 — 일반보다 강함")를 읽고 매번 회피.
 
-는 ~25-30턴 본격 본격 본격 본격, 100턴은 충분하지만 LLM 본격 본격 본격
-본격 본격 본격 X 가능 (★ ABSORB / REST / 다른 actor 본격 본격 본격).
+```
+T 4  ENTER_RIFT  핏빛성채  → bc_ch1 (variant=True)
+T 5  EXIT_RIFT   핏빛성채  → DUNGEON 복귀
+T11  ENTER_RIFT  핏빛성채  → bc_ch1 (variant=True)
+T12  EXIT_RIFT   ...
+...
+```
 
-→ **사이클 완주 X 본격 marginal**: scripted가 mechanism 보장, LLM은 운용 가능성 측정.
+원인 진단:
+1. **prompt 본격 본격 본격**: 변종 시각 표시 ("⚠ 일반보다 강함")가 LLM에게 너무
+   강한 신호. 9B Q3는 위험 회피 우선 → 즉시 EXIT.
+2. **boss chamber 본격 X**: bc_ch5까지 4 MOVE 필요한데 LLM은 입구에서 바로 나옴.
+3. **time budget 초과**: 게임 시간 169h (한도 168h) 도달. 즉 81턴 중 OFFER × 15 +
+   ENTER × 12 + 다양한 행동에 시간 소모.
+
+**메커니즘 자체는 정합**:
+- `--force-variant` 본격 12/12 본격 variant=True 매번 set ✓
+- A2 변종 narrative + A3 보스 spawn handler 모두 정상 ✓
+- 한 번이라도 boss chamber 도달했다면 spawn 발현했을 것 (★ scripted 본격 입증)
+
+**Implication for A4+ 본격**:
+- 변종 prompt 본격 톤 다이얼 (★ "변종 — 보상 高, 위험 高" 본격 의사결정 정보 본격)
+- Player LLM ATTACK 본격 본격 (★ HP 자원 본격 결정 본격)
+- LLM 가이드 prompt 본격 본격 (★ "rift 진입했으면 보스 chamber까지 진행 권장")
+- Player LLM 9B → 27B 본격 비교 (★ 위험 회피 강도 본격)
+
+**결론**: scripted가 mechanism 보장, LLM 운용 가능성은 **현재 marginal**.
+A3 코드는 정상 — LLM 결정 본격 후속 prompt-engineering 본격 본격.
+
+## 4.1. 본 commit 본격 발현 (★ scripted 본격 본격)
+
+| 검증 항목 | scripted | LLM 100턴 |
+|---|---|---|
+| ENTER_RIFT (variant=True 강제) | ✓ | ✓ |
+| location.rift_sub_area refresh | ✓ | ✓ (4 MOVE 만큼) |
+| MOVE chain → boss_chamber | ✓ | ✗ (LLM 회피) |
+| world.active_boss_encounter spawn | ✓ | ✗ (chamber 미도달) |
+| boss.hp 감소 / 약점 2배 | ✓ | — (보스 미조우) |
+| `essence_spawn=` marker | ✓ | — |
+| `boss_defeated=` marker | ✓ | — |
+| `rift_cleared=` marker | ✓ | — |
+| 마석 inventory append | ✓ | — |
+| EXIT_RIFT (post-clear hint) | ✓ | — |
+| GM fallback 0 | — | ✓ (★ D 본격) |
+| Player fallback 0 | — | ✓ |
 
 ## 5. 본 commit 외부 패키지 0건 streak
 
@@ -133,3 +173,8 @@ LLM은 GM 메시지를 받고 행동을 선택. 100턴 안에:
 - 2층 진입 mechanism
 - BC normal HP balance 본격 측정 (★ variant trigger 본격 본격)
 - Player LLM ATTACK rationale 본격 본격 (★ 약점 element 인지)
+- **★ A4 우선 후보 — Player LLM 변종 회피 본격 본격**:
+  * 변종 narrative 톤 다이얼 (★ "위험 高 + 보상 高" 본격 균형 본격)
+  * "rift 진입 후 boss chamber까지 진행" 본격 prompt 가이드 본격
+  * Player LLM 27B 본격 비교 (★ 위험 회피 강도)
+  * 보스 HP / 약점 본격 본격 게임 진행 본격 본격 본격 본격 본격
