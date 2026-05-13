@@ -88,6 +88,8 @@ def _world_snapshot(world: WorldState) -> dict[str, Any]:
         "simulation_status": world.simulation_status.value,
         "simulation_over_reason": world.simulation_over_reason,
         "simulation_over_turn": world.simulation_over_turn,
+        # ★ Phase 8 B — first kill mechanism trace (★ 정렬 본격 결정적)
+        "first_killed_species": sorted(world.first_killed_species),
     }
 
 
@@ -292,6 +294,9 @@ def _refresh_context(
                 "has_active_light": c.has_active_light(),
                 "essence_slots_used": c.essence_slots_used(),
                 "essence_slot_max": c.essence_slot_max(),
+                # ★ Phase 8 B — 레벨 + 경험치
+                "level": c.level,
+                "experience": c.experience,
             }
         )
         chars_ctx[name] = existing
@@ -326,6 +331,8 @@ def _refresh_context(
             "simulation_status": world.simulation_status.value,
             "simulation_over_reason": world.simulation_over_reason,
             "simulation_over_turn": world.simulation_over_turn,
+            # ★ Phase 8 B — first kill species (★ GM 본격 본격 노출)
+            "first_killed_species": sorted(world.first_killed_species),
         }
     )
     ctx["v2_world_state"] = world_ctx

@@ -18,7 +18,7 @@ from service.pipeline.types import Plan
 
 from .init_from_plan import build_game_context
 from .state import GameState
-from .state_v2 import Realm
+from .state_v2 import Realm, next_level_threshold
 
 # ★ 게임 응답 검증 기준 (★ Cross-Model LLM Judge용, A1.5)
 GAME_CRITERIA = JudgeCriteria(
@@ -130,7 +130,11 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             soul = info.get("soul_power", 0)
             height = info.get("height", 0)
 
-            line = f"  - **{name}** ({race_str})"
+            # ★ Phase 8 B — level / exp prefix (★ 본인 답 mechanism)
+            lv = info.get("level", 1)
+            exp = info.get("experience", 0)
+            next_thr = next_level_threshold(int(lv))
+            line = f"  - **{name}** ({race_str}, Lv {lv} · exp {exp}/{next_thr})"
             line += f": HP {hp}/{hp_max}, 영혼력 {soul}, 신장 {height}cm"
             line += (
                 f", 메인 [육체 {info.get('physical', 0)} "

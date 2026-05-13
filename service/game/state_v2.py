@@ -144,6 +144,60 @@ class MonsterGrade(IntEnum):
     LAYER_LORD = 0
 
 
+# ─── Phase 8 B — 레벨 + 경험치 시스템 ───
+
+# 본인 명시 (★ 2026-05-13 답): 몬스터 사냥 → 경험치, 같은 species 두 번째 0
+# (★ "딱 한번 사냥하면 경험치"), 레벨 ↑ → 정수 슬롯 max ↑.
+LEVEL_EXP_THRESHOLDS: tuple[int, ...] = (
+    0,      # level 1 (★ 시작)
+    100,    # level 2 (★ 9등급 2마리 또는 8등급 1마리)
+    250,    # level 3
+    500,    # level 4
+    1000,   # level 5
+    2000,   # level 6
+    4000,   # level 7
+    8000,   # level 8
+    16000,  # level 9
+    32000,  # level 10 (★ max)
+)
+
+# 본인 명시 정합 (★ 7e finding: level 1 = 5 정수 슬롯).
+LEVEL_TO_ESSENCE_SLOT_MAX: dict[int, int] = {
+    1: 5,
+    2: 6,
+    3: 7,
+    4: 8,
+    5: 9,
+    6: 10,
+    7: 12,
+    8: 14,
+    9: 16,
+    10: 20,
+}
+
+
+def level_for_exp(exp: int) -> int:
+    """누적 exp → level 계산 (★ 1-indexed, max len(LEVEL_EXP_THRESHOLDS))."""
+    for lv in range(len(LEVEL_EXP_THRESHOLDS), 0, -1):
+        if exp >= LEVEL_EXP_THRESHOLDS[lv - 1]:
+            return lv
+    return 1
+
+
+def slot_max_for_level(level: int) -> int:
+    """level → essence_slot_max 본격 (★ max level cap)."""
+    max_lv = max(LEVEL_TO_ESSENCE_SLOT_MAX.keys())
+    capped = min(max(level, 1), max_lv)
+    return LEVEL_TO_ESSENCE_SLOT_MAX[capped]
+
+
+def next_level_threshold(level: int) -> int:
+    """현재 level의 다음 threshold (★ max level 시 자기 threshold)."""
+    if level >= len(LEVEL_EXP_THRESHOLDS):
+        return LEVEL_EXP_THRESHOLDS[-1]
+    return LEVEL_EXP_THRESHOLDS[level]  # 0-indexed: idx=level = next 본격
+
+
 class MonsterArea(StrEnum):
     """1층 몬스터 등장 영역 본질."""
 
@@ -381,6 +435,7 @@ class Character:
     name: str
     race: Race
     level: int = 1
+    experience: int = 0  # ★ Phase 8 B — 누적 exp (★ level_for_exp 본격)
     is_player: bool = False
 
     # 종족 하위 (수인 부족)
@@ -470,18 +525,17 @@ class Character:
         )
 
     def essence_slot_max(self) -> int:
-        """종족별 정수 슬롯 (★ 1차 자료: 인간 5개).
+        """정수 슬롯 max (★ Phase 8 B — level 본격).
 
-        종족별 차이 = 추후 1차 자료 검증 후 정정.
+        본질:
+        - level 1 = 5 (★ 1차 자료 + 7e finding 정합)
+        - level ↑ → slot ↑ (★ 본인 답 2026-05-13)
+        - max level 10 = 20
+
+        본격 X: 종족별 차이 (★ 1차 자료 명시 X — 인간 5 외 동일 가정).
+        후속 정정 1차 자료 본격.
         """
-        return {
-            Race.HUMAN: 5,
-            Race.DWARF: 5,
-            Race.BEASTKIN: 5,
-            Race.FAERIE: 5,
-            Race.BARBARIAN: 5,
-            Race.DRAGONKIN: 5,
-        }.get(self.race, 5)
+        return slot_max_for_level(self.level)
 
     def essence_slots_used(self) -> int:
         return len(self.essences)
@@ -624,6 +678,11 @@ class WorldState:
     simulation_status: SimulationStatus = SimulationStatus.ACTIVE
     simulation_over_reason: str | None = None  # "7일 (168h) 만료..." 등
     simulation_over_turn: int | None = None  # 종료 trigger turn
+
+    # ★ Phase 8 B — "딱 한번" 경험치 mechanism (★ 본인 답 2026-05-13).
+    # party 본격 본격 사냥 본격 species id set (★ MonsterDef.name / Boss.boss_id).
+    # 같은 species 두 번째 사냥 → exp 0.
+    first_killed_species: set[str] = field(default_factory=set)
 
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───

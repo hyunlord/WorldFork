@@ -33,10 +33,29 @@ from .state_v2 import (
     RiftSubAreaDef,
     SimulationStatus,
     WorldState,
+    level_for_exp,
 )
 
 # ★ Phase 8 A4 — 1층 시간 한도. 본문 1차 자료: 7일 (168h).
 TIME_LIMIT_HOURS: int = 168
+
+# ★ Phase 8 B — 등급별 base exp (★ 9 = 1층 본격 본격, 0 = 계층군주).
+# 본인 #19: 1차 자료 명시 X → 추측. balance commit 본격 정정 가능.
+# threshold table (★ state_v2.LEVEL_EXP_THRESHOLDS) 본격 정합:
+# - 9등급 2회 = 100 exp = level 2 (★ "딱 한번" mechanism 본격 spread 본격 본격)
+# - 5등급 변종 보스 1회 = 800 exp = level 4
+MONSTER_EXP_BY_GRADE: dict[int, int] = {
+    9: 50,
+    8: 100,
+    7: 200,
+    6: 400,
+    5: 800,
+    4: 1600,
+    3: 3200,
+    2: 6400,
+    1: 12800,
+    0: 25600,  # 계층군주
+}
 
 # ★ Phase 8 A3 — boss grade → 기본 HP (★ 5등급=600, 8등급=200; spec X 시 추측,
 # 후속 balance commit에서 본문 정합 본격 조정).
@@ -450,14 +469,28 @@ def execute_attack(
 
     advance_time(party, world, elapsed_hours=0.5)
 
+    # ★ Phase 8 B — first kill 본격 exp drop ("딱 한번" mechanism).
+    exp_awarded, leveled_up = _award_kill_exp(
+        attacker, monster.name, grade_value, world
+    )
+
+    side: list[str] = [f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"]
+    msg_tail = ""
+    if exp_awarded > 0:
+        side.append(f"exp_gained={attacker.name}:{exp_awarded}")
+        msg_tail = f" 경험치 +{exp_awarded}."
+    if leveled_up:
+        side.append(f"level_up={attacker.name}:{attacker.level}")
+        msg_tail += f" ⭐ 레벨 업! → Lv {attacker.level}."
+
     return TurnResult(
         success=True,
         action_type="attack",
         message=(
             f"{attacker.name}이(가) {target_monster_name} 처치 "
-            f"({grade_value}등급)."
+            f"({grade_value}등급).{msg_tail}"
         ),
-        side_effects=[f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"],
+        side_effects=side,
     )
 
 
@@ -539,6 +572,12 @@ def _defeat_boss(
 
     advance_time(party, world, elapsed_hours=0.5)
 
+    # ★ Phase 8 B — 보스 first kill 본격 exp drop. boss_id 본격 species id
+    # (★ "bloody_castle_variant" 등 variant-aware — variant/normal 본격 별도).
+    exp_awarded, leveled_up = _award_kill_exp(
+        attacker, boss.boss_id, boss.boss_grade, world
+    )
+
     rift_name = rift_def.name if rift_def is not None else boss.rift_id
     variant_label = " (변종)" if boss.is_variant else ""
     stone_tag = (
@@ -546,9 +585,24 @@ def _defeat_boss(
         if stone_added
         else f"{boss.boss_name}의 마석 (소지 X — 무게 한계)"
     )
+
+    exp_tail = ""
+    side = [
+        f"essence_spawn={essence_color}",
+        f"boss_defeated={boss.boss_id}",
+        f"rift_cleared={boss.rift_id}",
+        "시간 0.5h 경과",
+    ]
+    if exp_awarded > 0:
+        side.append(f"exp_gained={attacker.name}:{exp_awarded}")
+        exp_tail = f" 경험치 +{exp_awarded}."
+    if leveled_up:
+        side.append(f"level_up={attacker.name}:{attacker.level}")
+        exp_tail += f" ⭐ 레벨 업! → Lv {attacker.level}."
+
     message = (
         f"⚔ {boss.boss_name}{variant_label} 처치! ({last_damage} 데미지) "
-        f"보상: {essence_color} 정수, {stone_tag}. "
+        f"보상: {essence_color} 정수, {stone_tag}.{exp_tail} "
         f"균열 '{rift_name}' 클리어 — 포탈이 열렸다 (EXIT_RIFT)."
     )
 
@@ -556,12 +610,7 @@ def _defeat_boss(
         success=True,
         action_type="attack",
         message=message,
-        side_effects=[
-            f"essence_spawn={essence_color}",
-            f"boss_defeated={boss.boss_id}",
-            f"rift_cleared={boss.rift_id}",
-            "시간 0.5h 경과",
-        ],
+        side_effects=side,
     )
 
 
@@ -886,6 +935,49 @@ def use_item(
         message=f"{character.name}이(가) {item_name} 사용.",
         side_effects=[],
     )
+
+
+# ─── 14b. 레벨 + 경험치 (★ Phase 8 B) ───
+
+
+def _award_kill_exp(
+    actor: Character,
+    species_id: str,
+    grade: int,
+    world: WorldState,
+) -> tuple[int, bool]:
+    """처치 본격 actor exp drop + level up check (★ 본인 답 mechanism).
+
+    본질 (★ Phase 8 B):
+    - 같은 species (★ MonsterDef.name / Boss.boss_id) 두 번째 처치 → 0 exp
+    - first kill → MONSTER_EXP_BY_GRADE[grade] base exp
+    - actor.experience += base
+    - level_for_exp(actor.experience) > actor.level 시 level up
+      → actor.level update (★ essence_slot_max도 같이 자동 증가 — level 본격)
+
+    Args:
+        actor: 처치자
+        species_id: 본격 species 식별자 (★ 정상 monster.name / 보스 boss.boss_id)
+        grade: 0-9 (★ 0 = 계층군주)
+        world: WorldState (★ first_killed_species mutation)
+
+    Returns:
+        (awarded_exp, leveled_up) — 본격 awarded_exp = 0 본격 두 번째 처치.
+    """
+    if species_id in world.first_killed_species:
+        return 0, False
+
+    base_exp = MONSTER_EXP_BY_GRADE.get(grade, 50)
+    actor.experience += base_exp
+    world.first_killed_species.add(species_id)
+
+    old_level = actor.level
+    new_level = level_for_exp(actor.experience)
+    leveled_up = new_level > old_level
+    if leveled_up:
+        actor.level = new_level
+
+    return base_exp, leveled_up
 
 
 # ─── 14. 1층 종료 조건 (★ Phase 8 A4) ───
