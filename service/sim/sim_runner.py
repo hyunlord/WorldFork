@@ -377,6 +377,8 @@ def _refresh_context(
             "rift_id": location.rift_id,
             "rift_sub_area": location.rift_sub_area,
             "rift_is_variant": location.rift_is_variant,
+            # ★ Phase 8 village mech — realm=CITY 시 도시 식별자 (★ a-2/a-3 본격)
+            "city_id": location.city_id,
         }
     )
     ctx["v2_initial_location"] = loc_ctx

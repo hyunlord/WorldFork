@@ -109,10 +109,69 @@ def _format_simulation_status(ctx: dict[str, Any]) -> str:
     return ""
 
 
+def _format_city_context(ctx: dict[str, Any]) -> str:
+    """마을 본격 GM prompt — sub_area + NPC + 인접 이동 (★ Phase 8 village mech).
+
+    본 함수는 ctx['v2_initial_location'].realm == 'city' 시 본격 prompt block 본격.
+    a-2 선례 정합: RAPDONIA 직접 import (★ CITY_REGISTRY dict 본격 X).
+
+    본 commit (a-2)+(a-3) 본격 SKIP된 GM prompt wire — 환전 mechanism은 후속 commit.
+    """
+    loc = ctx.get("v2_initial_location") or {}
+    if loc.get("realm") != Realm.CITY.value:
+        return ""
+
+    city_id = loc.get("city_id")
+    if not city_id:
+        return ""
+
+    # 본 sim 본격 1 city (라프도니아). 후속 multi-city 본격 dispatch 본격 본격.
+    from .cities.rapdonia import RAPDONIA
+
+    if city_id != RAPDONIA.city_id:
+        return f"📍 마을: {city_id} (★ 본격 데이터 X)\n\n"
+
+    current_sub_id = loc.get("sub_area")
+    sub = next(
+        (s for s in RAPDONIA.sub_areas if s.id == current_sub_id),
+        None,
+    )
+    if sub is None:
+        return (
+            f"📍 {RAPDONIA.city_name} (★ sub_area X: {current_sub_id})\n\n"
+        )
+
+    lines = [
+        f"📍 마을 — {RAPDONIA.city_name} · {sub.name}",
+        f"  {sub.description}",
+    ]
+
+    if sub.npc_ids:
+        npcs_here = [n for n in RAPDONIA.npcs if n.id in sub.npc_ids]
+        if npcs_here:
+            npc_names = ", ".join(n.name for n in npcs_here)
+            lines.append(f"  여기 NPC: {npc_names}")
+
+    if sub.connections:
+        conn_names: list[str] = []
+        for cid in sub.connections:
+            c = next(
+                (s for s in RAPDONIA.sub_areas if s.id == cid), None
+            )
+            if c is not None:
+                conn_names.append(c.name)
+        if conn_names:
+            lines.append(f"  이동 가능: {', '.join(conn_names)}")
+
+    return "\n".join(lines) + "\n\n"
+
+
 def _gm_system_prompt(ctx: dict[str, Any]) -> str:
     """GM system prompt (★ Plan 컨텍스트 + 잘림 방지 명시)."""
     # ★ Phase 8 A4 — 종료 상태면 헤더 prepend (★ 강제 우선 안내)
     status_header = _format_simulation_status(ctx)
+    # ★ Phase 8 village mech — realm=CITY 시 마을 sub_area / NPC / 이동 block
+    city_block = _format_city_context(ctx)
     supporting_line = ""
     if ctx["supporting_characters"]:
         supporting_line = (
@@ -577,6 +636,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
 
     return (
         f"{status_header}"
+        f"{city_block}"
         f"당신은 한국어 텍스트 어드벤처 게임의 GM입니다.\n\n"
         f"세계관:\n"
         f"- 작품: {ctx['work_name']} ({ctx['work_genre']})\n"
