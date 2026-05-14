@@ -1088,7 +1088,8 @@ def check_party_defeated(
     if any(c.is_alive() for c in party):
         return False
     world.simulation_status = SimulationStatus.PARTY_DEFEATED
-    world.simulation_over_reason = "탐사대 전원 사망."
+    # ★ Phase 8 (b) — 본문 톤 정합 (★ 37화 "일상다반사" 정합 무덤덤 어조).
+    world.simulation_over_reason = "탐사대 전원이 미궁에서 쓰러졌다."
     world.simulation_over_turn = turn_number
     return True
 

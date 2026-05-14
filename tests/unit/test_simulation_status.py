@@ -159,7 +159,8 @@ def test_party_defeated_all_dead_triggers() -> None:
     triggered = check_party_defeated(party, world, turn_number=42)
     assert triggered is True
     assert world.simulation_status == SimulationStatus.PARTY_DEFEATED
-    assert world.simulation_over_reason == "탐사대 전원 사망."
+    # ★ Phase 8 (b) — 본문 톤 정합 (★ 37화 "일상다반사" 본격).
+    assert world.simulation_over_reason == "탐사대 전원이 미궁에서 쓰러졌다."
     assert world.simulation_over_turn == 42
 
 
@@ -219,10 +220,11 @@ def test_prompt_party_defeated_header_present() -> None:
     ctx = {
         "v2_world_state": {
             "simulation_status": "party_defeated",
-            "simulation_over_reason": "탐사대 전원 사망.",
+            "simulation_over_reason": "탐사대 전원이 미궁에서 쓰러졌다.",
             "simulation_over_turn": 50,
         }
     }
     out = _format_simulation_status(ctx)
-    assert "전원 사망" in out
+    # ★ Phase 8 (b) — header 본격 "쓰러짐" (★ 본문 톤 정합)
+    assert "쓰러짐" in out or "쓰러졌다" in out
     assert "50" in out
