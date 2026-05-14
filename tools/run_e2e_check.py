@@ -3,8 +3,13 @@
 정공법 정신: F12 사람 의존 X, curl 자동.
 verify.sh 통합으로 매 push 자동 차단.
 
+★ Phase 9.5 E2E fix (2026-05-15):
+- default port 8090 → 8091 (★ dev backend 8090 본격 충돌 회피).
+- dev server running 상태 본격 Mechanical 5/5 본격 본격.
+- Browser E2E는 frontend → 8090 backend (★ 본 commit 영향 X).
+
 검증 흐름:
-  1. uvicorn 백그라운드 띄움
+  1. uvicorn 백그라운드 띄움 (★ port 8091)
   2. /health 200
   3. /game/start POST: 200 + session_id
   4. /game/start CORS preflight: 200 + Access-Control-Allow-Origin
@@ -14,7 +19,7 @@ verify.sh 통합으로 매 push 자동 차단.
 
 사용:
   python tools/run_e2e_check.py
-  python tools/run_e2e_check.py --port 8090 --origin http://localhost:4000
+  python tools/run_e2e_check.py --port 8091 --origin http://localhost:4000
   python tools/run_e2e_check.py --skip-turn  # CI 환경 시간 절약
 
 Exit code: 0=pass, 1=fail
@@ -81,7 +86,7 @@ def _find_header(headers: dict[str, str], name: str) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8090)
+    parser.add_argument("--port", type=int, default=8091)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument(
         "--origin",

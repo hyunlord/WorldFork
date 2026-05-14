@@ -143,9 +143,9 @@ echo ""
 echo "[5/6] E2E (★ Mechanical curl + Browser playwright)..."
 E2E_SCORE=0
 
-# (a) Mechanical E2E — backend
-if lsof -ti:8090 > /dev/null 2>&1; then
-    echo "  ⚠️ port 8090 사용 중 — Mechanical skip (★ dev 서버 보존, 0/5)"
+# (a) Mechanical E2E — backend (★ Phase 9.5 fix: port 8090 → 8091, dev server 충돌 회피)
+if lsof -ti:8091 > /dev/null 2>&1; then
+    echo "  ⚠️ port 8091 사용 중 — Mechanical skip (★ 충돌 회피, 0/5)"
 elif curl -sf http://localhost:8083/health > /dev/null 2>&1 && \
      curl -sf http://localhost:8081/health > /dev/null 2>&1; then
     if python tools/run_e2e_check.py > /tmp/e2e_out.log 2>&1; then
