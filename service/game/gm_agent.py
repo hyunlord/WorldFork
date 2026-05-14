@@ -163,6 +163,13 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         if conn_names:
             lines.append(f"  이동 가능: {', '.join(conn_names)}")
 
+    # ★ Phase 8 exchange — 환전소 본격 action hint (★ 본문 9등급=20 / 8등급=100)
+    if sub.id == "exchange_office":
+        lines.append(
+            "  ⚡ EXCHANGE_MAGE_STONES 본격 마석 → 스톤 환전 가능 "
+            "(9등급=20 / 8등급=100)."
+        )
+
     return "\n".join(lines) + "\n\n"
 
 

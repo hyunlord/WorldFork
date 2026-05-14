@@ -503,6 +503,10 @@ class Character:
     hp_max: int = 100
     soul_power: int = 0  # 영혼력 (MP)
     soul_power_max: int = 0
+    # ★ Phase 8 exchange — 화폐. 마석 환전 + 거래소 / 여관 / 길드 본격 사용처.
+    # 본문 출처: 환전 9등급=20스톤, 2년차 세금=80만 스톤, 컴멜비 1박=9000 (namu §4).
+    # 시작값 0 (★ 본문 시작값 명시 X, 보수적).
+    stone: int = 0
 
     # 정수 (★ 종족별 슬롯, 인간 5개)
     essences: list[Essence] = field(default_factory=list)

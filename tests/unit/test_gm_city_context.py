@@ -150,12 +150,8 @@ def test_library_shows_ragna() -> None:
 # ─── 4. exchange_office (★ 후속 commit 본격 hint 없음) ───
 
 
-def test_exchange_office_shows_sub_area_no_action_hint() -> None:
-    """본 commit 본격 환전 mechanism X → action hint 본격 X.
-
-    후속 commit (★ Item.grade + Character.stone + EXCHANGE_MAGE_STONES) 시
-    "EXCHANGE_MAGE_STONES 본격 본격" hint 추가.
-    """
+def test_exchange_office_shows_action_hint() -> None:
+    """★ Phase 8 exchange commit 본격 — EXCHANGE_MAGE_STONES action hint 본격 추가."""
     ctx = {
         "v2_initial_location": {
             "realm": "도시",
@@ -165,8 +161,8 @@ def test_exchange_office_shows_sub_area_no_action_hint() -> None:
     }
     out = _format_city_context(ctx)
     assert "환전소" in out
-    # 본 commit 본격 — EXCHANGE_MAGE_STONES action hint 본격 X (후속)
-    assert "EXCHANGE_MAGE_STONES" not in out
+    assert "EXCHANGE_MAGE_STONES" in out
+    assert "9등급=20" in out
 
 
 # ─── 5. Sub area without NPCs (★ tavern) ───

@@ -30,6 +30,7 @@ from service.game.turn_handler_v2 import (
     check_time_limit,
     enter_next_floor,
     enter_rift,
+    exchange_mage_stones,
     execute_attack,
     exit_rift,
     exit_to_prev_floor,
@@ -282,6 +283,13 @@ def _execute_action(
 
     if action.action_type == PlayerActionType.EXIT_TO_PREV_FLOOR:
         r = exit_to_prev_floor(party_list, world, location)
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 8 exchange — 환전소 본격 마석 → 스톤
+    if action.action_type == PlayerActionType.EXCHANGE_MAGE_STONES:
+        if not actor:
+            return False, "actor 없음.", []
+        r = exchange_mage_stones(actor, location)
         return r.success, r.message, r.side_effects
 
     return False, f"unknown action: {action.action_type.value}", []

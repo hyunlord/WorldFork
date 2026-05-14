@@ -205,13 +205,15 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_15() -> None:
-    """PlayerActionType 본격 15개 (★ Phase 7j 13 + Phase 8 C/R3 2개 추가).
+def test_player_action_type_count_16() -> None:
+    """PlayerActionType 본격 16개 (★ Phase 7j 13 + Phase 8 C/R3 2 + exchange 1).
 
     Phase 8 C / R3 추가:
     - ENTER_NEXT_FLOOR (★ generic, R3 rename from ENTER_FLOOR_TWO)
     - EXIT_TO_PREV_FLOOR (★ generic, R3 rename from EXIT_TO_FLOOR_ONE)
+    Phase 8 exchange:
+    - EXCHANGE_MAGE_STONES (★ 마을 환전소 본격)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 15
+    assert len(list(PlayerActionType)) == 16

@@ -60,6 +60,25 @@ MONSTER_EXP_BY_GRADE: dict[int, int] = {
     0: 25600,  # 계층군주
 }
 
+# ★ Phase 8 exchange — 마석 환전 rate (★ 본문 9등급=20, 8등급=100).
+# 7-0 등급 본문 명시 X → 등급당 5배 추정 (★ 9→8 = 5배 정합).
+# 후속 본문 발견 시 보강 (★ namu §2.2 본격 본격 본격).
+MAGE_STONE_EXCHANGE_RATE: dict[int, int] = {
+    9: 20,         # ★ 본문 명시
+    8: 100,        # ★ 본문 명시
+    7: 500,        # 추측
+    6: 2_500,
+    5: 12_500,     # ★ namu "5등급 정수 수천만 스톤" 정합 본격 본격
+    4: 62_500,
+    3: 312_500,
+    2: 1_562_500,
+    1: 7_812_500,
+    0: 39_062_500,  # 계층군주
+}
+
+# ★ Phase 8 exchange — 환전소 sub_area id (★ a-2 RAPDONIA 본격 본격).
+EXCHANGE_OFFICE_SUB_AREA: str = "exchange_office"
+
 # ★ Phase 8 A3 — boss grade → 기본 HP (★ 5등급=600, 8등급=200; spec X 시 추측,
 # 후속 balance commit에서 본문 정합 본격 조정).
 _BOSS_HP_BY_GRADE: dict[int, int] = {
@@ -1269,5 +1288,97 @@ def exit_to_prev_floor(
         side_effects=[
             f"floor_transition={prev_floor}",
             f"return_to={entry}",
+        ],
+    )
+
+
+# ─── 16. 환전소 마석 → 스톤 (★ Phase 8 exchange) ───
+
+
+def exchange_mage_stones(
+    actor: Character,
+    location: Location,
+) -> TurnResult:
+    """환전소 본격 마석 batch → 스톤 환전 (★ docs/village_spec.md §2-2).
+
+    본질 (★ namu §2.2 본문 정합):
+    - 9등급 마석 = 20 스톤
+    - 8등급 마석 = 100 스톤
+    - 7-0 등급: 추측 (★ 후속 본문 진단)
+
+    Item.grade 본격 식별 (★ village-schema-1 5e654be 본격 wire):
+    - grade is not None → 마석
+    - rate 본격 0 본격 skip (★ Item.grade 있으나 rate table X)
+
+    실패:
+    - realm != CITY (★ Realm.CITY enum)
+    - sub_area != EXCHANGE_OFFICE_SUB_AREA
+    - 마석 X (★ inventory 본격 grade is not None Item 없음)
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="exchange_mage_stones",
+            message="환전소는 마을(CITY)에서만 작동.",
+        )
+
+    if location.sub_area != EXCHANGE_OFFICE_SUB_AREA:
+        return TurnResult(
+            success=False,
+            action_type="exchange_mage_stones",
+            message=(
+                f"환전소({EXCHANGE_OFFICE_SUB_AREA})로 이동 필요. "
+                f"현재: {location.sub_area}"
+            ),
+        )
+
+    mage_stones = [
+        i for i in actor.inventory.items if i.grade is not None
+    ]
+    if not mage_stones:
+        return TurnResult(
+            success=False,
+            action_type="exchange_mage_stones",
+            message=f"{actor.name} 본격 환전 가능 마석 X.",
+        )
+
+    total_stone = 0
+    exchanged_count = 0
+    exchanged_items: list[Item] = []
+    for stone in mage_stones:
+        # stone.grade is not None (★ 위 filter 본격 보장)
+        rate = MAGE_STONE_EXCHANGE_RATE.get(stone.grade or 0, 0)
+        if rate > 0:
+            total_stone += rate
+            exchanged_count += 1
+            exchanged_items.append(stone)
+
+    if exchanged_count == 0:
+        # 모든 마석 본격 rate X (★ 본격 본격 불가능 본격 본격 본격)
+        return TurnResult(
+            success=False,
+            action_type="exchange_mage_stones",
+            message=(
+                f"{actor.name} 마석 본격 환전 rate X "
+                f"({len(mage_stones)}개 본격)."
+            ),
+        )
+
+    # mutation — 환전된 Item 본격 list 본격 remove (★ Inventory.items mutable list).
+    # Item frozen 본격 본격 list reference identity 본격 본격.
+    for item in exchanged_items:
+        actor.inventory.items.remove(item)
+    actor.stone += total_stone
+
+    return TurnResult(
+        success=True,
+        action_type="exchange_mage_stones",
+        message=(
+            f"{actor.name} 마석 {exchanged_count}개 환전. "
+            f"+{total_stone} 스톤 (★ 총 {actor.stone})."
+        ),
+        side_effects=[
+            f"exchanged_stones={actor.name}:{exchanged_count}",
+            f"stone_gained={actor.name}:+{total_stone}",
         ],
     )

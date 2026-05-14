@@ -39,6 +39,8 @@ class PlayerActionType(StrEnum):
     # ★ Phase 8 C / R3 — 인접 층 진입 / 복귀 (★ generic)
     ENTER_NEXT_FLOOR = "enter_next_floor"      # 현재 층 → current+1
     EXIT_TO_PREV_FLOOR = "exit_to_prev_floor"  # 현재 층 → current-1 (★ 왕복)
+    # ★ Phase 8 exchange — 마을 환전소 본격 마석 → 스톤 batch 환전
+    EXCHANGE_MAGE_STONES = "exchange_mage_stones"
 
 
 @dataclass
@@ -168,6 +170,8 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     # ★ Phase 8 C / R3 — 층 전환 본격 RIFT 본격 정합 (★ 0.5h)
     PlayerActionType.ENTER_NEXT_FLOOR: 0.5,
     PlayerActionType.EXIT_TO_PREV_FLOOR: 0.5,
+    # ★ Phase 8 exchange — 환전 batch (★ 마을 본격, 본격 짧음)
+    PlayerActionType.EXCHANGE_MAGE_STONES: 0.5,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
