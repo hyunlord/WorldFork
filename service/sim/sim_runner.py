@@ -346,6 +346,16 @@ def _refresh_context(
                 # ★ Phase 8 B — 레벨 + 경험치
                 "level": c.level,
                 "experience": c.experience,
+                # ★ Phase 9.3 — 부상 (LLM narrative 본격)
+                "injuries": [
+                    {
+                        "severity": inj.severity,
+                        "body_part": inj.body_part,
+                        "recovery_days": inj.recovery_days,
+                        "scar": inj.scar,
+                    }
+                    for inj in c.injuries
+                ],
             }
         )
         chars_ctx[name] = existing

@@ -292,6 +292,17 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             line += f", 정수슬롯 {info.get('essence_slot_max', 5)}"
             v2_lines.append(line)
 
+            # ★ Phase 9.3 — 부상 summary (★ LLM narrative 본격, 13c23ab injury wire).
+            # body_part / severity / recovery_days 본격 본격, scar=True 본격 '(흉터 예정)'.
+            injuries = info.get("injuries") or []
+            for inj in injuries:
+                scar_tag = " (흉터 예정)" if inj.get("scar") else ""
+                v2_lines.append(
+                    f"    └ 부상: {inj.get('body_part', '')} "
+                    f"{inj.get('severity', '')} "
+                    f"(회복 {inj.get('recovery_days', 0)}일 남음){scar_tag}"
+                )
+
         v2_block = (
             "캐릭터 스탯 (★ 작품 본질):\n"
             + "\n".join(v2_lines)
