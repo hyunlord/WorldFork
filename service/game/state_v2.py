@@ -693,6 +693,10 @@ class WorldState:
     cleared_rifts: list[str] = field(default_factory=list)  # rift_id list
     active_boss_encounter: BossEncounter | None = None
 
+    # ★ Phase 9 rift-cooldown — rift_id → period (month_number) 본격 본격.
+    # 27화 본문 정합 cooldown counter (★ 자연 활성 + 의도적 활성 둘 다 기록).
+    rift_last_opened_periods: dict[str, int] = field(default_factory=dict)
+
     # ★ 환경 본질
     is_dark_zone: bool = True  # ★ 1층 기본 True (어둠)
 
@@ -900,6 +904,13 @@ class RiftDef:
 
     # 환경
     description: str = ""
+
+    # ★ Phase 9 rift-cooldown — A-1 spec 본격 실작동 (★ 27화 본문 정합).
+    # 27화: "최소 3주기 세 달" / "대부분 5~6주기 사이 랜덤" / "맥시멈 8주기".
+    # 1 주기 = 1 month (★ Phase 9 month_number — 19화 30일 정합).
+    cooldown_min_periods: int = 3
+    cooldown_max_periods: int = 8
+    cooldown_typical_range: tuple[int, int] = (5, 6)
 
 
 @dataclass(frozen=True, slots=True)

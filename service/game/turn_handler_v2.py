@@ -26,6 +26,7 @@ from .state_v2 import (
     EssenceGrade,
     EssenceOrigin,
     EssenceType,
+    FloorDefinition,
     FloorState,
     Item,
     ItemCategory,
@@ -823,6 +824,8 @@ def offer_to_stone(
 
     if canonical not in world.active_rifts:
         world.active_rifts.append(canonical)
+    # ★ Phase 9 rift-cooldown — 의도적 활성도 period 기록 (★ 자연 활성 next gate).
+    world.rift_last_opened_periods[canonical] = world.month_number
 
     return TurnResult(
         success=True,
@@ -1554,6 +1557,115 @@ def execute_wait_in_village(
     )
 
 
+# ─── Phase 9 rift-cooldown — A-1 spec 본격 실작동 mechanism ───
+#
+# 본문 정합 (★ docs/floor1_rifts_spec.md A-1):
+# - 27화: 최소 3주기 / 5~6주기 본격 / 맥시멈 8주기
+# - 28화: 통계학적 trigger (★ 본인 가설 '랜덤처럼 보여도 트리거')
+# - 1 주기 = 1 month (★ WorldState.month_number, 19화 30일 정합)
+
+
+def _eligible_rifts_for_period(
+    floor_def: FloorDefinition,
+    world: WorldState,
+    current_period: int,
+) -> list[str]:
+    """현재 period 본격 자연 활성 가능 균열 본격 list.
+
+    Eligibility:
+    - cleared_rifts 제외 (★ 본 commit 본격 single-cycle reset 본격 X)
+    - active_rifts 제외 (★ 이미 활성 본격 X)
+    - last_opened X (★ 본격 본격 본격) → eligible
+    - elapsed >= cooldown_min_periods → eligible
+    """
+    eligible: list[str] = []
+    for rift in floor_def.rifts:
+        if rift.rift_id in world.cleared_rifts:
+            continue
+        if rift.rift_id in world.active_rifts:
+            continue
+        last_opened = world.rift_last_opened_periods.get(rift.rift_id)
+        if last_opened is None:
+            eligible.append(rift.rift_id)
+            continue
+        elapsed = current_period - last_opened
+        if elapsed >= rift.cooldown_min_periods:
+            eligible.append(rift.rift_id)
+    return eligible
+
+
+def _select_rift_to_activate(
+    rift_ids: list[str],
+    floor_def: FloorDefinition,
+    world: WorldState,
+    current_period: int,
+    rng: random.Random,
+) -> str | None:
+    """본문 정합 본격 활성 본격.
+
+    27화 정합:
+    - elapsed ∈ typical_range → 본문 정합 zone → candidate
+    - elapsed >= max → forced (★ 맥시멈 본격)
+    - first-time (last_opened X) → typical_range 본격 본격 본격 candidate
+      (★ 28화 본인 가설 '랜덤처럼 보여도 트리거' 정합)
+    - elapsed < typical low 본격 X → 본격 본격 X
+    """
+    candidates: list[str] = []
+    rift_by_id = {r.rift_id: r for r in floor_def.rifts}
+    for rift_id in rift_ids:
+        rift = rift_by_id.get(rift_id)
+        if rift is None:
+            continue
+        last_opened = world.rift_last_opened_periods.get(rift_id)
+        lo, hi = rift.cooldown_typical_range
+        if last_opened is None:
+            # 본격 활성 X — typical_range 본격 본격 본격 candidate
+            # (★ 본인 가설: 사실상 typical_range probabilistic trigger)
+            candidates.append(rift_id)
+            continue
+        elapsed = current_period - last_opened
+        if lo <= elapsed <= hi:
+            candidates.append(rift_id)
+        elif elapsed >= rift.cooldown_max_periods:
+            candidates.append(rift_id)
+    if not candidates:
+        return None
+    return rng.choice(candidates)
+
+
+def activate_natural_rifts(
+    world: WorldState,
+    floor_def: FloorDefinition,
+    rng: random.Random | None = None,
+) -> list[str]:
+    """현재 period 본격 자연 활성 균열 본격 mutation.
+
+    1차 자료 (★ A-1 spec):
+    - 27화: 5~6주기 본격 활성
+    - 28화: 통계학적 trigger (★ 본인 가설 정합)
+    - 의도적 활성 (★ A3 offer_to_stone) 본격 별도 path
+    """
+    if rng is None:
+        rng = random.Random()
+
+    current_period = world.month_number
+    eligible = _eligible_rifts_for_period(
+        floor_def, world, current_period
+    )
+    if not eligible:
+        return []
+
+    selected = _select_rift_to_activate(
+        eligible, floor_def, world, current_period, rng
+    )
+    if selected is None:
+        return []
+
+    world.active_rifts.append(selected)
+    world.rift_last_opened_periods[selected] = current_period
+    return [selected]
+
+
 def execute_enter_dungeon(
     actor_name: str,
     party: list[Character],
@@ -1619,19 +1731,29 @@ def execute_enter_dungeon(
     world.simulation_over_turn = None
     world.hours_in_dungeon = 0
 
-    # 균열 상태 reset (★ 본 commit 단순 — 후속 cooldown counter 본격)
+    # 균열 active 상태 reset (★ rift_last_opened_periods 본격 보존 — cooldown 본격)
     world.active_rifts = []
     world.active_boss_encounter = None
+
+    # ★ Phase 9 rift-cooldown — 자연 활성 trigger (★ A-1 spec 본격 실작동)
+    activated = activate_natural_rifts(world, get_floor1_definition())
+
+    side_effects = [
+        f"dungeon_re_entered=month_{world.month_number}",
+        "floor_transition=1",
+    ]
+    message = (
+        f"{world.month_number}월 1일 자정. "
+        f"미궁이 다시 열렸다. 1층 진입점에 도착."
+    )
+    if activated:
+        for rift_id in activated:
+            side_effects.append(f"rift_activated={rift_id}")
+        message += f" 균열 본격 활성: {', '.join(activated)}."
 
     return TurnResult(
         success=True,
         action_type="enter_dungeon",
-        message=(
-            f"{world.month_number}월 1일 자정. "
-            f"미궁이 다시 열렸다. 1층 진입점에 도착."
-        ),
-        side_effects=[
-            f"dungeon_re_entered=month_{world.month_number}",
-            "floor_transition=1",
-        ],
+        message=message,
+        side_effects=side_effects,
     )

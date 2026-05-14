@@ -276,13 +276,24 @@ def test_enter_stone_preserved() -> None:
 
 
 def test_enter_rift_state_reset() -> None:
-    """본 commit 단순 reset (★ 후속 cooldown 본격)."""
+    """active_rifts 본격 reset (★ Phase 9 rift-cooldown 본격 본격 본격 자연 활성 가능).
+
+    본 test 본격 ENTER_DUNGEON 본격 carry-over 본격 reset 본격 검증.
+    rift_last_opened_periods 본격 pre-populate 본격 자연 활성 차단 (★ min 3 본격).
+    """
     world = _village_world()
     world.day_in_month = 1
+    world.month_number = 2  # ★ elapsed=1 (월 1→2) < min 3 → eligible X
     world.active_rifts = ["bloody_castle"]
+    # ★ 4 균열 본격 본격 본격 본격 활성 본격 (★ 본 commit 본격 자연 활성 차단)
+    from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS
+
+    for rid in FLOOR1_RIFT_DEFS:
+        world.rift_last_opened_periods[rid] = 1
     actor = _bjorn(hp=100)
     loc = _village_loc()
     execute_enter_dungeon("비요른", [actor], world, loc)
+    # carry-over "bloody_castle" 본격 reset (★ 자연 활성 차단 본격 본격 X)
     assert world.active_rifts == []
     assert world.active_boss_encounter is None
 
