@@ -1,11 +1,13 @@
 """Phase 8 A4 E2E — 1층 종료 조건 scripted trace.
 
 검증 본질 (★ LLM 무관 결정적):
-- 7일 (168h) 만료 → simulation_status TIME_LIMIT_REACHED + end_reason "time_limit_168h"
+- 7일 (168h) 만료 → simulation_status TIME_LIMIT_REACHED + 마을 mutation
+  * ★ Phase 9 sim-cycle: TIME_LIMIT_REACHED 본격 sim 종료 X
+  * 마을 turn loop 본격 계속 (★ WAIT_IN_VILLAGE / ENTER_DUNGEON)
+  * end_reason 본격 max_turns 까지 진행
 - 전원 사망 (HP=0) → simulation_status PARTY_DEFEATED
   * 1인 파티 + is_player=True 면 permadeath가 먼저 발현 (★ 본격 backward compat)
-  * 2인 파티 모두 die 시 PARTY_DEFEATED 본격
-- 종료 후 더 이상 turn 본격 X (★ break)
+  * 2인 파티 모두 die 시 PARTY_DEFEATED 본격 (★ 종료)
 """
 
 from __future__ import annotations
@@ -59,15 +61,14 @@ def test_scripted_time_limit_reaches_168h() -> None:
     )
     result = runner.run(party=party, world=world, location=_loc())
 
-    assert result.end_reason == "time_limit_168h"
+    # ★ Phase 9 sim-cycle 본격 — TIME_LIMIT_REACHED 본격 sim 종료 X.
+    # max_turns 까지 진행 + status / 본격 정합 본격.
+    assert result.end_reason == "max_turns"
     assert world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
     assert world.simulation_over_reason is not None
     assert "168" in world.simulation_over_reason
     assert world.simulation_over_turn is not None
     assert result.final_hours_in_dungeon >= 168
-
-    # 종료 후 turn 본격 추가 X (★ break 확인)
-    assert result.completed_turns < result.total_turns
 
 
 def test_scripted_time_limit_trace_snapshot_has_status() -> None:

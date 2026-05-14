@@ -112,9 +112,12 @@ def test_sim_runner_time_limit_triggers_village_return() -> None:
     )
     result = runner.run(party=party, world=world, location=loc)
 
-    assert result.end_reason == "time_limit_168h"
+    # ★ Phase 9 sim-cycle 본격 — TIME_LIMIT_REACHED 본격 sim 종료 X,
+    # max_turns 까지 진행 (★ 마을 turn loop 본격). status / location 본격
+    # 정합 본격 (★ a-3 본격 mutation 본격).
+    assert result.end_reason == "max_turns"
     assert world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
-    # ★ 본 commit 본격 — location 마을 mutation 본격 자동 발현
+    # ★ a-3 본격 — location 마을 mutation 본격 자동 발현
     assert loc.realm == Realm.CITY
     assert loc.floor == 0
     assert loc.sub_area == "district_7_plaza"

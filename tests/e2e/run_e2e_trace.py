@@ -208,7 +208,7 @@ def detect_findings(result: SimResult) -> dict[str, Any]:
         "final_hours_in_dungeon": result.final_hours_in_dungeon,
         "hours_consumed": result.final_hours_in_dungeon,
         "max_hours_limit_168": 168,
-        "reached_time_limit": result.end_reason == "time_limit_168h",
+        "reached_time_limit": result.final_hours_in_dungeon >= 168,
         "rift_entered": "ENTER_RIFT" in action_counter,
         "rift_exited": "EXIT_RIFT" in action_counter,
         "absorb_essence_count": action_counter.get("ABSORB_ESSENCE", 0),

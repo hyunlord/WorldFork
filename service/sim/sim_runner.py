@@ -447,11 +447,12 @@ def _check_end_condition(
             if c.is_player and not c.is_alive():
                 return "permadeath"
 
-    # ★ Phase 8 A4 — state-level 종료 source of truth.
-    # FLOOR_TRANSITION (★ Phase 8 C) 본격 위치 marker (★ 1층 vs 2층) 본격
-    # 종료 X — 본인 답 "2층 ↔ 1층 왕복 가능" 본격 정합.
-    if world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED:
-        return "time_limit_168h"
+    # ★ Phase 9 sim-cycle — TIME_LIMIT_REACHED 본격 sim 종료 X.
+    # 마을 turn loop 계속 (★ WAIT_IN_VILLAGE / ENTER_DUNGEON 가능):
+    # 1층 168h → check_time_limit → TIME_LIMIT_REACHED + 마을 mutation →
+    # WAIT_IN_VILLAGE × 30 → 매월 1일 ENTER_DUNGEON → ACTIVE 재진입.
+    # 본인 답: 전멸(PARTY_DEFEATED)만 게임 오버.
+    # FLOOR_TRANSITION (★ Phase 8 C) 본격 위치 marker (★ 1층 vs 2층) — 종료 X.
     if world.simulation_status == SimulationStatus.PARTY_DEFEATED:
         return "party_defeated"
 

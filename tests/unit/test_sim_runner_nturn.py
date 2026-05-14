@@ -59,20 +59,29 @@ def test_run_50_turns_completes() -> None:
     assert len(result.turn_logs) == 50
 
 
-def test_run_stops_on_time_limit() -> None:
-    """200턴이면 168h 한도 도달."""
+def test_run_reaches_time_limit_status() -> None:
+    """200턴이면 168h 한도 도달 → TIME_LIMIT_REACHED status (★ Phase 9 sim 계속).
+
+    본 commit Phase 9 sim-cycle 본격: TIME_LIMIT_REACHED 본격 sim 종료 X →
+    마을 turn loop 본격 계속 → max_turns 까지 진행.
+    """
+    from service.game.state_v2 import SimulationStatus
+
     actions = [
         PlayerAction(action_type=PlayerActionType.WAIT, actor_name="X")
     ]
+    world = _world()
     runner = SimRunner(
         config=SimConfig(max_turns=200),
         player_agent=MockPlayerAgent(mock_actions=actions),
     )
 
-    result = runner.run(party=_party(), world=_world(), location=_loc())
+    result = runner.run(party=_party(), world=world, location=_loc())
 
-    assert result.end_reason == "time_limit_168h"
+    # 본 commit 본격: TIME_LIMIT_REACHED 도달 (★ status), end_reason 본격 max_turns
+    assert world.simulation_status == SimulationStatus.TIME_LIMIT_REACHED
     assert result.final_hours_in_dungeon >= 168
+    assert result.end_reason == "max_turns"
 
 
 def test_run_actions_round_robin() -> None:
