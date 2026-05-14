@@ -19,6 +19,8 @@ from .floors.floor1 import get_floor1_definition
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
 from .floors.registry import get_current_floor_definition
 from .state_v2 import (
+    SEVERITY_LEAVES_SCAR,
+    SEVERITY_RECOVERY_DEFAULT,
     BossEncounter,
     Character,
     Essence,
@@ -28,6 +30,9 @@ from .state_v2 import (
     EssenceType,
     FloorDefinition,
     FloorState,
+    Injury,
+    InjuryBodyPart,
+    InjurySeverity,
     Item,
     ItemCategory,
     Location,
@@ -435,6 +440,54 @@ def move_to_sub_area(
 # ─── 4. 전투 ───
 
 
+# ─── Phase 9.3 — 부상 generation helpers (★ ATTACK producer) ───
+
+
+def _severity_for_damage(hp_loss: int) -> str | None:
+    """hp_loss → InjurySeverity value mapping (★ 본 commit 추측 — 본문 X).
+
+    boundary (★ 후속 본문 발견 시 보강):
+    - 0 이하: None (★ 부상 X)
+    - 1-10: SCRATCH (★ 23화 narrative 본격)
+    - 11-30: MINOR
+    - 31-60: MAJOR (★ 25화 흉터 본격)
+    - 61+: CRITICAL
+    """
+    if hp_loss <= 0:
+        return None
+    if hp_loss <= 10:
+        return InjurySeverity.SCRATCH.value
+    if hp_loss <= 30:
+        return InjurySeverity.MINOR.value
+    if hp_loss <= 60:
+        return InjurySeverity.MAJOR.value
+    return InjurySeverity.CRITICAL.value
+
+
+def _generate_injury_from_damage(
+    hp_loss: int, rng: random.Random | None = None
+) -> Injury | None:
+    """hp_loss 본격 Injury instance 본격 (★ ATTACK 본격 본격 caller).
+
+    severity = hp_loss boundary mapping (★ _severity_for_damage)
+    body_part = 5 부위 random (★ rng inject 본격 reproducibility)
+    recovery_days = SEVERITY_RECOVERY_DEFAULT[severity]
+    scar = SEVERITY_LEAVES_SCAR[severity]
+    """
+    severity = _severity_for_damage(hp_loss)
+    if severity is None:
+        return None
+    if rng is None:
+        rng = random.Random()
+    body_part = rng.choice(list(InjuryBodyPart)).value
+    return Injury(
+        severity=severity,
+        body_part=body_part,
+        recovery_days=SEVERITY_RECOVERY_DEFAULT[severity],
+        scar=SEVERITY_LEAVES_SCAR[severity],
+    )
+
+
 def execute_attack(
     attacker: Character,
     target_monster_name: str,
@@ -478,6 +531,17 @@ def execute_attack(
     if attacker_dmg < 30:
         received = max(0, 10 - attacker.bone_strength // 2)
         attacker.hp = max(0, attacker.hp - received)
+        side: list[str] = [
+            f"{attacker.name} HP {attacker.hp}/{attacker.hp_max}"
+        ]
+        # ★ Phase 9.3 — hp_loss 본격 부상 generation (★ producer)
+        injury = _generate_injury_from_damage(received)
+        if injury is not None:
+            attacker.injuries.append(injury)
+            side.append(
+                f"injury_inflicted={attacker.name}:"
+                f"{injury.body_part}_{injury.severity}"
+            )
         return TurnResult(
             success=False,
             action_type="attack",
@@ -485,9 +549,7 @@ def execute_attack(
                 f"{attacker.name} → {target_monster_name} 공격 "
                 f"(데미지 {attacker_dmg}). 처치 X. 받은 데미지 {received}."
             ),
-            side_effects=[
-                f"{attacker.name} HP {attacker.hp}/{attacker.hp_max}"
-            ],
+            side_effects=side,
         )
 
     advance_time(party, world, elapsed_hours=0.5)
@@ -497,7 +559,7 @@ def execute_attack(
         attacker, monster.name, grade_value, world
     )
 
-    side: list[str] = [f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"]
+    side = [f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"]
     msg_tail = ""
     if exp_awarded > 0:
         side.append(f"exp_gained={attacker.name}:{exp_awarded}")
@@ -1525,7 +1587,7 @@ def execute_wait_in_village(
         world.day_in_month = 1
         world.month_number += 1
 
-    # HP/SP 회복 (★ 살아남은 멤버만)
+    # HP/SP 회복 + 부상 회복 (★ 살아남은 멤버만)
     side_effects: list[str] = [
         f"day_advanced=month_{world.month_number}_day_{world.day_in_month}",
     ]
@@ -1545,6 +1607,27 @@ def execute_wait_in_village(
             side_effects.append(f"hp_gain={member.name}:+{hp_gain}")
         if sp_gain > 0:
             side_effects.append(f"sp_gain={member.name}:+{sp_gain}")
+
+        # ★ Phase 9.3 — 부상 자연 회복 mutation (★ frozen Injury 새 instance).
+        if member.injuries:
+            remaining: list[Injury] = []
+            for inj in member.injuries:
+                new_days = inj.recovery_days - 1
+                if new_days <= 0:
+                    side_effects.append(
+                        f"injury_healed={member.name}:"
+                        f"{inj.body_part}_{inj.severity}"
+                    )
+                else:
+                    remaining.append(
+                        Injury(
+                            severity=inj.severity,
+                            body_part=inj.body_part,
+                            recovery_days=new_days,
+                            scar=inj.scar,
+                        )
+                    )
+            member.injuries[:] = remaining
 
     return TurnResult(
         success=True,

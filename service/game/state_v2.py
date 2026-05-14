@@ -118,6 +118,30 @@ class ItemCategory(StrEnum):
     MAGIC_TOOL = "마도구"
 
 
+class InjurySeverity(StrEnum):
+    """부상 강도 (★ Phase 9.3 — 본문 23/25화 narrative 정합).
+
+    severity 값 (★ Injury.severity string 본격 본격):
+    - SCRATCH: 23화 '팔뚝에 스크래치'
+    - MAJOR: 25화 '목 상처' + '흉터가 남겠군'
+    """
+
+    SCRATCH = "scratch"
+    MINOR = "minor"
+    MAJOR = "major"
+    CRITICAL = "critical"
+
+
+class InjuryBodyPart(StrEnum):
+    """부상 부위 (★ 본문 narrative 정합 — 23화 팔뚝 / 25화 목)."""
+
+    HEAD = "head"
+    NECK = "neck"
+    TORSO = "torso"
+    ARM = "arm"
+    LEG = "leg"
+
+
 class Realm(StrEnum):
     """게임 영역 (★ 작품 본질, V4 분석 결과)."""
 
@@ -397,6 +421,53 @@ class Equipment:
 # ─── Character (메인 3대 + 기본 + 정수 슬롯) ───
 
 
+# ─── Injury dataclass + severity table (★ Phase 9.3) ───
+
+
+@dataclass(frozen=True, slots=True)
+class Injury:
+    """부상 instance — 본인 답 '어떤 상처를 얻었냐에 따라 회복 기간 필요'.
+
+    본문 정합 (★ 23/25화 narrative):
+    - severity: InjurySeverity value 문자열
+    - body_part: InjuryBodyPart value 문자열
+    - recovery_days: 마을 본격 회복 본격 본격 본격
+    - scar: 흉터 (★ 25화 '흉터가 남겠군' 본문 정합)
+
+    Producer (★ ATTACK damage 본격 generation):
+    - execute_attack 본격 hp_loss 본격 severity mapping
+    - body_part random 본격 (★ rng inject)
+
+    Consumer (★ WAIT_IN_VILLAGE recovery):
+    - WAIT 본격 recovery_days-- mutation (★ frozen — 새 instance)
+    - recovery_days<=0 본격 injury 제거 + injury_healed marker
+    - 죽은 멤버 회복 X (★ 본인 답)
+    """
+
+    severity: str
+    body_part: str
+    recovery_days: int
+    scar: bool = False
+
+
+# severity별 recovery 본격 — 본문 X 추측 (★ 후속 발견 시 보강).
+SEVERITY_RECOVERY_DEFAULT: dict[str, int] = {
+    InjurySeverity.SCRATCH.value: 2,  # ★ 1-3일 본격
+    InjurySeverity.MINOR.value: 7,  # ★ 1주
+    InjurySeverity.MAJOR.value: 21,  # ★ 3주
+    InjurySeverity.CRITICAL.value: 60,  # ★ 2개월
+}
+
+
+# severity별 흉터 본격 — 25화 본문 정합 (major+ 흉터).
+SEVERITY_LEAVES_SCAR: dict[str, bool] = {
+    InjurySeverity.SCRATCH.value: False,
+    InjurySeverity.MINOR.value: False,
+    InjurySeverity.MAJOR.value: True,  # ★ 25화 '흉터가 남겠군'
+    InjurySeverity.CRITICAL.value: True,
+}
+
+
 @dataclass
 class LightStateOnCharacter:
     """캐릭터의 빛 자원 사용 상태 (★ Stage 7, 게임 진행 중 변동).
@@ -518,6 +589,10 @@ class Character:
 
     # ★ Stage 7: 빛 자원 상태 (1층 어둠 본질)
     light_state: LightStateOnCharacter = field(default_factory=LightStateOnCharacter)
+
+    # ★ Phase 9.3 — 부상 schema (★ 23/25화 narrative 정합).
+    # WAIT_IN_VILLAGE 본격 recovery_days-- mutation.
+    injuries: list[Injury] = field(default_factory=list)
 
     def is_alive(self) -> bool:
         return self.hp > 0
