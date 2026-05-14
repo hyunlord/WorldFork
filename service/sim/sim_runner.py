@@ -32,6 +32,8 @@ from service.game.turn_handler_v2 import (
     enter_rift,
     exchange_mage_stones,
     execute_attack,
+    execute_enter_dungeon,
+    execute_wait_in_village,
     exit_rift,
     exit_to_prev_floor,
     explore_area,
@@ -290,6 +292,20 @@ def _execute_action(
         if not actor:
             return False, "actor 없음.", []
         r = exchange_mage_stones(actor, location)
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9 — 마을 turn loop (★ TIME_LIMIT_REACHED status 본격 본격)
+    # 본 commit option 3 additive — sim_runner _check_end_condition 본격
+    # TIME_LIMIT_REACHED 본격 종료 X 본격 본격 본격 (★ 본격 후속 commit 본격).
+    # 본 dispatch는 직접 caller (★ test / 후속 turn loop runner) 본격 호출용.
+    if action.action_type == PlayerActionType.WAIT_IN_VILLAGE:
+        r = execute_wait_in_village(action.actor_name, party_list, world)
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.ENTER_DUNGEON:
+        r = execute_enter_dungeon(
+            action.actor_name, party_list, world, location
+        )
         return r.success, r.message, r.side_effects
 
     return False, f"unknown action: {action.action_type.value}", []

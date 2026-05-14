@@ -1472,3 +1472,166 @@ def exchange_mage_stones(
             f"stone_gained={actor.name}:+{total_stone}",
         ],
     )
+
+
+# ─── 17. 마을 turn loop (★ Phase 9 시간 mechanism) ───
+
+# 본문 정합 (★ 19화 본문 직접 quote):
+# "매월 1일이 되는 자정에는 미궁이 열린다.
+#  이곳의 한 달은 정확히 30일이니, 약 4주 뒤면 다시 미궁에 들어가야 한다는 뜻."
+DAYS_PER_MONTH: int = 30
+
+# ★ HP/SP 회복 (★ 본문 X 추측, 후속 본문 발견 시 보강).
+# 100 HP 본격 10일 본격 본격 full recovery (★ 30일 본격 본격 본격).
+HP_RECOVERY_PER_DAY: int = 10
+SP_RECOVERY_PER_DAY: int = 5
+
+
+def execute_wait_in_village(
+    actor_name: str,
+    party: list[Character],
+    world: WorldState,
+) -> TurnResult:
+    """마을 본격 1일 진행 + HP/SP 회복 (★ Phase 9 — 19화 정합).
+
+    본인 답 정합:
+    - HP/SP 30일 본격 회복 (★ 본격 본격 본격 본격)
+    - 살아남은 멤버만 회복 (★ 죽은 멤버 영구)
+    - 30일 wrap → month++
+
+    실패:
+    - simulation_status != TIME_LIMIT_REACHED (★ 마을 본격 본격 본격)
+
+    ★ 본 commit (option 3 additive) — sim_runner 본격 TIME_LIMIT_REACHED 본격
+    종료 본격 본격, 본 handler 본격 직접 호출 본격 본격 (★ 후속 commit 본격
+    sim_runner loop cascade 본격).
+    """
+    if world.simulation_status != SimulationStatus.TIME_LIMIT_REACHED:
+        return TurnResult(
+            success=False,
+            action_type="wait_in_village",
+            message=(
+                f"마을 turn loop 본격 X "
+                f"(status={world.simulation_status.value})."
+            ),
+        )
+
+    # 1일 진행 (★ wrap at DAYS_PER_MONTH)
+    world.day_in_month += 1
+    if world.day_in_month > DAYS_PER_MONTH:
+        world.day_in_month = 1
+        world.month_number += 1
+
+    # HP/SP 회복 (★ 살아남은 멤버만)
+    side_effects: list[str] = [
+        f"day_advanced=month_{world.month_number}_day_{world.day_in_month}",
+    ]
+    for member in party:
+        if not member.is_alive():
+            continue  # ★ 죽은 멤버 영구 (★ 본인 답)
+        old_hp = member.hp
+        member.hp = min(member.hp_max, member.hp + HP_RECOVERY_PER_DAY)
+        hp_gain = member.hp - old_hp
+        old_sp = member.soul_power
+        member.soul_power = min(
+            member.soul_power_max,
+            member.soul_power + SP_RECOVERY_PER_DAY,
+        )
+        sp_gain = member.soul_power - old_sp
+        if hp_gain > 0:
+            side_effects.append(f"hp_gain={member.name}:+{hp_gain}")
+        if sp_gain > 0:
+            side_effects.append(f"sp_gain={member.name}:+{sp_gain}")
+
+    return TurnResult(
+        success=True,
+        action_type="wait_in_village",
+        message=(
+            f"마을에서 하루를 보냈다. "
+            f"({world.month_number}월 {world.day_in_month}일)"
+        ),
+        side_effects=side_effects,
+    )
+
+
+def execute_enter_dungeon(
+    actor_name: str,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """매월 1일 자정 1층 재진입 (★ Phase 9 — 19화 본문 정합).
+
+    본문 19화: "매월 1일이 되는 자정에는 미궁이 열린다".
+
+    본인 답 정합:
+    - 항상 1층 재진입 (★ 2층 본격 X)
+    - inventory / stone / 동료 본격 보존
+    - 균열 상태 reset (★ 본 commit 단순 — 후속 cooldown 본격)
+
+    실패:
+    - simulation_status != TIME_LIMIT_REACHED
+    - day_in_month != 1
+    - 살아남은 멤버 0 (★ 전멸 시 PARTY_DEFEATED 본격 본격)
+    """
+    if world.simulation_status != SimulationStatus.TIME_LIMIT_REACHED:
+        return TurnResult(
+            success=False,
+            action_type="enter_dungeon",
+            message=(
+                f"마을 turn loop 본격 X "
+                f"(status={world.simulation_status.value})."
+            ),
+        )
+
+    if world.day_in_month != 1:
+        return TurnResult(
+            success=False,
+            action_type="enter_dungeon",
+            message=(
+                f"미궁은 매월 1일 자정에만 열린다 (★ 19화). "
+                f"현재: {world.month_number}월 {world.day_in_month}일."
+            ),
+        )
+
+    alive = [m for m in party if m.is_alive()]
+    if not alive:
+        return TurnResult(
+            success=False,
+            action_type="enter_dungeon",
+            message="살아남은 탐사대원 X — 진입 불가.",
+        )
+
+    # 1층 재진입 (★ 본인 답: 항상 1층)
+    location.realm = Realm.DUNGEON
+    location.floor = 1
+    location.sub_area = "진입점"  # ★ floor1.py _ENTRANCE.name
+    location.city_id = None
+    location.rift_id = None
+    location.rift_sub_area = None
+    location.rift_is_variant = False
+    location.has_light = False
+    location.visibility_meters = 10
+
+    # simulation 재시작
+    world.simulation_status = SimulationStatus.ACTIVE
+    world.simulation_over_reason = None
+    world.simulation_over_turn = None
+    world.hours_in_dungeon = 0
+
+    # 균열 상태 reset (★ 본 commit 단순 — 후속 cooldown counter 본격)
+    world.active_rifts = []
+    world.active_boss_encounter = None
+
+    return TurnResult(
+        success=True,
+        action_type="enter_dungeon",
+        message=(
+            f"{world.month_number}월 1일 자정. "
+            f"미궁이 다시 열렸다. 1층 진입점에 도착."
+        ),
+        side_effects=[
+            f"dungeon_re_entered=month_{world.month_number}",
+            "floor_transition=1",
+        ],
+    )

@@ -722,6 +722,13 @@ class WorldState:
     floor_states: dict[int, FloorState] = field(default_factory=dict)
     first_entry_parties: set[int] = field(default_factory=set)
 
+    # ★ Phase 9 — 마을 시간 mechanism (★ 19화 본문: 매월 1일 자정 미궁 열림 / 30일).
+    # TIME_LIMIT_REACHED 본격 마을 turn loop 본격 (★ WAIT_IN_VILLAGE / ENTER_DUNGEON).
+    # 본 commit 본격 sim_runner 본격 종료 condition 유지 — 후속 commit 본격 본격
+    # 본격 마을 turn loop 본격 cascade 본격.
+    month_number: int = 1  # ★ 1, 2, 3, ... (★ 1월부터 시작)
+    day_in_month: int = 1  # ★ 1~30 (★ DAYS_PER_MONTH cap)
+
 
 # ─── Stage 2: MonsterDef + SubArea + Floor1Definition (★ 2026-05-07) ───
 

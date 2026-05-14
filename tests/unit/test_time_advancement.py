@@ -61,12 +61,21 @@ def test_action_hours_delta_offer_to_stone_1h() -> None:
     assert action_hours_delta(PlayerActionType.OFFER_TO_STONE) == 1.0
 
 
-def test_action_hours_delta_all_13_actions_mapped() -> None:
-    """13 ActionType 모두 본격 dict 매핑."""
+def test_action_hours_delta_all_actions_mapped() -> None:
+    """모든 ActionType 본격 dict 매핑 (★ Phase 9 본격 마을 actions 0.0 허용)."""
+    # Phase 9 마을 actions (★ WAIT_IN_VILLAGE / ENTER_DUNGEON)는 별도 day counter 본격
+    # → hours_in_dungeon 영향 X → delta=0.0 본격 본격.
+    village_actions = {
+        PlayerActionType.WAIT_IN_VILLAGE,
+        PlayerActionType.ENTER_DUNGEON,
+    }
     for at in PlayerActionType:
         assert at in ACTION_HOURS_DELTA, f"{at} 본격 누락"
         delta = action_hours_delta(at)
-        assert delta > 0, f"{at}: delta={delta}"
+        if at in village_actions:
+            assert delta == 0.0, f"{at}: 마을 action 본격 0.0 본격 ({delta})"
+        else:
+            assert delta > 0, f"{at}: delta={delta}"
 
 
 def test_action_hours_delta_default_for_unknown() -> None:

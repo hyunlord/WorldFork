@@ -41,6 +41,10 @@ class PlayerActionType(StrEnum):
     EXIT_TO_PREV_FLOOR = "exit_to_prev_floor"  # 현재 층 → current-1 (★ 왕복)
     # ★ Phase 8 exchange — 마을 환전소 본격 마석 → 스톤 batch 환전
     EXCHANGE_MAGE_STONES = "exchange_mage_stones"
+    # ★ Phase 9 — 마을 시간 mechanism (★ 19화 매월 1일 / 30일 정합).
+    # 본 actions는 TIME_LIMIT_REACHED status 본격 본격 사용 (★ 마을 turn loop).
+    WAIT_IN_VILLAGE = "wait_in_village"  # ★ 1일 진행 (HP/SP 회복)
+    ENTER_DUNGEON = "enter_dungeon"      # ★ 매월 1일 자정 1층 재진입
 
 
 @dataclass
@@ -172,6 +176,9 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.EXIT_TO_PREV_FLOOR: 0.5,
     # ★ Phase 8 exchange — 환전 batch (★ 마을 본격, 본격 짧음)
     PlayerActionType.EXCHANGE_MAGE_STONES: 0.5,
+    # ★ Phase 9 — 마을 시간 본격 (★ 마을 별도 day counter — 본 hours 본격 본격 0).
+    PlayerActionType.WAIT_IN_VILLAGE: 0.0,
+    PlayerActionType.ENTER_DUNGEON: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
