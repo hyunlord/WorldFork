@@ -484,7 +484,13 @@ def execute_attack(
         msg_tail = f" 경험치 +{exp_awarded}."
     if leveled_up:
         side.append(f"level_up={attacker.name}:{attacker.level}")
-        msg_tail += f" ⭐ 레벨 업! → Lv {attacker.level}."
+        side.append(
+            f"soul_power_gain={attacker.name}:+{SOUL_POWER_GAIN_PER_LEVEL}"
+        )
+        msg_tail += (
+            f" ⭐ 레벨 업! → Lv {attacker.level} "
+            f"(영혼력 +{SOUL_POWER_GAIN_PER_LEVEL})."
+        )
 
     return TurnResult(
         success=True,
@@ -601,7 +607,13 @@ def _defeat_boss(
         exp_tail = f" 경험치 +{exp_awarded}."
     if leveled_up:
         side.append(f"level_up={attacker.name}:{attacker.level}")
-        exp_tail += f" ⭐ 레벨 업! → Lv {attacker.level}."
+        side.append(
+            f"soul_power_gain={attacker.name}:+{SOUL_POWER_GAIN_PER_LEVEL}"
+        )
+        exp_tail += (
+            f" ⭐ 레벨 업! → Lv {attacker.level} "
+            f"(영혼력 +{SOUL_POWER_GAIN_PER_LEVEL})."
+        )
 
     message = (
         f"⚔ {boss.boss_name}{variant_label} 처치! ({last_damage} 데미지) "
@@ -942,6 +954,11 @@ def use_item(
 
 # ─── 14b. 레벨 + 경험치 (★ Phase 8 B) ───
 
+# ★ Phase 8 MP — 22화 본문 정합 "영혼력이 +10 상승합니다".
+# level up 시 soul_power_max + soul_power 둘 다 +10 (★ "상승" 해석 본격).
+# 종족별 시작값 (요정 60 / 바바리안 30 등)은 init_from_plan 본격 보존.
+SOUL_POWER_GAIN_PER_LEVEL: int = 10
+
 
 def _award_kill_exp(
     actor: Character,
@@ -979,6 +996,13 @@ def _award_kill_exp(
     leveled_up = new_level > old_level
     if leveled_up:
         actor.level = new_level
+        # ★ Phase 8 MP — 22화 본문 정합 "영혼력이 +10 상승합니다".
+        # 1 level up = +10 to both current and max (★ "상승" 해석).
+        # 종족별 시작값 보존 (★ 요정 60 / 바바리안 30 etc — init_from_plan).
+        levels_gained = new_level - old_level
+        gain = SOUL_POWER_GAIN_PER_LEVEL * levels_gained
+        actor.soul_power_max += gain
+        actor.soul_power += gain
 
     return base_exp, leveled_up
 
@@ -1151,8 +1175,14 @@ def enter_next_floor(
             )
             new_level = level_for_exp(member.experience)
             if new_level > member.level:
+                # ★ Phase 8 MP — 22화 본문 "+10 영혼력 상승" 정합.
+                levels_gained = new_level - member.level
+                gain = SOUL_POWER_GAIN_PER_LEVEL * levels_gained
+                member.soul_power_max += gain
+                member.soul_power += gain
                 member.level = new_level
                 side.append(f"level_up={member.name}:{new_level}")
+                side.append(f"soul_power_gain={member.name}:+{gain}")
         side.append(f"first_floor_party={next_floor}")
         bonus_tail = (
             f"\n⭐ 본 미궁 최초 {next_floor}층 진입 파티 — 전원 +"
