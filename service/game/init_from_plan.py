@@ -15,7 +15,16 @@ from service.pipeline.types import CharacterPlan, Plan
 
 from .floors.floor1 import get_floor1_definition
 from .state import Character, GameState, PhaseProgress
-from .state_v2 import BeastkinTribe, Location, Race, Realm, WorldState
+from .state_v2 import (
+    BeastkinTribe,
+    Inventory,
+    Item,
+    ItemCategory,
+    Location,
+    Race,
+    Realm,
+    WorldState,
+)
 from .state_v2 import Character as CharacterV2
 
 
@@ -184,6 +193,56 @@ def _race_base_stats(race: Race) -> dict[str, int]:
     }
 
 
+# ★ Phase 8 race-starting — 종족별 시작 자금/아이템 (★ 740화 본문 정합).
+#
+# 본문 정합:
+# - 바바리안: stone=0 + 일주일 식량 Item (★ 3화 본문 명시)
+#   * "일단 일주일은 부족장이 준 식량으로 버틴다 해도, 그다음은 음식 쓰레기..."
+#   * 화폐 없음 (★ 본문 명시 — 신참 바바리안 부족장 지원만)
+#
+# 본문 X (★ default 0 + empty, 후속 본문 발견 시 분기 추가):
+# - 인간 / 수인 / 드워프 / 요정 / 용인족
+#
+# namu 정합 (★ 종족별 차등 본격 미명시):
+# - "100만 스톤 없으면 1년 차 못 넘김" (★ §4.2, 일반 분기점)
+# - "용인족 세금 면제" (★ §종족, 종족별 차등은 세금 본격)
+#
+# 본인 #19 정공법: 본문 명시 본격만 분기, 다른 종족 default (★ 추측 X).
+RACE_STARTING_STONE: dict[Race, int] = {
+    Race.BARBARIAN: 0,  # ★ 3화 본문: 부족장 식량만, 화폐 X
+}
+
+
+def _make_barbarian_starting_items() -> list[Item]:
+    """바바리안 신참 시작 아이템 (★ 3화 본문 정합).
+
+    본문: "일단 일주일은 부족장이 준 식량으로 버틴다 해도, 그다음은 음식
+    쓰레기나 주워 먹으며 연명해야 할 것이다."
+
+    본 commit: 식량만 (★ 본문 직접 명시). 2화 "새로운 장비를 장착" mention
+    있으나 구체적 종류 미명시 — 후속 본문 발견 시 보강.
+    """
+    return [
+        Item(
+            name="부족장의 일주일 식량",
+            category=ItemCategory.CONSUMABLE,
+            weight=7,  # ★ 일주일치 = 7 단위 (★ 보수적 추정)
+            description=(
+                "부족장이 성인식 후 지원한 일주일치 식량 (★ 3화 본문). "
+                "화폐 없는 신참 바바리안의 생존 본격."
+            ),
+        ),
+    ]
+
+
+def _race_starting_items(race: Race) -> list[Item]:
+    """종족별 시작 아이템 (★ 본문 정합만 분기, 다른 종족 empty)."""
+    if race == Race.BARBARIAN:
+        return _make_barbarian_starting_items()
+    # 본문 X — 다른 종족 default empty (★ 후속 본문 발견 시 분기 추가)
+    return []
+
+
 def plan_character_to_v2(cp: CharacterPlan) -> CharacterV2:
     """CharacterPlan → CharacterV2 (★ 진짜 service 통합).
 
@@ -222,6 +281,9 @@ def plan_character_to_v2(cp: CharacterPlan) -> CharacterV2:
         soul_power=base["soul_power"],
         soul_power_max=base["soul_power"],
         sixth_sense=base["sixth_sense"],
+        # ★ Phase 8 race-starting — 종족별 시작 자금/아이템 (★ 본문 정합)
+        stone=RACE_STARTING_STONE.get(race, 0),
+        inventory=Inventory(items=_race_starting_items(race)),
     )
 
 
