@@ -560,6 +560,8 @@ def _defeat_boss(
     essence_color = rift_def.essence_color if rift_def is not None else "green"
 
     # 마석 inventory append (★ Inventory.add overweight 시 False)
+    # ★ Phase 8 village-schema-1 — Item.grade 본격 boss.boss_grade wire
+    # (★ village-schema-2 commit 본격 환전 rate lookup 본격 사용처).
     stone = Item(
         name=f"{boss.boss_name}의 마석",
         category=ItemCategory.MATERIAL,
@@ -567,6 +569,7 @@ def _defeat_boss(
         description=(
             f"균열 수호자 {boss.boss_name} ({boss.boss_grade}등급) 마석."
         ),
+        grade=boss.boss_grade,
     )
     stone_added = attacker.inventory.add(stone)
 

@@ -323,6 +323,10 @@ class Item:
     numbers_id: int | None = None  # 1~9999+
     is_soul_bound: bool = False  # 영혼 귀속
 
+    # ★ Phase 8 village-schema-1 — 마석 등급 (★ 0=계층군주, 9=일반).
+    # 환전 rate lookup 본격 사용처 (★ village-schema-2 commit 본격).
+    grade: int | None = None
+
 
 # ─── Inventory / Equipment ───
 
