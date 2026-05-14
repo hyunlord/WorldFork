@@ -45,6 +45,8 @@ class PlayerActionType(StrEnum):
     # 본 actions는 TIME_LIMIT_REACHED status 본격 본격 사용 (★ 마을 turn loop).
     WAIT_IN_VILLAGE = "wait_in_village"  # ★ 1일 진행 (HP/SP 회복)
     ENTER_DUNGEON = "enter_dungeon"      # ★ 매월 1일 자정 1층 재진입
+    # ★ Phase 9.5 — 삼신교 신전 부상 치료 (★ 268/55/72화 정합)
+    HEAL_AT_TEMPLE = "heal_at_temple"
 
 
 @dataclass
@@ -179,6 +181,7 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     # ★ Phase 9 — 마을 시간 본격 (★ 마을 별도 day counter — 본 hours 본격 본격 0).
     PlayerActionType.WAIT_IN_VILLAGE: 0.0,
     PlayerActionType.ENTER_DUNGEON: 0.0,
+    PlayerActionType.HEAL_AT_TEMPLE: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

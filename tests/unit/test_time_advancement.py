@@ -68,6 +68,7 @@ def test_action_hours_delta_all_actions_mapped() -> None:
     village_actions = {
         PlayerActionType.WAIT_IN_VILLAGE,
         PlayerActionType.ENTER_DUNGEON,
+        PlayerActionType.HEAL_AT_TEMPLE,
     }
     for at in PlayerActionType:
         assert at in ACTION_HOURS_DELTA, f"{at} 본격 누락"

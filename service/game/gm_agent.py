@@ -16,6 +16,7 @@ from core.verify.llm_judge import JudgeCriteria, LLMJudge
 from core.verify.mechanical import MechanicalChecker
 from service.pipeline.types import Plan
 
+from .cities.temples import get_deity_by_sub_area
 from .init_from_plan import build_game_context
 from .state import GameState
 from .state_v2 import Realm, next_level_threshold
@@ -179,6 +180,28 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             "  ⚡ EXCHANGE_MAGE_STONES 본격 마석 → 스톤 환전 가능 "
             "(9등급=20 / 8등급=100)."
         )
+
+    # ★ Phase 9.5 — 삼신교 신전 hint (★ 268/55/72화 정합)
+    deity = get_deity_by_sub_area(sub.id)
+    if deity is not None:
+        lines.append(f"  ⛪ {deity.temple_name}")
+        if deity.nature:
+            lines.append(f"     성향: {deity.nature}")
+        if deity.canonical_priest_name:
+            lines.append(
+                f"     사제: {deity.priest_rank} "
+                f"{deity.canonical_priest_name}"
+            )
+        lines.append(
+            "  ⚡ HEAL_AT_TEMPLE 본격 부상 치료 가능 "
+            "(★ severity별 비용 차감)."
+        )
+        if deity.refuses_races:
+            refused = ", ".join(deity.refuses_races)
+            lines.append(
+                f"     ★ {refused} 본격 {deity.deity_name} "
+                f"신성력 거절 (★ 본문 규율)."
+            )
 
     return "\n".join(lines) + "\n\n"
 

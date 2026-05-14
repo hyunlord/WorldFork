@@ -15,6 +15,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+from .cities.temples import get_deity_by_sub_area
 from .floors.floor1 import get_floor1_definition
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
 from .floors.registry import get_current_floor_definition
@@ -1838,5 +1839,133 @@ def execute_enter_dungeon(
         success=True,
         action_type="enter_dungeon",
         message=message,
+        side_effects=side_effects,
+    )
+
+
+# ─── Phase 9.5 — 삼신교 신전 부상 치료 (★ 268/55/72화 본문 정합) ───
+
+# severity별 치료 비용 (★ 본문 X 추측 — 후속 발견 시 보강).
+HEAL_COST_PER_SEVERITY: dict[str, int] = {
+    InjurySeverity.SCRATCH.value: 50,
+    InjurySeverity.MINOR.value: 200,
+    InjurySeverity.MAJOR.value: 1000,
+    InjurySeverity.CRITICAL.value: 5000,
+}
+
+
+def execute_heal_at_temple(
+    actor_name: str,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """삼신교 신전 본격 부상 치료 (★ Phase 9.5 — 268/55/72화 정합).
+
+    조건:
+    - realm=CITY + sub_area=temple
+    - 신 본격 race 거절 본격 X (★ 268화 바바리안-토베라 ⭐)
+    - actor 본격 부상 본격
+    - stone 비용 충분 (★ HEAL_COST_PER_SEVERITY)
+
+    Mutation (★ atomic — 비용 부족 시 변경 X):
+    - 모든 injury 제거 (★ batch)
+    - stone 차감
+    - side_effects: temple_healed / stone_paid / injury_healed_by_temple
+    """
+    # 1. 위치 검증
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message="신전 본격 마을 본격 본격 작동.",
+        )
+
+    if location.sub_area is None:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message="sub_area X — 신전 위치 본격 X.",
+        )
+
+    deity = get_deity_by_sub_area(location.sub_area)
+    if deity is None:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message=f"신전 위치 X (★ 현재: {location.sub_area}).",
+        )
+
+    # 2. actor 본격
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message=f"{actor_name} 본격 본격 본격 X.",
+        )
+
+    # 3. race 거절 본격 (★ 268화 토베라-바바리안)
+    if actor.race.value in deity.refuses_races:
+        priest_part = (
+            f"{deity.priest_rank} {deity.canonical_priest_name}"
+            if deity.canonical_priest_name
+            else deity.priest_rank
+        )
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message=(
+                f"{deity.temple_name}의 {priest_part}가 거절했다. "
+                f"{deity.deity_name} 본격 {actor.race.value} "
+                f"본격 신성력 X (★ 268화 본문 규율)."
+            ),
+        )
+
+    # 4. 부상 본격
+    if not actor.injuries:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message=f"{actor_name} 본격 본격 본격 부상 X.",
+        )
+
+    # 5. 비용 계산
+    total_cost = sum(
+        HEAL_COST_PER_SEVERITY.get(inj.severity, 0)
+        for inj in actor.injuries
+    )
+    if actor.stone < total_cost:
+        return TurnResult(
+            success=False,
+            action_type="heal_at_temple",
+            message=(
+                f"치료 비용 부족 ({actor.stone}/{total_cost} 스톤)."
+            ),
+        )
+
+    # 6. mutation (★ atomic)
+    healed = list(actor.injuries)
+    actor.injuries.clear()
+    actor.stone -= total_cost
+
+    side_effects = [
+        f"temple_healed={actor_name}:{deity.deity_id}:{len(healed)}",
+        f"stone_paid={actor_name}:-{total_cost}",
+    ]
+    for inj in healed:
+        side_effects.append(
+            f"injury_healed_by_temple={actor_name}:"
+            f"{inj.body_part}_{inj.severity}"
+        )
+
+    return TurnResult(
+        success=True,
+        action_type="heal_at_temple",
+        message=(
+            f"{deity.temple_name}에서 {deity.priest_rank}가 "
+            f"{actor_name} 본격 부상 {len(healed)}개를 치료했다. "
+            f"-{total_cost} 스톤."
+        ),
         side_effects=side_effects,
     )

@@ -33,6 +33,7 @@ from service.game.turn_handler_v2 import (
     exchange_mage_stones,
     execute_attack,
     execute_enter_dungeon,
+    execute_heal_at_temple,
     execute_wait_in_village,
     exit_rift,
     exit_to_prev_floor,
@@ -304,6 +305,13 @@ def _execute_action(
 
     if action.action_type == PlayerActionType.ENTER_DUNGEON:
         r = execute_enter_dungeon(
+            action.actor_name, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.5 — 삼신교 신전 부상 치료 (★ 268/55/72화 정합)
+    if action.action_type == PlayerActionType.HEAL_AT_TEMPLE:
+        r = execute_heal_at_temple(
             action.actor_name, party_list, world, location
         )
         return r.success, r.message, r.side_effects

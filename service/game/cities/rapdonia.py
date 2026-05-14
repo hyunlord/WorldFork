@@ -95,6 +95,32 @@ RAPDONIA_NPCS: tuple[NPCDef, ...] = (
         sub_area_id="alminus_market",
         is_canonical=False,
     ),
+    # ── Phase 9.5 삼신교 사제 (★ 268/55/72화 정합) ──
+    NPCDef(
+        id="rairin_ersina",
+        name="라이린 에르시나",
+        role="priest",
+        sub_area_id="toberah_temple",
+        dialogue_intro=(
+            "토베라 교단 정사제 — 바바리안 거절 규율 (★ 268화)."
+        ),
+        is_canonical=True,
+    ),
+    NPCDef(
+        id="reatlas_priest",
+        name="레아틀라스 사제",
+        role="priest",
+        sub_area_id="reatlas_temple",
+        is_canonical=False,
+    ),
+    NPCDef(
+        id="elisa",
+        name="엘리사",
+        role="priest",
+        sub_area_id="karuyi_temple",
+        dialogue_intro="카루이 사제 (★ 72화).",
+        is_canonical=True,
+    ),
 )
 
 
@@ -116,6 +142,10 @@ RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
             "general_store",
             "tavern",
             "central_library",
+            # ★ Phase 9.5 삼신교 (★ 268화)
+            "toberah_temple",
+            "reatlas_temple",
+            "karuyi_temple",
         ),
         npc_ids=("aenar", "erwen", "misha"),
     ),
@@ -196,6 +226,35 @@ RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
             "여관 겸하기도 함."
         ),
         connections=("district_7_plaza", "inn"),
+    ),
+    # ── Phase 9.5 삼신교 (★ 268화 라프도니아 세 교단) ──
+    CitySubAreaDef(
+        id="toberah_temple",
+        name="토베라 신전",
+        description=(
+            "삼신교 본격 신전 (★ 268화). "
+            "정사제 라이린 에르시나. 바바리안 거절 규율."
+        ),
+        connections=("district_7_plaza",),
+        npc_ids=("rairin_ersina",),
+    ),
+    CitySubAreaDef(
+        id="reatlas_temple",
+        name="레아틀라스 신전",
+        description=(
+            "삼신교 본격 신전 (★ 55화). 탐험의 신, 선 성향."
+        ),
+        connections=("district_7_plaza",),
+        npc_ids=("reatlas_priest",),
+    ),
+    CitySubAreaDef(
+        id="karuyi_temple",
+        name="카루이 신전",
+        description=(
+            "삼신교 본격 신전 (★ 72화). 사제 엘리사."
+        ),
+        connections=("district_7_plaza",),
+        npc_ids=("elisa",),
     ),
 )
 

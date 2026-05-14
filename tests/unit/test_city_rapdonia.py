@@ -2,7 +2,8 @@
 
 검증 본질:
 - DEFAULT_CITY_ID / DEFAULT_CITY_ENTRY_SUB_AREA production 상수
-- RAPDONIA: 9 sub_areas + 9 NPCs (4 canonical + 5 직책만)
+- RAPDONIA: 12 sub_areas + 12 NPCs (6 canonical + 6 직책만)
+  ★ Phase 9.5 본격: +3 temple sub_areas + 3 priest NPCs (★ 268/55/72화)
 - sub_area connections bidirectional 일관성
 - NPC.sub_area_id 본격 sub_area 존재 본격
 - 본문 정합 인물 (★ 아이나르/에르웬/미샤/라그나)
@@ -49,9 +50,9 @@ def test_rapdonia_basic_fields() -> None:
     assert RAPDONIA.entry_sub_area == "district_7_plaza"
 
 
-def test_rapdonia_has_9_sub_areas() -> None:
-    """docs/village_spec.md §7.3 본격 9개 sub_area."""
-    assert len(RAPDONIA_SUB_AREAS) == 9
+def test_rapdonia_has_12_sub_areas() -> None:
+    """9 본격 + 3 temple (★ Phase 9.5 — 268/55/72화)."""
+    assert len(RAPDONIA_SUB_AREAS) == 12
 
 
 def test_rapdonia_sub_area_ids_unique() -> None:
@@ -87,8 +88,9 @@ def test_all_sub_area_connections_valid() -> None:
 # ─── 3. NPCs ───
 
 
-def test_rapdonia_has_9_npcs() -> None:
-    assert len(RAPDONIA_NPCS) == 9
+def test_rapdonia_has_12_npcs() -> None:
+    """9 본격 + 3 priest (★ Phase 9.5)."""
+    assert len(RAPDONIA_NPCS) == 12
 
 
 def test_npc_ids_unique() -> None:
@@ -96,18 +98,25 @@ def test_npc_ids_unique() -> None:
     assert len(ids) == len(set(ids))
 
 
-def test_canonical_npcs_4() -> None:
-    """본문 직접 등장 인물 4명 (★ docs/village_spec.md §7.4)."""
+def test_canonical_npcs_6() -> None:
+    """본문 직접 등장 인물 6명 (★ 기본 4 + 268화 라이린 + 72화 엘리사)."""
     canonical = [n for n in RAPDONIA_NPCS if n.is_canonical]
-    assert len(canonical) == 4
+    assert len(canonical) == 6
     names = {n.name for n in canonical}
-    assert names == {"아이나르", "에르웬", "미샤", "라그나"}
+    assert names == {
+        "아이나르",
+        "에르웬",
+        "미샤",
+        "라그나",
+        "라이린 에르시나",
+        "엘리사",
+    }
 
 
-def test_placeholder_npcs_5() -> None:
-    """직책 placeholder 5명 (★ 환전소/여관/대장간/잡화점/거래소 직원)."""
+def test_placeholder_npcs_6() -> None:
+    """직책 placeholder 6명 (★ 기본 5 + 레아틀라스 사제 본문 X)."""
     placeholders = [n for n in RAPDONIA_NPCS if not n.is_canonical]
-    assert len(placeholders) == 5
+    assert len(placeholders) == 6
 
 
 def test_canonical_npcs_have_dialogue_intro() -> None:
