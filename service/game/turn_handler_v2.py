@@ -961,16 +961,105 @@ def explore_area(
 # ─── 13. 아이템 사용 ───
 
 
+# ★ Phase 8 (c) — 포션 회복량 (★ 본문 X 추측, 후속 본문 발견 시 보강).
+# 본 commit minimal: hp_max 본격 50% 본격 본격 본격 게임성 채택.
+POTION_HEAL_AMOUNT: int = 50
+
+
+def _item_use_category(item: Item) -> str:
+    """Item 종류 본격 substring 분류 (★ Phase 8 (c) — schema 변경 X).
+
+    본 commit minimal — Item.category enum (★ MATERIAL/CONSUMABLE 등)
+    본격 본격 본격 X 본격, name substring 본격 use-time 분류.
+    후속 commit (★ schema-3) 본격 별도 use_category field 본격 본격.
+    """
+    name = item.name
+    if "포션" in name:
+        return "potion"
+    if "식량" in name:
+        return "food"
+    if "횃불" in name:
+        return "torch"
+    return "unknown"
+
+
 def use_item(
     character: Character,
     item_name: str,
 ) -> TurnResult:
-    """아이템 사용 — 본 commit 단순화 (★ 후속 commit에 inventory 통합)."""
+    """아이템 사용 — Phase 8 (c) minimal effect.
+
+    Scope:
+    - 포션 → HP +POTION_HEAL_AMOUNT (★ hp_max cap)
+    - 식량 / 횃불 → message only (★ effect X — 후속 hunger / visibility 본격)
+    - 1회 사용 → inventory.items.remove
+
+    실패:
+    - inventory 본격 빈 → fail
+    - item_name 본격 본격 본격 X → fail (★ substring 본격)
+
+    호출 패턴 (★ sim_runner): use_item(actor, action.target)
+    """
+    if not character.inventory.items:
+        return TurnResult(
+            success=False,
+            action_type="use_item",
+            message=f"{character.name} 본격 아이템 X.",
+        )
+
+    target_item: Item | None = None
+    for item in character.inventory.items:
+        if item.name == item_name or item_name in item.name:
+            target_item = item
+            break
+
+    if target_item is None:
+        return TurnResult(
+            success=False,
+            action_type="use_item",
+            message=f"{character.name} 본격 '{item_name}' 본격 X.",
+        )
+
+    category = _item_use_category(target_item)
+    side_effects: list[str] = [
+        f"item_used={character.name}:{target_item.name}"
+    ]
+
+    if category == "potion":
+        old_hp = character.hp
+        character.hp = min(
+            character.hp_max, character.hp + POTION_HEAL_AMOUNT
+        )
+        healed = character.hp - old_hp
+        message = (
+            f"{character.name}이(가) {target_item.name}을(를) 마셨다. "
+            f"HP +{healed} (★ 총 {character.hp}/{character.hp_max})."
+        )
+        side_effects.append(f"hp_gain={character.name}:+{healed}")
+    elif category == "food":
+        message = (
+            f"{character.name}이(가) {target_item.name}을(를) 먹었다. "
+            f"배가 든든해진다."
+        )
+    elif category == "torch":
+        message = (
+            f"{character.name}이(가) {target_item.name}에 불을 붙였다. "
+            f"주위가 밝아진다."
+        )
+    else:
+        message = (
+            f"{character.name}이(가) {target_item.name}을(를) 사용했다. "
+            f"(★ 본격 효과 미정 — 후속 commit 본격)"
+        )
+
+    # 1회 사용 — frozen Item 본격 list reference identity 본격 remove.
+    character.inventory.items.remove(target_item)
+
     return TurnResult(
         success=True,
         action_type="use_item",
-        message=f"{character.name}이(가) {item_name} 사용.",
-        side_effects=[],
+        message=message,
+        side_effects=side_effects,
     )
 
 

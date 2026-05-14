@@ -282,6 +282,8 @@ def test_exit_rift_korean_name_alias() -> None:
 
 
 def test_use_item_basic() -> None:
+    """★ Phase 8 (c) — use_item 실작동 본격, inventory 본격 본격 본격 fail."""
     c = _bjorn()
+    # 빈 inventory + 미존재 item → fail (★ 실작동 본격)
     r = use_item(c, "마도구")
-    assert r.success
+    assert not r.success
