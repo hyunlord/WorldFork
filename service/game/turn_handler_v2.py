@@ -1097,13 +1097,15 @@ def use_item(
 
     if category == "potion":
         old_hp = character.hp
+        # ★ Phase 9.11 — effective_hp_max cap (★ disability penalty 적용)
         character.hp = min(
-            character.hp_max, character.hp + POTION_HEAL_AMOUNT
+            character.effective_hp_max,
+            character.hp + POTION_HEAL_AMOUNT,
         )
         healed = character.hp - old_hp
         message = (
             f"{character.name}이(가) {target_item.name}을(를) 마셨다. "
-            f"HP +{healed} (★ 총 {character.hp}/{character.hp_max})."
+            f"HP +{healed} (★ 총 {character.hp}/{character.effective_hp_max})."
         )
         side_effects.append(f"hp_gain={character.name}:+{healed}")
     elif category == "food":
@@ -1590,6 +1592,16 @@ def _maybe_create_disability(inj: Injury) -> Disability | None:
     )
 
 
+def _clamp_hp_to_effective(c: Character) -> None:
+    """hp ≤ effective_hp_max invariant 강제 (★ Phase 9.11).
+
+    disability 추가 직후 호출 — penalty 적용 후 hp > effective_hp_max
+    상황 방지 (★ critical 회복 + HP_RECOVERY 직후 transition 시점).
+    """
+    if c.hp > c.effective_hp_max:
+        c.hp = c.effective_hp_max
+
+
 def execute_wait_in_village(
     actor_name: str,
     party: list[Character],
@@ -1633,7 +1645,11 @@ def execute_wait_in_village(
         if not member.is_alive():
             continue  # ★ 죽은 멤버 영구 (★ 본인 답)
         old_hp = member.hp
-        member.hp = min(member.hp_max, member.hp + HP_RECOVERY_PER_DAY)
+        # ★ Phase 9.11 — effective_hp_max cap (★ 기존 disability 적용)
+        member.hp = min(
+            member.effective_hp_max,
+            member.hp + HP_RECOVERY_PER_DAY,
+        )
         hp_gain = member.hp - old_hp
         old_sp = member.soul_power
         member.soul_power = min(
@@ -1676,6 +1692,8 @@ def execute_wait_in_village(
                             f"{new_disability.body_part}_"
                             f"{new_disability.kind}"
                         )
+                        # ★ Phase 9.11 — hp ≤ effective_hp_max invariant
+                        _clamp_hp_to_effective(member)
                 else:
                     remaining.append(
                         Injury(
@@ -2026,6 +2044,8 @@ def execute_heal_at_temple(
         if new_disability is not None:
             actor.disabilities.append(new_disability)
             new_disabilities.append(new_disability)
+            # ★ Phase 9.11 — hp ≤ effective_hp_max invariant
+            _clamp_hp_to_effective(actor)
 
     side_effects = [
         f"temple_healed={actor_name}:{deity.deity_id}:{len(healed)}",
