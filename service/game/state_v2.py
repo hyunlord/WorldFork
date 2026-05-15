@@ -792,6 +792,10 @@ class WorldState:
     # 27화 본문 정합 cooldown counter (★ 자연 활성 + 의도적 활성 둘 다 기록).
     rift_last_opened_periods: dict[str, int] = field(default_factory=dict)
 
+    # ★ Phase 9.7 — NPC 호감도 (★ runtime state, NPCDef frozen 본격 별도).
+    # 19화/643화 정합: DIALOGUE 본격 ±, 0-100 cap, LIBRARY_SEARCH 등 효과 trigger.
+    npc_affinities: dict[str, int] = field(default_factory=dict)
+
     # ★ 환경 본질
     is_dark_zone: bool = True  # ★ 1층 기본 True (어둠)
 

@@ -160,8 +160,18 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
     if sub.npc_ids:
         npcs_here = [n for n in RAPDONIA.npcs if n.id in sub.npc_ids]
         if npcs_here:
-            npc_names = ", ".join(n.name for n in npcs_here)
-            lines.append(f"  여기 NPC: {npc_names}")
+            # ★ Phase 9.7 — NPC 호감도 표시 (★ DIALOGUE target enabler)
+            affinities = (
+                ctx.get("v2_world_state") or {}
+            ).get("npc_affinities") or {}
+            npc_entries: list[str] = []
+            for n in npcs_here:
+                aff = affinities.get(n.id, 0)
+                npc_entries.append(f"{n.name} (호감도 {aff})")
+            lines.append(f"  여기 NPC: {', '.join(npc_entries)}")
+            lines.append(
+                "  ⚡ DIALOGUE 본격 호감도 + (★ target = NPC name)."
+            )
 
     if sub.connections:
         conn_names: list[str] = []
@@ -201,6 +211,32 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             lines.append(
                 f"     ★ {refused} 본격 {deity.deity_name} "
                 f"신성력 거절 (★ 본문 규율)."
+            )
+
+    # ★ Phase 9.7 — 도서관 서적 탐지 hint (★ 19화 '파르시티에브')
+    if sub.id == "central_library":
+        from .turn_handler_v2 import (
+            LIBRARIAN_NPC_ID,
+            LIBRARY_FREE_AFFINITY_THRESHOLD,
+            LIBRARY_SEARCH_FEE,
+        )
+
+        affinities = (
+            ctx.get("v2_world_state") or {}
+        ).get("npc_affinities") or {}
+        librarian_aff = affinities.get(LIBRARIAN_NPC_ID, 0)
+        lines.append(
+            "  📖 LIBRARY_SEARCH 본격 서적 탐지 (★ target = 검색 키워드)."
+        )
+        if librarian_aff >= LIBRARY_FREE_AFFINITY_THRESHOLD:
+            lines.append(
+                f"     ★ 라그나 호감도 {librarian_aff} — 수수료 면제."
+            )
+        else:
+            lines.append(
+                f"     수수료 {LIBRARY_SEARCH_FEE} 스톤 "
+                f"(★ 라그나 호감도 ≥ "
+                f"{LIBRARY_FREE_AFFINITY_THRESHOLD} 면제)."
             )
 
     return "\n".join(lines) + "\n\n"

@@ -32,8 +32,10 @@ from service.game.turn_handler_v2 import (
     enter_rift,
     exchange_mage_stones,
     execute_attack,
+    execute_dialogue,
     execute_enter_dungeon,
     execute_heal_at_temple,
+    execute_library_search,
     execute_wait_in_village,
     exit_rift,
     exit_to_prev_floor,
@@ -316,6 +318,19 @@ def _execute_action(
         )
         return r.success, r.message, r.side_effects
 
+    # ★ Phase 9.7 — NPC 대화 + 도서관 서적 탐지 (★ 19화 정합)
+    if action.action_type == PlayerActionType.DIALOGUE:
+        r = execute_dialogue(
+            action.actor_name, action.target, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
+    if action.action_type == PlayerActionType.LIBRARY_SEARCH:
+        r = execute_library_search(
+            action.actor_name, action.target, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
     return False, f"unknown action: {action.action_type.value}", []
 
 
@@ -411,6 +426,8 @@ def _refresh_context(
             # ★ Phase 8 C / R4 — 인접 층 진입 state (★ GM prompt 본격, generic)
             "entered_floors": sorted(world.floor_states.keys()),
             "first_entry_parties": sorted(world.first_entry_parties),
+            # ★ Phase 9.7 — NPC 호감도 (★ DIALOGUE / LIBRARY_SEARCH 본격)
+            "npc_affinities": dict(world.npc_affinities),
         }
     )
     ctx["v2_world_state"] = world_ctx

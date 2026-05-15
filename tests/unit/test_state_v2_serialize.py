@@ -205,20 +205,15 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_19() -> None:
-    """PlayerActionType 본격 19개 (★ Phase 7j 13 + 8 C/R3 2 + exchange 1 + Phase 9 3).
+def test_player_action_type_count_21() -> None:
+    """PlayerActionType 본격 21개 (★ 13 + 2 + 1 + 3 + 2 Phase 9.7).
 
-    Phase 8 C / R3:
-    - ENTER_NEXT_FLOOR (★ generic, R3 rename from ENTER_FLOOR_TWO)
-    - EXIT_TO_PREV_FLOOR (★ generic, R3 rename from EXIT_TO_FLOOR_ONE)
-    Phase 8 exchange:
-    - EXCHANGE_MAGE_STONES (★ 마을 환전소)
-    Phase 9 village cycle:
-    - WAIT_IN_VILLAGE (★ 1일 진행 + HP/SP 회복)
-    - ENTER_DUNGEON (★ 매월 1일 자정 1층 재진입)
     Phase 9.5 temple-heal:
     - HEAL_AT_TEMPLE (★ 삼신교 신전 부상 치료)
+    Phase 9.7 affinity + library:
+    - DIALOGUE (★ NPC 호감도 +)
+    - LIBRARY_SEARCH (★ 19화 '파르시티에브' 서적 탐지)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 19
+    assert len(list(PlayerActionType)) == 21

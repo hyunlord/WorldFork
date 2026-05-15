@@ -2001,3 +2001,190 @@ def execute_heal_at_temple(
         message=message,
         side_effects=side_effects,
     )
+
+
+# ─── Phase 9.7 — NPC 호감도 + 도서관 서적 탐지 (★ 19화 본문 정합) ───
+
+AFFINITY_DELTA_DIALOGUE: int = 5  # ★ 추측 (본문 X — 후속 발견 시 보강)
+AFFINITY_MAX: int = 100  # ★ 643화 본문 cap
+LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
+LIBRARY_FREE_AFFINITY_THRESHOLD: int = 50  # ★ 본인 답 (★ 추측)
+LIBRARIAN_NPC_ID: str = "ragna"  # ★ a-2 NPCDef.id
+
+
+def _find_npc_in_sub_area(
+    target: str | None, sub_area_id: str
+) -> tuple[str, str] | None:
+    """target (★ npc id 또는 name) 본격 RAPDONIA 본격 본격 sub_area 본격 NPC.
+
+    Returns:
+        (npc_id, npc_name) 본격 None.
+    """
+    from .cities.rapdonia import RAPDONIA
+
+    sub = next(
+        (s for s in RAPDONIA.sub_areas if s.id == sub_area_id), None
+    )
+    if sub is None or not sub.npc_ids:
+        return None
+
+    if not target:
+        return None
+
+    for npc_id in sub.npc_ids:
+        npc = next((n for n in RAPDONIA.npcs if n.id == npc_id), None)
+        if npc is None:
+            continue
+        if npc.id == target or npc.name == target:
+            return (npc.id, npc.name)
+    return None
+
+
+def execute_dialogue(
+    actor_name: str,
+    target: str | None,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """NPC 본격 대화 → 호감도 +5 (★ Phase 9.7 minimal).
+
+    조건:
+    - realm=CITY + 현재 sub_area 본격 NPC 본격
+    - target 본격 NPC id 또는 한국어 name 본격 본격 본격
+
+    Mutation:
+    - world.npc_affinities[npc_id] += AFFINITY_DELTA_DIALOGUE (★ cap 100)
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="dialogue",
+            message="대화는 마을 본격.",
+        )
+    if location.sub_area is None:
+        return TurnResult(
+            success=False,
+            action_type="dialogue",
+            message="sub_area X — 대화 본격 X.",
+        )
+
+    found = _find_npc_in_sub_area(target, location.sub_area)
+    if found is None:
+        return TurnResult(
+            success=False,
+            action_type="dialogue",
+            message=f"본 위치 본격 '{target}' NPC X.",
+        )
+    npc_id, npc_name = found
+
+    # actor 본격 검증 (★ 본 commit 본격 본격 X — 본격 본격)
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="dialogue",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    current = world.npc_affinities.get(npc_id, 0)
+    new_value = min(AFFINITY_MAX, current + AFFINITY_DELTA_DIALOGUE)
+    world.npc_affinities[npc_id] = new_value
+
+    return TurnResult(
+        success=True,
+        action_type="dialogue",
+        message=(
+            f"{actor_name}이(가) {npc_name}와(과) 대화했다. "
+            f"호감도 {current} → {new_value}."
+        ),
+        side_effects=[
+            f"affinity_changed={npc_id}:{current}->{new_value}",
+        ],
+    )
+
+
+def execute_library_search(
+    actor_name: str,
+    target: str | None,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """도서관 서적 탐지 마법 — 19화 '파르시티에브' 본문 정합.
+
+    조건:
+    - realm=CITY + sub_area=central_library
+    - target 본격 검색 키워드 (★ 19화: 키워드 본격 책 이끌림)
+    - 라그나 호감도 < threshold 본격 stone 본격 (★ namu §4.3 3천)
+    - 라그나 호감도 ≥ threshold 본격 무료 (★ 본인 답 — 친해진 본격)
+
+    본 commit 본격 X (★ 후속):
+    - Book schema (★ target → book lookup)
+    - 책 효과 mechanism (★ 9.8 본격)
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="library_search",
+            message="도서관은 마을 본격.",
+        )
+    if location.sub_area != "central_library":
+        return TurnResult(
+            success=False,
+            action_type="library_search",
+            message=(
+                "중앙 도서관 본격 본격 본격 (★ central_library)."
+            ),
+        )
+    if not target:
+        return TurnResult(
+            success=False,
+            action_type="library_search",
+            message="검색 키워드 본격 본격.",
+        )
+
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="library_search",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    affinity = world.npc_affinities.get(LIBRARIAN_NPC_ID, 0)
+    free = affinity >= LIBRARY_FREE_AFFINITY_THRESHOLD
+
+    if not free:
+        if actor.stone < LIBRARY_SEARCH_FEE:
+            return TurnResult(
+                success=False,
+                action_type="library_search",
+                message=(
+                    f"수수료 부족 "
+                    f"({actor.stone}/{LIBRARY_SEARCH_FEE} 스톤). "
+                    f"라그나 호감도 ≥ "
+                    f"{LIBRARY_FREE_AFFINITY_THRESHOLD} 시 무료."
+                ),
+            )
+        actor.stone -= LIBRARY_SEARCH_FEE
+
+    msg = (
+        f"라그나가 '파르시티에브'를 읊조렸다. "
+        f"'{target}' 본격 본격 책으로 이끌림이 발생한다."
+    )
+    side_effects = [f"library_search={actor_name}:{target}"]
+    if free:
+        msg += f" (★ 호감도 {affinity} — 수수료 면제)"
+    else:
+        msg += f" -{LIBRARY_SEARCH_FEE} 스톤."
+        side_effects.append(
+            f"stone_paid={actor_name}:-{LIBRARY_SEARCH_FEE}"
+        )
+
+    return TurnResult(
+        success=True,
+        action_type="library_search",
+        message=msg,
+        side_effects=side_effects,
+    )

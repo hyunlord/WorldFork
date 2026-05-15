@@ -47,6 +47,9 @@ class PlayerActionType(StrEnum):
     ENTER_DUNGEON = "enter_dungeon"      # ★ 매월 1일 자정 1층 재진입
     # ★ Phase 9.5 — 삼신교 신전 부상 치료 (★ 268/55/72화 정합)
     HEAL_AT_TEMPLE = "heal_at_temple"
+    # ★ Phase 9.7 — NPC 대화 (★ 호감도 +) + 도서관 서적 탐지 (★ 19화 '파르시티에브')
+    DIALOGUE = "dialogue"
+    LIBRARY_SEARCH = "library_search"
 
 
 @dataclass
@@ -182,6 +185,8 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.WAIT_IN_VILLAGE: 0.0,
     PlayerActionType.ENTER_DUNGEON: 0.0,
     PlayerActionType.HEAL_AT_TEMPLE: 0.0,
+    PlayerActionType.DIALOGUE: 0.0,
+    PlayerActionType.LIBRARY_SEARCH: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
