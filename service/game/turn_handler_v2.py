@@ -24,6 +24,7 @@ from .state_v2 import (
     SEVERITY_RECOVERY_DEFAULT,
     BossEncounter,
     Character,
+    ClassType,
     Essence,
     EssenceColor,
     EssenceGrade,
@@ -2221,6 +2222,8 @@ def _create_recruit_character(rng: random.Random) -> Character:
     # Race enum 본격 본격 lookup
     race_enum = next(r for r in Race if r.value == race_value)
     name = f"{race_value} 신참 #{rng.randint(1000, 9999)}"
+    # ★ Phase 9.9-b — grade=1 / class=WARRIOR 본격 wire.
+    # 5화 본문: 신관/마법사 = 중층 이상 직업 (★ 신참 길드 본격 본격 X).
     return Character(
         name=name,
         race=race_enum,
@@ -2231,6 +2234,8 @@ def _create_recruit_character(rng: random.Random) -> Character:
         soul_power=20,
         soul_power_max=20,
         stone=0,
+        grade=1,
+        class_type=ClassType.WARRIOR.value,
     )
 
 

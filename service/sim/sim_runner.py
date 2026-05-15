@@ -377,6 +377,9 @@ def _refresh_context(
                 # ★ Phase 8 B — 레벨 + 경험치
                 "level": c.level,
                 "experience": c.experience,
+                # ★ Phase 9.9-b — 정수 등급 + 직업 (★ 28화 본문 정합)
+                "grade": c.grade,
+                "class_type": c.class_type,
                 # ★ Phase 9.3 — 부상 (LLM narrative 본격)
                 "injuries": [
                     {

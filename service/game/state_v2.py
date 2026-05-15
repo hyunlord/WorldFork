@@ -142,6 +142,22 @@ class InjuryBodyPart(StrEnum):
     LEG = "leg"
 
 
+class ClassType(StrEnum):
+    """직업 분류 (★ Phase 9.9-b — 5/28화 본문 정합).
+
+    본문 정합:
+    - 28화: '6등급 마법사 아루아 레이븐' (★ MAGE)
+    - 5화: 신관/마법사 = 중층 이상 직업 (★ PRIEST/MAGE)
+    - 본 commit minimal — WARRIOR 본격 본격 wire (★ 9.9-a 신참 길드)
+    - 후속 9.9-b2: MAGE/PRIEST/PALADIN 본격 별도 mechanism
+    """
+
+    WARRIOR = "warrior"  # ★ 전사 (★ 비요른 + 9.9-a 신참)
+    MAGE = "mage"  # ★ 마법사 (★ 28화 — 후속)
+    PRIEST = "priest"  # ★ 신관 (★ 5화 — 후속)
+    PALADIN = "paladin"  # ★ 성기사 (★ 후속)
+
+
 class Realm(StrEnum):
     """게임 영역 (★ 작품 본질, V4 분석 결과)."""
 
@@ -613,6 +629,10 @@ class Character:
     # ★ Phase 9.6 — 영구 흉터 (★ 25화 '흉터가 남겠군' 본문 정합).
     # scar=True injury 회복 완료 시 Scar append (★ cosmetic only).
     scars: list[Scar] = field(default_factory=list)
+
+    # ★ Phase 9.9-b — 정수 등급 + 직업 (★ 28화 '6등급 마법사' / 5화 직업 본격).
+    grade: int = 1  # ★ 정수 등급 1-9 (★ 본 commit default 신참)
+    class_type: str = "warrior"  # ★ ClassType value (★ 본 commit default WARRIOR)
 
     def is_alive(self) -> bool:
         return self.hp > 0

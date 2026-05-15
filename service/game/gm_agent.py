@@ -304,7 +304,13 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             lv = info.get("level", 1)
             exp = info.get("experience", 0)
             next_thr = next_level_threshold(int(lv))
-            line = f"  - **{name}** ({race_str}, Lv {lv} · exp {exp}/{next_thr})"
+            # ★ Phase 9.9-b — grade + class_type (★ 28화 등급 정합)
+            grade = info.get("grade", 1)
+            cls = info.get("class_type", "warrior")
+            line = (
+                f"  - **{name}** ({race_str}, Lv {lv} · exp {exp}/{next_thr}, "
+                f"{grade}등급 {cls})"
+            )
             line += f": HP {hp}/{hp_max}, 영혼력 {soul}, 신장 {height}cm"
             line += (
                 f", 메인 [육체 {info.get('physical', 0)} "
