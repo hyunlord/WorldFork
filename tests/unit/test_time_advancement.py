@@ -72,6 +72,7 @@ def test_action_hours_delta_all_actions_mapped() -> None:
         PlayerActionType.DIALOGUE,
         PlayerActionType.LIBRARY_SEARCH,
         PlayerActionType.RECRUIT_FROM_GUILD,
+        PlayerActionType.REJECT_DIALOGUE,
     }
     for at in PlayerActionType:
         assert at in ACTION_HOURS_DELTA, f"{at} 본격 누락"

@@ -2099,7 +2099,9 @@ def execute_heal_at_temple(
 # ─── Phase 9.7 — NPC 호감도 + 도서관 서적 탐지 (★ 19화 본문 정합) ───
 
 AFFINITY_DELTA_DIALOGUE: int = 5  # ★ 추측 (본문 X — 후속 발견 시 보강)
+AFFINITY_DELTA_REJECTION: int = -10  # ★ Phase 9.12 — 303화 답변 거절 정합 (★ 추측 수치)
 AFFINITY_MAX: int = 100  # ★ 643화 본문 cap
+AFFINITY_MIN: int = 0  # ★ Phase 9.12 — floor (★ negative 본격 X)
 LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
 LIBRARY_FREE_AFFINITY_THRESHOLD: int = 50  # ★ 본인 답 (★ 추측)
 LIBRARIAN_NPC_ID: str = "ragna"  # ★ a-2 NPCDef.id
@@ -2189,6 +2191,67 @@ def execute_dialogue(
         action_type="dialogue",
         message=(
             f"{actor_name}이(가) {npc_name}와(과) 대화했다. "
+            f"호감도 {current} → {new_value}."
+        ),
+        side_effects=[
+            f"affinity_changed={npc_id}:{current}->{new_value}",
+        ],
+    )
+
+
+def execute_reject_dialogue(
+    actor_name: str,
+    target: str | None,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """NPC 대화 거절 → 호감도 -10 (★ Phase 9.12 — 303화 정합).
+
+    구조: execute_dialogue 정합. floor 0 (★ negative X).
+
+    Mutation:
+    - world.npc_affinities[npc_id] += AFFINITY_DELTA_REJECTION (★ floor 0)
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="reject_dialogue",
+            message="대화 거절은 마을 본격.",
+        )
+    if location.sub_area is None:
+        return TurnResult(
+            success=False,
+            action_type="reject_dialogue",
+            message="sub_area X — 대화 거절 본격 X.",
+        )
+
+    found = _find_npc_in_sub_area(target, location.sub_area)
+    if found is None:
+        return TurnResult(
+            success=False,
+            action_type="reject_dialogue",
+            message=f"본 위치 본격 '{target}' NPC X.",
+        )
+    npc_id, npc_name = found
+
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="reject_dialogue",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    current = world.npc_affinities.get(npc_id, 0)
+    new_value = max(AFFINITY_MIN, current + AFFINITY_DELTA_REJECTION)
+    world.npc_affinities[npc_id] = new_value
+
+    return TurnResult(
+        success=True,
+        action_type="reject_dialogue",
+        message=(
+            f"{actor_name}이(가) {npc_name}의 대화 본격 거절했다. "
             f"호감도 {current} → {new_value}."
         ),
         side_effects=[

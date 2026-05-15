@@ -170,7 +170,8 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
                 npc_entries.append(f"{n.name} (호감도 {aff})")
             lines.append(f"  여기 NPC: {', '.join(npc_entries)}")
             lines.append(
-                "  ⚡ DIALOGUE 본격 호감도 + (★ target = NPC name)."
+                "  ⚡ DIALOGUE 호감도 +5 / "
+                "REJECT_DIALOGUE 호감도 -10 (★ target = NPC name)."
             )
 
     if sub.connections:

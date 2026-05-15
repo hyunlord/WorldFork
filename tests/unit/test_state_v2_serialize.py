@@ -205,12 +205,12 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_22() -> None:
-    """PlayerActionType 본격 22개 (★ 21 + 9.9-a RECRUIT_FROM_GUILD).
+def test_player_action_type_count_23() -> None:
+    """PlayerActionType 본격 23개 (★ 22 + 9.12 REJECT_DIALOGUE).
 
-    Phase 9.9-a guild recruit:
-    - RECRUIT_FROM_GUILD (★ 길드 모집 minimal)
+    Phase 9.12 reject dialogue:
+    - REJECT_DIALOGUE (★ 303화 호감도 하락)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 22
+    assert len(list(PlayerActionType)) == 23

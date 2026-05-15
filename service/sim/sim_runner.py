@@ -37,6 +37,7 @@ from service.game.turn_handler_v2 import (
     execute_heal_at_temple,
     execute_library_search,
     execute_recruit_from_guild,
+    execute_reject_dialogue,
     execute_wait_in_village,
     exit_rift,
     exit_to_prev_floor,
@@ -322,6 +323,13 @@ def _execute_action(
     # ★ Phase 9.7 — NPC 대화 + 도서관 서적 탐지 (★ 19화 정합)
     if action.action_type == PlayerActionType.DIALOGUE:
         r = execute_dialogue(
+            action.actor_name, action.target, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.12 — NPC 대화 거절 (★ 303화 호감도 -10)
+    if action.action_type == PlayerActionType.REJECT_DIALOGUE:
+        r = execute_reject_dialogue(
             action.actor_name, action.target, party_list, world, location
         )
         return r.success, r.message, r.side_effects

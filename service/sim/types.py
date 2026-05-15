@@ -52,6 +52,8 @@ class PlayerActionType(StrEnum):
     LIBRARY_SEARCH = "library_search"
     # ★ Phase 9.9-a — 길드 모집 minimal (★ 빈자리 + 비용 + random 종족 신참)
     RECRUIT_FROM_GUILD = "recruit_from_guild"
+    # ★ Phase 9.12 — NPC 대화 거절 (★ 303화 호감도 하락 정합)
+    REJECT_DIALOGUE = "reject_dialogue"
 
 
 @dataclass
@@ -190,6 +192,7 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.DIALOGUE: 0.0,
     PlayerActionType.LIBRARY_SEARCH: 0.0,
     PlayerActionType.RECRUIT_FROM_GUILD: 0.0,
+    PlayerActionType.REJECT_DIALOGUE: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
