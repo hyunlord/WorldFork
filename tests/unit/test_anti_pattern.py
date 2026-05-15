@@ -214,6 +214,59 @@ class TestExtractAddedLines:
         assert len(hardcoded) == 0
 
 
+class TestMadeButNeverUsed:
+    """made_but_never_used regex 정밀도 (★ placeholder false positive 차단)."""
+
+    def test_detect_todo_marker(self) -> None:
+        """class docstring 본격 TODO → match."""
+        code = (
+            'class Foo:\n'
+            '    """TODO: implement later.\n'
+            '    placeholder description.\n'
+            '    """\n'
+            '    pass\n'
+        )
+        matches = check_anti_patterns(code)
+        assert any(
+            m.anti_pattern.id == "made_but_never_used" for m in matches
+        )
+
+    def test_detect_fixme_marker(self) -> None:
+        """class docstring 본격 FIXME → match."""
+        code = (
+            'class Bar:\n'
+            '    """FIXME: stub class.\n'
+            '    """\n'
+            '    pass\n'
+        )
+        matches = check_anti_patterns(code)
+        assert any(
+            m.anti_pattern.id == "made_but_never_used" for m in matches
+        )
+
+    def test_no_false_positive_placeholder_word(self) -> None:
+        """class docstring 본격 'placeholder' 단순 단어 → match X.
+
+        선례: a-2 NPCDef / 9.5 TempleDeity 본격 'placeholder' = '데이터 X'
+        의미 본격 사용 — TODO/FIXME 명시 marker X 본격 본격 본격.
+        """
+        code = (
+            'class TempleDeity:\n'
+            '    """삼신교 신 정의.\n'
+            '\n'
+            '    canonical_priest_name:\n'
+            '    - True = 본문 등장\n'
+            '    - "" = 본문 X — placeholder (후속 보강).\n'
+            '    """\n'
+            '    deity_id: str\n'
+        )
+        matches = check_anti_patterns(code)
+        made_unused = [
+            m for m in matches if m.anti_pattern.id == "made_but_never_used"
+        ]
+        assert len(made_unused) == 0
+
+
 class TestPatternsList:
     def test_patterns_not_empty(self) -> None:
         assert len(PATTERNS) >= 9

@@ -81,8 +81,11 @@ PATTERNS: list[AntiPattern] = [
             "Class/function declared but never actually used in production code. "
             "★ Self-rationalization through 'we have it' (W2 D5 진단)."
         ),
+        # ★ 'placeholder' 키워드 제거 (★ false positive: 정상 docstring 단어 match).
+        # 선례: a-2 NPCDef / 9.5 TempleDeity — 'placeholder' = '데이터 X' 의미 본격 사용.
+        # 명시적 marker (TODO/FIXME) 본격 충분 — placeholder 단어 본격 본격 본격 X.
         pattern=re.compile(
-            r"^class\s+(\w+).*?:\s*\n.*?\"\"\".*?(?:TODO|FIXME|placeholder)",
+            r"^class\s+(\w+).*?:\s*\n.*?\"\"\".*?(?:TODO|FIXME)",
             re.DOTALL | re.MULTILINE,
         ),
         suggestion="Either use it in production code, or remove (YAGNI).",
