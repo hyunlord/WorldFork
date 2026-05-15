@@ -2197,8 +2197,7 @@ def execute_library_search(
 # 본 commit 추측 (★ 본문 X — 후속 본문 발견 시 보강).
 RECRUIT_BASE_COST: int = 5000  # ★ 신참 모집 stone 비용 (★ namu §7.1 본격 X)
 
-# 본 commit 모집 가능 6 종족 (★ Race enum 정합).
-# 9.9-c 본격 가중치 부여 (★ 용인족 본격 본격 본격 본격 본격).
+# 본 commit 모집 가능 6 종족 (★ Race enum value 정합 — 43화 본문).
 GUILD_RECRUITABLE_RACES: tuple[str, ...] = (
     "인간",
     "드워프",
@@ -2208,22 +2207,137 @@ GUILD_RECRUITABLE_RACES: tuple[str, ...] = (
     "용인족",
 )
 
+# ─── Phase 9.9-c — 종족 가중치 + 상성 + 호감도 boost (★ 본문 strict) ───
 
-def _create_recruit_character(rng: random.Random) -> Character:
-    """길드 모집 신참 캐릭터 생성 (★ Phase 9.9-a minimal).
+# base 가중치 (★ 본인 답 default — 본문 수치 명시 X 추측).
+# 123화: 용인족 캐릭터 선택 차단 (★ 매우 희귀 = 1).
+# 123화: 바바리안 채팅방 0명 (★ 희귀 = 4).
+RACE_BASE_WEIGHT: dict[str, int] = {
+    "인간": 50,
+    "드워프": 15,
+    "수인": 15,
+    "요정": 15,
+    "바바리안": 4,
+    "용인족": 1,
+}
 
-    본 commit:
-    - 종족 random (★ equal weight, 9.9-c 본격 가중치)
-    - level 1 신참
-    - 기본 stat (★ Race default — race-starting 본격 X 단순)
-    - 이름 placeholder (★ 본 commit minimal — 9.9-b/c 본격)
+# 종족 상성 (★ 본문 strict — 추측 회피).
+# 9화 본문: 바바리안 ↔ 요정 적대 (★ 양방향).
+# 44/97/119화: 인간 → 바바리안 차별 (★ 본인 답 단방향).
+HOSTILE_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("바바리안", "요정"),
+        ("요정", "바바리안"),
+        ("인간", "바바리안"),  # ★ 단방향 (★ 본인 답)
+    }
+)
+
+# 8화 본문: '바바리안만큼 호방한 드워프' — 친화 (★ 양방향).
+FRIENDLY_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("바바리안", "드워프"),
+        ("드워프", "바바리안"),
+    }
+)
+
+SAME_RACE_MULTIPLIER: float = 2.0
+FRIENDLY_MULTIPLIER: float = 1.5
+HOSTILE_MULTIPLIER: float = 0.3
+NEUTRAL_MULTIPLIER: float = 1.0
+
+# 호감도 boost (★ 본인 답 default — 본문 X 추측).
+AFFINITY_BOOST_RARE_THRESHOLD: int = 50
+AFFINITY_BOOST_UNCOMMON_THRESHOLD: int = 25
+RARE_RACE_AFFINITY_MULTIPLIER: float = 10.0  # ★ 용인족 ×10 @ 50
+UNCOMMON_RACE_AFFINITY_MULTIPLIER: float = 2.0  # ★ 바바리안/용인족 ×2 @ 25
+
+GUILD_CLERK_NPC_ID: str = "frail_guild_clerk"
+
+
+def _race_relation_multiplier(
+    actor_race: str, target_race: str
+) -> float:
+    """종족 상성 multiplier (★ 본문 strict 정합).
+
+    - 같은 종족 → ×2 (★ 본인 답)
+    - 친화 → ×1.5 (★ 8화 바바리안-드워프 호방)
+    - 적대 → ×0.3 (★ 9화 바바리안-요정 양방향, 44/97/119화 인간→바바리안 단방향)
+    - 중립 → ×1.0
     """
-    race_value = rng.choice(GUILD_RECRUITABLE_RACES)
-    # Race enum 본격 본격 lookup
+    if actor_race == target_race:
+        return SAME_RACE_MULTIPLIER
+    if (actor_race, target_race) in HOSTILE_PAIRS:
+        return HOSTILE_MULTIPLIER
+    if (actor_race, target_race) in FRIENDLY_PAIRS:
+        return FRIENDLY_MULTIPLIER
+    return NEUTRAL_MULTIPLIER
+
+
+def _affinity_boost_multiplier(
+    target_race: str, affinity: int
+) -> float:
+    """길드 NPC 호감도 본격 희귀 종족 boost (★ 본인 답).
+
+    - affinity ≥ 50 + 용인족 → ×10
+    - affinity ≥ 25 + 바바리안/용인족 → ×2
+    - 그 외 → ×1.0
+    """
+    if (
+        affinity >= AFFINITY_BOOST_RARE_THRESHOLD
+        and target_race == "용인족"
+    ):
+        return RARE_RACE_AFFINITY_MULTIPLIER
+    if (
+        affinity >= AFFINITY_BOOST_UNCOMMON_THRESHOLD
+        and target_race in ("바바리안", "용인족")
+    ):
+        return UNCOMMON_RACE_AFFINITY_MULTIPLIER
+    return 1.0
+
+
+def _compute_race_weights(
+    actor_race: str, guild_clerk_affinity: int
+) -> dict[str, float]:
+    """본인 종족 + 호감도 본격 최종 가중치."""
+    weights: dict[str, float] = {}
+    for race in GUILD_RECRUITABLE_RACES:
+        base = float(RACE_BASE_WEIGHT[race])
+        relation = _race_relation_multiplier(actor_race, race)
+        boost = _affinity_boost_multiplier(race, guild_clerk_affinity)
+        weights[race] = base * relation * boost
+    return weights
+
+
+def _weighted_random_race(
+    weights: dict[str, float], rng: random.Random
+) -> str:
+    """가중치 기반 random 종족 선택."""
+    total = sum(weights.values())
+    if total <= 0:
+        return "인간"  # ★ fallback
+    r = rng.uniform(0.0, total)
+    cumulative = 0.0
+    for race, w in weights.items():
+        cumulative += w
+        if r <= cumulative:
+            return race
+    return next(iter(weights))
+
+
+def _create_recruit_character(
+    actor_race: str,
+    guild_clerk_affinity: int,
+    rng: random.Random,
+) -> Character:
+    """길드 모집 신참 (★ Phase 9.9-c 가중치 + 9.9-b grade/class).
+
+    - 본인 종족 + 호감도 본격 가중치 random 종족 선택
+    - level 1 / grade 1 / class WARRIOR (★ 5화 본문: 신참 = warrior)
+    """
+    weights = _compute_race_weights(actor_race, guild_clerk_affinity)
+    race_value = _weighted_random_race(weights, rng)
     race_enum = next(r for r in Race if r.value == race_value)
     name = f"{race_value} 신참 #{rng.randint(1000, 9999)}"
-    # ★ Phase 9.9-b — grade=1 / class=WARRIOR 본격 wire.
-    # 5화 본문: 신관/마법사 = 중층 이상 직업 (★ 신참 길드 본격 본격 X).
     return Character(
         name=name,
         race=race_enum,
@@ -2306,7 +2420,11 @@ def execute_recruit_from_guild(
     # mutation (★ atomic)
     if rng is None:
         rng = random.Random()
-    new_member = _create_recruit_character(rng)
+    # ★ Phase 9.9-c — actor 종족 + 길드 호감도 본격 가중치
+    guild_clerk_affinity = world.npc_affinities.get(GUILD_CLERK_NPC_ID, 0)
+    new_member = _create_recruit_character(
+        actor.race.value, guild_clerk_affinity, rng
+    )
     party.append(new_member)
     world.party_members.append(new_member.name)
     actor.stone -= RECRUIT_BASE_COST

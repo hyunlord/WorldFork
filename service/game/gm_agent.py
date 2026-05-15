@@ -213,14 +213,22 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
                 f"신성력 거절 (★ 본문 규율)."
             )
 
-    # ★ Phase 9.9-a — 길드 모집 hint
+    # ★ Phase 9.9-a — 길드 모집 hint (★ 9.9-c 호감도 boost 본격)
     if sub.id == "explorer_guild_branch":
-        from .turn_handler_v2 import RECRUIT_BASE_COST
+        from .turn_handler_v2 import (
+            AFFINITY_BOOST_RARE_THRESHOLD,
+            AFFINITY_BOOST_UNCOMMON_THRESHOLD,
+            GUILD_CLERK_NPC_ID,
+            RECRUIT_BASE_COST,
+        )
 
         ws = ctx.get("v2_world_state") or {}
         max_party = ws.get("max_party_members", 5)
         current_party = len(ws.get("party_members") or [])
         slots_free = max_party - current_party
+        guild_affinity = (ws.get("npc_affinities") or {}).get(
+            GUILD_CLERK_NPC_ID, 0
+        )
         lines.append("  🛡 탐험가 길드 지부")
         if slots_free > 0:
             lines.append(
@@ -228,9 +236,23 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
                 f"(★ 빈자리 {slots_free}, 비용 {RECRUIT_BASE_COST} 스톤)."
             )
             lines.append(
-                "     ★ random 종족 / level 1 신참 "
-                "(★ 9.9-b/c 본격 등급·희귀도 후속)."
+                "     ★ 본인 종족 / 길드 호감도 본격 가중치 (★ 9.9-c)."
             )
+            if guild_affinity >= AFFINITY_BOOST_RARE_THRESHOLD:
+                lines.append(
+                    f"     ★ 프라일 호감도 {guild_affinity} — "
+                    f"용인족 등장 확률 ×10."
+                )
+            elif guild_affinity >= AFFINITY_BOOST_UNCOMMON_THRESHOLD:
+                lines.append(
+                    f"     ★ 프라일 호감도 {guild_affinity} — "
+                    f"바바리안/용인족 확률 ×2."
+                )
+            else:
+                lines.append(
+                    f"     프라일 호감도 {guild_affinity} "
+                    f"(★ ≥ {AFFINITY_BOOST_UNCOMMON_THRESHOLD} 시 희귀 boost)."
+                )
         else:
             lines.append(
                 f"     파티 정원 만석 "
