@@ -69,20 +69,20 @@ def test_all_races_in_enum() -> None:
 
 def test_recruit_random_race_in_pool() -> None:
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.race.value in GUILD_RECRUITABLE_RACES
 
 
 def test_recruit_level_1_newbie() -> None:
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.level == 1
     assert c.experience == 0
 
 
 def test_recruit_default_stat() -> None:
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.hp == 100
     assert c.hp_max == 100
     assert c.soul_power == 20
@@ -91,8 +91,8 @@ def test_recruit_default_stat() -> None:
 
 
 def test_recruit_reproducible_with_seed() -> None:
-    a = _create_recruit_character("인간", 0, random.Random(42))
-    b = _create_recruit_character("인간", 0, random.Random(42))
+    a = _create_recruit_character("인간", 1, 0, random.Random(42))
+    b = _create_recruit_character("인간", 1, 0, random.Random(42))
     assert a.name == b.name
     assert a.race == b.race
 

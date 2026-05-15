@@ -2415,20 +2415,39 @@ def _weighted_random_race(
     return next(iter(weights))
 
 
+def _max_recruit_grade(actor_grade: int) -> int:
+    """본인 grade 본격 모집 가능 신참 max grade (★ Phase 9.9-d).
+
+    공식: (actor_grade + 1) // 2 (★ 본문 X 추측, 후속 발견 시 보강).
+    - actor 1 → 1 (★ 신참만)
+    - actor 3 → 2
+    - actor 5 → 3 (★ 73화 상위 탐험가 정합 — 본인 답)
+    - actor 9 → 5
+    - actor 0/음수 → 1 fallback (★ edge)
+    """
+    if actor_grade <= 0:
+        return 1
+    return max(1, (actor_grade + 1) // 2)
+
+
 def _create_recruit_character(
     actor_race: str,
+    actor_grade: int,
     guild_clerk_affinity: int,
     rng: random.Random,
 ) -> Character:
-    """길드 모집 신참 (★ Phase 9.9-c 가중치 + 9.9-b grade/class).
+    """길드 모집 신참 (★ Phase 9.9-c 가중치 + 9.9-b grade/class + 9.9-d range).
 
     - 본인 종족 + 호감도 본격 가중치 random 종족 선택
-    - level 1 / grade 1 / class WARRIOR (★ 5화 본문: 신참 = warrior)
+    - 본인 grade 본격 max_recruit_grade 산출 → 신참 grade = rng.randint(1, max)
+    - level 1 / class WARRIOR (★ 5화 본문: 신참 = warrior)
     """
     weights = _compute_race_weights(actor_race, guild_clerk_affinity)
     race_value = _weighted_random_race(weights, rng)
     race_enum = next(r for r in Race if r.value == race_value)
     name = f"{race_value} 신참 #{rng.randint(1000, 9999)}"
+    max_grade = _max_recruit_grade(actor_grade)
+    new_grade = rng.randint(1, max_grade)
     return Character(
         name=name,
         race=race_enum,
@@ -2439,7 +2458,7 @@ def _create_recruit_character(
         soul_power=20,
         soul_power_max=20,
         stone=0,
-        grade=1,
+        grade=new_grade,
         class_type=ClassType.WARRIOR.value,
     )
 
@@ -2512,9 +2531,10 @@ def execute_recruit_from_guild(
     if rng is None:
         rng = random.Random()
     # ★ Phase 9.9-c — actor 종족 + 길드 호감도 본격 가중치
+    # ★ Phase 9.9-d — actor grade 본격 신참 grade range
     guild_clerk_affinity = world.npc_affinities.get(GUILD_CLERK_NPC_ID, 0)
     new_member = _create_recruit_character(
-        actor.race.value, guild_clerk_affinity, rng
+        actor.race.value, actor.grade, guild_clerk_affinity, rng
     )
     party.append(new_member)
     world.party_members.append(new_member.name)
@@ -2524,8 +2544,9 @@ def execute_recruit_from_guild(
         success=True,
         action_type="recruit_from_guild",
         message=(
-            f"탐험가 길드에서 {new_member.name}({new_member.race.value}, "
-            f"Lv {new_member.level})을(를) 모집했다. "
+            f"탐험가 길드에서 {new_member.name}"
+            f"({new_member.race.value}, "
+            f"{new_member.grade}등급 Lv {new_member.level})을(를) 모집했다. "
             f"-{RECRUIT_BASE_COST} 스톤. "
             f"파티 {len(party)}/{world.max_party_members}."
         ),

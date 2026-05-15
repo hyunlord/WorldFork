@@ -84,13 +84,13 @@ def test_character_explicit_grade_class_28hwa() -> None:
 def test_recruit_grade_1_5hwa() -> None:
     """5화 본문 정합 — 신참 길드 = warrior, grade=1."""
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.grade == 1
 
 
 def test_recruit_class_warrior() -> None:
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.class_type == ClassType.WARRIOR.value
 
 

@@ -14,7 +14,7 @@
   * ≥25 → 바바리안/용인족 ×2
   * 그 외 ×1.0
 - _compute_race_weights / _weighted_random_race
-- _create_recruit_character signature (actor_race, affinity, rng)
+- _create_recruit_character signature (actor_race, actor_grade, affinity, rng)
 - execute_recruit_from_guild 본격 actor race + 호감도 wire
 - gm_agent prompt 호감도 boost hint
 
@@ -247,9 +247,9 @@ def test_weighted_random_zero_total_fallback() -> None:
 
 
 def test_create_recruit_signature() -> None:
-    """signature (actor_race, affinity, rng)."""
+    """signature (actor_race, actor_grade, affinity, rng)."""
     rng = random.Random(42)
-    c = _create_recruit_character("인간", 0, rng)
+    c = _create_recruit_character("인간", 1, 0, rng)
     assert c.race.value in GUILD_RECRUITABLE_RACES
     assert c.level == 1
     assert c.grade == 1
@@ -261,7 +261,7 @@ def test_create_recruit_barbarian_pool_includes_self() -> None:
     races_seen: set[str] = set()
     for seed in range(200):
         rng = random.Random(seed)
-        c = _create_recruit_character("바바리안", 50, rng)
+        c = _create_recruit_character("바바리안", 1, 50, rng)
         races_seen.add(c.race.value)
     assert "바바리안" in races_seen
 

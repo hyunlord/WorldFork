@@ -220,6 +220,7 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             AFFINITY_BOOST_UNCOMMON_THRESHOLD,
             GUILD_CLERK_NPC_ID,
             RECRUIT_BASE_COST,
+            _max_recruit_grade,
         )
 
         ws = ctx.get("v2_world_state") or {}
@@ -229,11 +230,22 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         guild_affinity = (ws.get("npc_affinities") or {}).get(
             GUILD_CLERK_NPC_ID, 0
         )
+        # ★ Phase 9.9-d — leader grade 본격 신참 grade range hint
+        main_name = ctx.get("main_character_name", "")
+        v2_chars = ctx.get("v2_characters") or {}
+        leader_info = v2_chars.get(main_name) or {}
+        leader_grade = int(leader_info.get("grade", 1))
+        max_recruit_grade = _max_recruit_grade(leader_grade)
         lines.append("  🛡 탐험가 길드 지부")
         if slots_free > 0:
             lines.append(
                 f"     ⚡ RECRUIT_FROM_GUILD — 신참 모집 가능 "
                 f"(★ 빈자리 {slots_free}, 비용 {RECRUIT_BASE_COST} 스톤)."
+            )
+            lines.append(
+                f"     ★ {main_name} {leader_grade}등급 → "
+                f"신참 grade 1~{max_recruit_grade} 본격 모집 가능 "
+                f"(★ 9.9-d)."
             )
             lines.append(
                 "     ★ 본인 종족 / 길드 호감도 본격 가중치 (★ 9.9-c)."
