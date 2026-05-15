@@ -40,6 +40,7 @@ from .state_v2 import (
     Realm,
     RiftDef,
     RiftSubAreaDef,
+    Scar,
     SimulationStatus,
     WorldState,
     level_for_exp,
@@ -1610,6 +1611,7 @@ def execute_wait_in_village(
             side_effects.append(f"sp_gain={member.name}:+{sp_gain}")
 
         # ★ Phase 9.3 — 부상 자연 회복 mutation (★ frozen Injury 새 instance).
+        # ★ Phase 9.6 — scar=True injury 회복 시 영구 흉터 누적 (★ 25화 정합).
         if member.injuries:
             remaining: list[Injury] = []
             for inj in member.injuries:
@@ -1619,6 +1621,16 @@ def execute_wait_in_village(
                         f"injury_healed={member.name}:"
                         f"{inj.body_part}_{inj.severity}"
                     )
+                    if inj.scar:
+                        new_scar = Scar(
+                            body_part=inj.body_part,
+                            origin_severity=inj.severity,
+                        )
+                        member.scars.append(new_scar)
+                        side_effects.append(
+                            f"scar_acquired={member.name}:"
+                            f"{new_scar.body_part}_{new_scar.origin_severity}"
+                        )
                 else:
                     remaining.append(
                         Injury(
@@ -1949,6 +1961,17 @@ def execute_heal_at_temple(
     actor.injuries.clear()
     actor.stone -= total_cost
 
+    # ★ Phase 9.6 — scar=True injury 본격 영구 흉터 transition (★ 25화 정합)
+    new_scars: list[Scar] = []
+    for inj in healed:
+        if inj.scar:
+            scar = Scar(
+                body_part=inj.body_part,
+                origin_severity=inj.severity,
+            )
+            actor.scars.append(scar)
+            new_scars.append(scar)
+
     side_effects = [
         f"temple_healed={actor_name}:{deity.deity_id}:{len(healed)}",
         f"stone_paid={actor_name}:-{total_cost}",
@@ -1958,14 +1981,23 @@ def execute_heal_at_temple(
             f"injury_healed_by_temple={actor_name}:"
             f"{inj.body_part}_{inj.severity}"
         )
+    for scar in new_scars:
+        side_effects.append(
+            f"scar_acquired={actor_name}:"
+            f"{scar.body_part}_{scar.origin_severity}"
+        )
+
+    message = (
+        f"{deity.temple_name}에서 {deity.priest_rank}가 "
+        f"{actor_name} 본격 부상 {len(healed)}개를 치료했다. "
+        f"-{total_cost} 스톤."
+    )
+    if new_scars:
+        message += f" (★ 흉터 {len(new_scars)}개 영구 남음)"
 
     return TurnResult(
         success=True,
         action_type="heal_at_temple",
-        message=(
-            f"{deity.temple_name}에서 {deity.priest_rank}가 "
-            f"{actor_name} 본격 부상 {len(healed)}개를 치료했다. "
-            f"-{total_cost} 스톤."
-        ),
+        message=message,
         side_effects=side_effects,
     )

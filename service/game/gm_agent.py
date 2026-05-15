@@ -326,6 +326,15 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     f"(회복 {inj.get('recovery_days', 0)}일 남음){scar_tag}"
                 )
 
+            # ★ Phase 9.6 — 영구 흉터 summary (★ 25화 '흉터가 남겠군' 정합).
+            # cosmetic only — 능력치 영향 X (★ LLM narrative 본격 정합).
+            scars = info.get("scars") or []
+            for scar in scars:
+                v2_lines.append(
+                    f"    └ 영구 흉터: {scar.get('body_part', '')} "
+                    f"(★ {scar.get('origin_severity', '')} 흔적)"
+                )
+
         v2_block = (
             "캐릭터 스탯 (★ 작품 본질):\n"
             + "\n".join(v2_lines)

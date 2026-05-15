@@ -450,6 +450,22 @@ class Injury:
     scar: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class Scar:
+    """영구 흉터 — Phase 9.6 (★ 25화 '흉터가 남겠군' 본문 정합).
+
+    Producer:
+    - execute_wait_in_village: scar=True injury 회복 완료 시 Scar 생성
+    - execute_heal_at_temple: 동일
+
+    본 commit cosmetic only — 능력치/HP_max 영향 X (★ 본문 명시 X).
+    후속 본격: 영향 mechanism (★ 본문 발견 시 보강).
+    """
+
+    body_part: str  # ★ 원 Injury.body_part
+    origin_severity: str  # ★ 원 Injury.severity (major / critical 본격)
+
+
 # severity별 recovery 본격 — 본문 X 추측 (★ 후속 발견 시 보강).
 SEVERITY_RECOVERY_DEFAULT: dict[str, int] = {
     InjurySeverity.SCRATCH.value: 2,  # ★ 1-3일 본격
@@ -593,6 +609,10 @@ class Character:
     # ★ Phase 9.3 — 부상 schema (★ 23/25화 narrative 정합).
     # WAIT_IN_VILLAGE 본격 recovery_days-- mutation.
     injuries: list[Injury] = field(default_factory=list)
+
+    # ★ Phase 9.6 — 영구 흉터 (★ 25화 '흉터가 남겠군' 본문 정합).
+    # scar=True injury 회복 완료 시 Scar append (★ cosmetic only).
+    scars: list[Scar] = field(default_factory=list)
 
     def is_alive(self) -> bool:
         return self.hp > 0

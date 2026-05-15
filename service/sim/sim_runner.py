@@ -364,6 +364,14 @@ def _refresh_context(
                     }
                     for inj in c.injuries
                 ],
+                # ★ Phase 9.6 — 영구 흉터 (★ 25화 본문 정합)
+                "scars": [
+                    {
+                        "body_part": s.body_part,
+                        "origin_severity": s.origin_severity,
+                    }
+                    for s in c.scars
+                ],
             }
         )
         chars_ctx[name] = existing
