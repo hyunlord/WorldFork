@@ -482,6 +482,30 @@ class Scar:
     origin_severity: str  # ★ 원 Injury.severity (major / critical 본격)
 
 
+@dataclass(frozen=True, slots=True)
+class Disability:
+    """영구 신체 손상 — Phase 9.10 (★ 71/214화 절단 / 117/268화 회복 path).
+
+    Scar (9.6) = cosmetic, Disability (9.10) = gameplay 영향 (★ HP_max penalty).
+
+    Producer:
+    - WAIT_IN_VILLAGE / HEAL_AT_TEMPLE 본격 critical injury 회복 완료 → Disability
+    - 9.6 흉터 본격 별도 (★ scar = major+, disability = critical만)
+
+    회복:
+    - HEAL_AT_TEMPLE 본격 stone × DISABILITY_HEAL_COST (★ 268화 신성력)
+    - 후속 9.9-b2: 재생 스킬 (★ 117화 직업 system)
+
+    추측 (★ 본문 X — docstring 명시):
+    - kind='amputation' default (★ 본문 narrative 다양화 후속)
+    - hp_max_penalty 수치 (★ 본문 X)
+    """
+
+    body_part: str
+    kind: str = "amputation"
+    hp_max_penalty: int = 0
+
+
 # severity별 recovery 본격 — 본문 X 추측 (★ 후속 발견 시 보강).
 SEVERITY_RECOVERY_DEFAULT: dict[str, int] = {
     InjurySeverity.SCRATCH.value: 2,  # ★ 1-3일 본격
@@ -630,12 +654,22 @@ class Character:
     # scar=True injury 회복 완료 시 Scar append (★ cosmetic only).
     scars: list[Scar] = field(default_factory=list)
 
+    # ★ Phase 9.10 — 영구 disability (★ 71/214화 절단, gameplay 영향).
+    # CRITICAL injury 회복 완료 시 transition (★ HP_max penalty).
+    disabilities: list[Disability] = field(default_factory=list)
+
     # ★ Phase 9.9-b — 정수 등급 + 직업 (★ 28화 '6등급 마법사' / 5화 직업 본격).
     grade: int = 1  # ★ 정수 등급 1-9 (★ 본 commit default 신참)
     class_type: str = "warrior"  # ★ ClassType value (★ 본 commit default WARRIOR)
 
     def is_alive(self) -> bool:
         return self.hp > 0
+
+    @property
+    def effective_hp_max(self) -> int:
+        """disability penalty 적용 HP_max (★ Phase 9.10, min 1)."""
+        penalty = sum(d.hp_max_penalty for d in self.disabilities)
+        return max(1, self.hp_max - penalty)
 
     def has_active_light(self) -> bool:
         """현재 활성화된 빛 자원이 있는가 (★ 1층 어둠 = 가시거리 10m 회피)."""

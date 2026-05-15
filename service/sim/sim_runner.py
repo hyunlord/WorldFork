@@ -398,6 +398,16 @@ def _refresh_context(
                     }
                     for s in c.scars
                 ],
+                # ★ Phase 9.10 — 영구 손상 (★ 71/214화 절단 + HP_max penalty)
+                "disabilities": [
+                    {
+                        "body_part": d.body_part,
+                        "kind": d.kind,
+                        "hp_max_penalty": d.hp_max_penalty,
+                    }
+                    for d in c.disabilities
+                ],
+                "effective_hp_max": c.effective_hp_max,
             }
         )
         chars_ctx[name] = existing

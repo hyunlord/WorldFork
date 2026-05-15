@@ -25,6 +25,7 @@ from .state_v2 import (
     BossEncounter,
     Character,
     ClassType,
+    Disability,
     Essence,
     EssenceColor,
     EssenceGrade,
@@ -1556,6 +1557,39 @@ HP_RECOVERY_PER_DAY: int = 10
 SP_RECOVERY_PER_DAY: int = 5
 
 
+# ─── Phase 9.10 disability — CRITICAL injury transition (★ 71/214화) ───
+#
+# 추측 (★ 본문 X — docstring 명시):
+# - body_part 본격 HP_max penalty 수치
+# - kind='amputation' default (★ 본문 narrative 다양화 후속)
+DISABILITY_HP_MAX_PENALTY_BY_PART: dict[str, int] = {
+    "head": 20,
+    "neck": 25,
+    "torso": 20,
+    "arm": 10,
+    "leg": 15,
+}
+
+# 268화 신성력 정합 — critical heal cost (5000) × 10.
+DISABILITY_HEAL_COST: int = 50000
+
+
+def _maybe_create_disability(inj: Injury) -> Disability | None:
+    """CRITICAL injury → Disability transition (★ Phase 9.10).
+
+    조건: severity == 'critical' (★ 9.6 scar 본격 별도).
+    부위 본격 default penalty 본격 10 (★ unknown fallback).
+    """
+    if inj.severity != InjurySeverity.CRITICAL.value:
+        return None
+    penalty = DISABILITY_HP_MAX_PENALTY_BY_PART.get(inj.body_part, 10)
+    return Disability(
+        body_part=inj.body_part,
+        kind="amputation",
+        hp_max_penalty=penalty,
+    )
+
+
 def execute_wait_in_village(
     actor_name: str,
     party: list[Character],
@@ -1632,6 +1666,15 @@ def execute_wait_in_village(
                         side_effects.append(
                             f"scar_acquired={member.name}:"
                             f"{new_scar.body_part}_{new_scar.origin_severity}"
+                        )
+                    # ★ Phase 9.10 — CRITICAL → Disability transition.
+                    new_disability = _maybe_create_disability(inj)
+                    if new_disability is not None:
+                        member.disabilities.append(new_disability)
+                        side_effects.append(
+                            f"disability_acquired={member.name}:"
+                            f"{new_disability.body_part}_"
+                            f"{new_disability.kind}"
                         )
                 else:
                     remaining.append(
@@ -1936,19 +1979,21 @@ def execute_heal_at_temple(
             ),
         )
 
-    # 4. 부상 본격
-    if not actor.injuries:
+    # 4. 부상 / disability 본격 (★ Phase 9.10 — disability 회복 path)
+    if not actor.injuries and not actor.disabilities:
         return TurnResult(
             success=False,
             action_type="heal_at_temple",
-            message=f"{actor_name} 본격 본격 본격 부상 X.",
+            message=f"{actor_name} 본격 본격 본격 부상 / 손상 X.",
         )
 
-    # 5. 비용 계산
-    total_cost = sum(
+    # 5. 비용 계산 (★ injury + disability × DISABILITY_HEAL_COST, 268화 정합)
+    injury_cost = sum(
         HEAL_COST_PER_SEVERITY.get(inj.severity, 0)
         for inj in actor.injuries
     )
+    disability_cost = len(actor.disabilities) * DISABILITY_HEAL_COST
+    total_cost = injury_cost + disability_cost
     if actor.stone < total_cost:
         return TurnResult(
             success=False,
@@ -1960,11 +2005,15 @@ def execute_heal_at_temple(
 
     # 6. mutation (★ atomic)
     healed = list(actor.injuries)
+    healed_disabilities = list(actor.disabilities)
     actor.injuries.clear()
+    actor.disabilities.clear()
     actor.stone -= total_cost
 
     # ★ Phase 9.6 — scar=True injury 본격 영구 흉터 transition (★ 25화 정합)
     new_scars: list[Scar] = []
+    # ★ Phase 9.10 — critical injury 본격 disability transition
+    new_disabilities: list[Disability] = []
     for inj in healed:
         if inj.scar:
             scar = Scar(
@@ -1973,6 +2022,10 @@ def execute_heal_at_temple(
             )
             actor.scars.append(scar)
             new_scars.append(scar)
+        new_disability = _maybe_create_disability(inj)
+        if new_disability is not None:
+            actor.disabilities.append(new_disability)
+            new_disabilities.append(new_disability)
 
     side_effects = [
         f"temple_healed={actor_name}:{deity.deity_id}:{len(healed)}",
@@ -1988,14 +2041,32 @@ def execute_heal_at_temple(
             f"scar_acquired={actor_name}:"
             f"{scar.body_part}_{scar.origin_severity}"
         )
+    for dis in new_disabilities:
+        side_effects.append(
+            f"disability_acquired={actor_name}:"
+            f"{dis.body_part}_{dis.kind}"
+        )
+    for dis in healed_disabilities:
+        side_effects.append(
+            f"disability_healed_by_temple={actor_name}:"
+            f"{dis.body_part}_{dis.kind}"
+        )
 
+    parts: list[str] = []
+    if healed:
+        parts.append(f"부상 {len(healed)}개")
+    if healed_disabilities:
+        parts.append(f"영구 손상 {len(healed_disabilities)}개")
+    summary = " + ".join(parts) if parts else "—"
     message = (
         f"{deity.temple_name}에서 {deity.priest_rank}가 "
-        f"{actor_name} 본격 부상 {len(healed)}개를 치료했다. "
+        f"{actor_name} 본격 {summary}을 치료했다. "
         f"-{total_cost} 스톤."
     )
     if new_scars:
         message += f" (★ 흉터 {len(new_scars)}개 영구 남음)"
+    if new_disabilities:
+        message += f" (★ 영구 손상 {len(new_disabilities)}개 남음)"
 
     return TurnResult(
         success=True,

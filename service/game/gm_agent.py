@@ -423,6 +423,22 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                     f"(★ {scar.get('origin_severity', '')} 흔적)"
                 )
 
+            # ★ Phase 9.10 — 영구 손상 (★ 71/214화 절단 / HP_max penalty).
+            # cosmetic X — gameplay 영향 (★ effective HP_max 감소).
+            disabilities = info.get("disabilities") or []
+            for dis in disabilities:
+                v2_lines.append(
+                    f"    └ 영구 손상: {dis.get('body_part', '')} "
+                    f"{dis.get('kind', '')} "
+                    f"(★ HP_max -{dis.get('hp_max_penalty', 0)})"
+                )
+            if disabilities:
+                eff = info.get("effective_hp_max", hp_max)
+                v2_lines.append(
+                    f"    └ 실효 HP_max: {eff} "
+                    f"(★ 손상 penalty 적용)"
+                )
+
         v2_block = (
             "캐릭터 스탯 (★ 작품 본질):\n"
             + "\n".join(v2_lines)
