@@ -1460,6 +1460,7 @@ def exit_to_prev_floor(
 def exchange_mage_stones(
     actor: Character,
     location: Location,
+    world: WorldState | None = None,
 ) -> TurnResult:
     """환전소 본격 마석 batch → 스톤 환전 (★ docs/village_spec.md §2-2).
 
@@ -1504,14 +1505,14 @@ def exchange_mage_stones(
             message=f"{actor.name} 본격 환전 가능 마석 X.",
         )
 
-    total_stone = 0
+    base_stone = 0
     exchanged_count = 0
     exchanged_items: list[Item] = []
     for stone in mage_stones:
         # stone.grade is not None (★ 위 filter 본격 보장)
         rate = MAGE_STONE_EXCHANGE_RATE.get(stone.grade or 0, 0)
         if rate > 0:
-            total_stone += rate
+            base_stone += rate
             exchanged_count += 1
             exchanged_items.append(stone)
 
@@ -1526,19 +1527,33 @@ def exchange_mage_stones(
             ),
         )
 
+    # ★ Phase 9.13 — 환전소 NPC 호감도 boost (★ 본문 X 추측)
+    clerk_affinity = (
+        world.npc_affinities.get(EXCHANGE_CLERK_NPC_ID, 0)
+        if world is not None
+        else 0
+    )
+    rate_multiplier = _exchange_rate_boost(clerk_affinity)
+    total_stone = int(base_stone * rate_multiplier)
+
     # mutation — 환전된 Item 본격 list 본격 remove (★ Inventory.items mutable list).
     # Item frozen 본격 본격 list reference identity 본격 본격.
     for item in exchanged_items:
         actor.inventory.items.remove(item)
     actor.stone += total_stone
 
+    message = (
+        f"{actor.name} 마석 {exchanged_count}개 환전. "
+        f"+{total_stone} 스톤 (★ 총 {actor.stone})."
+    )
+    if rate_multiplier > 1.0:
+        boost_pct = round((rate_multiplier - 1.0) * 100)
+        message += f" (★ 환전소 호감도 boost +{boost_pct}%)"
+
     return TurnResult(
         success=True,
         action_type="exchange_mage_stones",
-        message=(
-            f"{actor.name} 마석 {exchanged_count}개 환전. "
-            f"+{total_stone} 스톤 (★ 총 {actor.stone})."
-        ),
+        message=message,
         side_effects=[
             f"exchanged_stones={actor.name}:{exchanged_count}",
             f"stone_gained={actor.name}:+{total_stone}",
@@ -2011,7 +2026,11 @@ def execute_heal_at_temple(
         for inj in actor.injuries
     )
     disability_cost = len(actor.disabilities) * DISABILITY_HEAL_COST
-    total_cost = injury_cost + disability_cost
+    base_cost = injury_cost + disability_cost
+    # ★ Phase 9.13 — 사제 호감도 할인 (★ deity.priest_npc_id lookup)
+    priest_affinity = world.npc_affinities.get(deity.priest_npc_id, 0)
+    discount = _temple_heal_discount(priest_affinity)
+    total_cost = int(base_cost * discount)
     if actor.stone < total_cost:
         return TurnResult(
             success=False,
@@ -2087,6 +2106,11 @@ def execute_heal_at_temple(
         message += f" (★ 흉터 {len(new_scars)}개 영구 남음)"
     if new_disabilities:
         message += f" (★ 영구 손상 {len(new_disabilities)}개 남음)"
+    if discount < 1.0:
+        discount_pct = round((1.0 - discount) * 100)
+        message += (
+            f" (★ {deity.priest_rank} 호감도 boost -{discount_pct}%)"
+        )
 
     return TurnResult(
         success=True,
@@ -2102,6 +2126,41 @@ AFFINITY_DELTA_DIALOGUE: int = 5  # ★ 추측 (본문 X — 후속 발견 시 �
 AFFINITY_DELTA_REJECTION: int = -10  # ★ Phase 9.12 — 303화 답변 거절 정합 (★ 추측 수치)
 AFFINITY_MAX: int = 100  # ★ 643화 본문 cap
 AFFINITY_MIN: int = 0  # ★ Phase 9.12 — floor (★ negative 본격 X)
+
+# ─── Phase 9.13 NPC affinity effects (★ 본문 X 추측 — 9.7 LIBRARY 정합) ───
+#
+# 환전소 NPC 호감도 → 환전 비율 boost.
+# 신전 사제 호감도 → HEAL 비용 할인.
+# threshold 25/50 (★ 9.7 LIBRARY_FREE_AFFINITY_THRESHOLD 정합).
+
+EXCHANGE_CLERK_NPC_ID: str = "exchange_clerk"  # ★ rapdonia.py NPCDef
+
+AFFINITY_THRESHOLD_TIER1: int = 25
+AFFINITY_THRESHOLD_TIER2: int = 50
+
+EXCHANGE_BOOST_MULTIPLIER_TIER1: float = 1.10  # ★ +10%
+EXCHANGE_BOOST_MULTIPLIER_TIER2: float = 1.20  # ★ +20%
+
+TEMPLE_DISCOUNT_MULTIPLIER_TIER1: float = 0.80  # ★ -20%
+TEMPLE_DISCOUNT_MULTIPLIER_TIER2: float = 0.50  # ★ -50%
+
+
+def _exchange_rate_boost(affinity: int) -> float:
+    """환전소 호감도 본격 환전 비율 multiplier (★ Phase 9.13)."""
+    if affinity >= AFFINITY_THRESHOLD_TIER2:
+        return EXCHANGE_BOOST_MULTIPLIER_TIER2
+    if affinity >= AFFINITY_THRESHOLD_TIER1:
+        return EXCHANGE_BOOST_MULTIPLIER_TIER1
+    return 1.0
+
+
+def _temple_heal_discount(affinity: int) -> float:
+    """사제 호감도 본격 HEAL 비용 multiplier (★ Phase 9.13)."""
+    if affinity >= AFFINITY_THRESHOLD_TIER2:
+        return TEMPLE_DISCOUNT_MULTIPLIER_TIER2
+    if affinity >= AFFINITY_THRESHOLD_TIER1:
+        return TEMPLE_DISCOUNT_MULTIPLIER_TIER1
+    return 1.0
 LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
 LIBRARY_FREE_AFFINITY_THRESHOLD: int = 50  # ★ 본인 답 (★ 추측)
 LIBRARIAN_NPC_ID: str = "ragna"  # ★ a-2 NPCDef.id

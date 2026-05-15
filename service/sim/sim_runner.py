@@ -296,7 +296,7 @@ def _execute_action(
     if action.action_type == PlayerActionType.EXCHANGE_MAGE_STONES:
         if not actor:
             return False, "actor 없음.", []
-        r = exchange_mage_stones(actor, location)
+        r = exchange_mage_stones(actor, location, world)
         return r.success, r.message, r.side_effects
 
     # ★ Phase 9 — 마을 turn loop (★ TIME_LIMIT_REACHED status 본격 본격)

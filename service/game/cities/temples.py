@@ -37,6 +37,8 @@ class TempleDeity:
     refuses_races: tuple[str, ...] = ()  # ★ 268화 바바리안 거절 본격
     canonical_priest_name: str = ""
     priest_rank: str = "사제"  # ★ 사제 / 정사제 / 대신관
+    # ★ Phase 9.13 — rapdonia.py NPCDef.id 정합 (★ HEAL 할인 affinity lookup)
+    priest_npc_id: str = ""
 
 
 TOBERAH = TempleDeity(
@@ -48,6 +50,7 @@ TOBERAH = TempleDeity(
     refuses_races=("바바리안",),  # ★ 268화 본문 정합
     canonical_priest_name="라이린 에르시나",  # ★ 268화
     priest_rank="정사제",
+    priest_npc_id="rairin_ersina",  # ★ rapdonia.py NPCDef
 )
 
 
@@ -60,6 +63,7 @@ REATLAS = TempleDeity(
     refuses_races=(),
     canonical_priest_name="",  # ★ 본문 X — placeholder
     priest_rank="사제",
+    priest_npc_id="reatlas_priest",  # ★ rapdonia.py NPCDef (placeholder)
 )
 
 
@@ -72,6 +76,7 @@ KARUYI = TempleDeity(
     refuses_races=(),
     canonical_priest_name="엘리사",  # ★ 72화
     priest_rank="사제",
+    priest_npc_id="elisa",  # ★ rapdonia.py NPCDef
 )
 
 

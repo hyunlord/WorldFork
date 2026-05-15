@@ -187,10 +187,26 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
 
     # ★ Phase 8 exchange — 환전소 본격 action hint (★ 본문 9등급=20 / 8등급=100)
     if sub.id == "exchange_office":
+        from .turn_handler_v2 import (
+            EXCHANGE_CLERK_NPC_ID,
+            _exchange_rate_boost,
+        )
+
         lines.append(
             "  ⚡ EXCHANGE_MAGE_STONES 본격 마석 → 스톤 환전 가능 "
             "(9등급=20 / 8등급=100)."
         )
+        # ★ Phase 9.13 — 환전소 NPC 호감도 boost hint
+        clerk_aff = (
+            (ctx.get("v2_world_state") or {}).get("npc_affinities") or {}
+        ).get(EXCHANGE_CLERK_NPC_ID, 0)
+        boost = _exchange_rate_boost(clerk_aff)
+        if boost > 1.0:
+            boost_pct = round((boost - 1.0) * 100)
+            lines.append(
+                f"     ★ 환전소 호감도 {clerk_aff} — "
+                f"환전 +{boost_pct}%."
+            )
 
     # ★ Phase 9.5 — 삼신교 신전 hint (★ 268/55/72화 정합)
     deity = get_deity_by_sub_area(sub.id)
@@ -207,6 +223,24 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             "  ⚡ HEAL_AT_TEMPLE 본격 부상 치료 가능 "
             "(★ severity별 비용 차감)."
         )
+        # ★ Phase 9.13 — 사제 호감도 할인 hint
+        if deity.priest_npc_id:
+            from .turn_handler_v2 import _temple_heal_discount
+
+            priest_aff = (
+                (ctx.get("v2_world_state") or {}).get("npc_affinities")
+                or {}
+            ).get(deity.priest_npc_id, 0)
+            discount = _temple_heal_discount(priest_aff)
+            if discount < 1.0:
+                discount_pct = round((1.0 - discount) * 100)
+                priest_label = (
+                    deity.canonical_priest_name or deity.priest_rank
+                )
+                lines.append(
+                    f"     ★ {priest_label} 호감도 {priest_aff} — "
+                    f"치료 -{discount_pct}%."
+                )
         if deity.refuses_races:
             refused = ", ".join(deity.refuses_races)
             lines.append(
