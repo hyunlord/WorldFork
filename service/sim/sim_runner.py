@@ -36,6 +36,7 @@ from service.game.turn_handler_v2 import (
     execute_enter_dungeon,
     execute_heal_at_temple,
     execute_library_search,
+    execute_recruit_from_guild,
     execute_wait_in_village,
     exit_rift,
     exit_to_prev_floor,
@@ -331,6 +332,13 @@ def _execute_action(
         )
         return r.success, r.message, r.side_effects
 
+    # ★ Phase 9.9-a — 길드 모집 minimal
+    if action.action_type == PlayerActionType.RECRUIT_FROM_GUILD:
+        r = execute_recruit_from_guild(
+            action.actor_name, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
     return False, f"unknown action: {action.action_type.value}", []
 
 
@@ -428,6 +436,8 @@ def _refresh_context(
             "first_entry_parties": sorted(world.first_entry_parties),
             # ★ Phase 9.7 — NPC 호감도 (★ DIALOGUE / LIBRARY_SEARCH 본격)
             "npc_affinities": dict(world.npc_affinities),
+            # ★ Phase 9.9-a — 파티 정원 (★ RECRUIT_FROM_GUILD 본격)
+            "max_party_members": world.max_party_members,
         }
     )
     ctx["v2_world_state"] = world_ctx

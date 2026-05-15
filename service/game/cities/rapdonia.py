@@ -95,6 +95,14 @@ RAPDONIA_NPCS: tuple[NPCDef, ...] = (
         sub_area_id="alminus_market",
         is_canonical=False,
     ),
+    # ── Phase 9.9-a 길드 접수원 (★ 본문 X — placeholder name 본격) ──
+    NPCDef(
+        id="frail_guild_clerk",
+        name="프라일",
+        role="guild_clerk",
+        sub_area_id="explorer_guild_branch",
+        is_canonical=False,
+    ),
     # ── Phase 9.5 삼신교 사제 (★ 268/55/72화 정합) ──
     NPCDef(
         id="rairin_ersina",
@@ -157,6 +165,7 @@ RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
             "재난 지원금 + 현상금 중개."
         ),
         connections=("district_7_plaza",),
+        npc_ids=("frail_guild_clerk",),
     ),
     CitySubAreaDef(
         id="exchange_office",

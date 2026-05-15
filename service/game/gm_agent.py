@@ -213,6 +213,30 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
                 f"신성력 거절 (★ 본문 규율)."
             )
 
+    # ★ Phase 9.9-a — 길드 모집 hint
+    if sub.id == "explorer_guild_branch":
+        from .turn_handler_v2 import RECRUIT_BASE_COST
+
+        ws = ctx.get("v2_world_state") or {}
+        max_party = ws.get("max_party_members", 5)
+        current_party = len(ws.get("party_members") or [])
+        slots_free = max_party - current_party
+        lines.append("  🛡 탐험가 길드 지부")
+        if slots_free > 0:
+            lines.append(
+                f"     ⚡ RECRUIT_FROM_GUILD — 신참 모집 가능 "
+                f"(★ 빈자리 {slots_free}, 비용 {RECRUIT_BASE_COST} 스톤)."
+            )
+            lines.append(
+                "     ★ random 종족 / level 1 신참 "
+                "(★ 9.9-b/c 본격 등급·희귀도 후속)."
+            )
+        else:
+            lines.append(
+                f"     파티 정원 만석 "
+                f"({current_party}/{max_party})."
+            )
+
     # ★ Phase 9.7 — 도서관 서적 탐지 hint (★ 19화 '파르시티에브')
     if sub.id == "central_library":
         from .turn_handler_v2 import (

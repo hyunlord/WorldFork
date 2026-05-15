@@ -803,6 +803,8 @@ class WorldState:
     party_members: list[str] = field(default_factory=list)  # CharacterV2 name
     # "비요른": 0.9 등 (분배 비율)
     party_share_ratios: dict[str, float] = field(default_factory=dict)
+    # ★ Phase 9.9-a — 파티 정원 (★ 본인 답 기본 5, 9.9-b/c 본격 본격).
+    max_party_members: int = 5
 
     # ★ Stage 7: 동적 현상금 (약탈자 PvP 진행 중 발령/해제)
     active_bounties: list[BountyEntry] = field(default_factory=list)

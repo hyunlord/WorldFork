@@ -37,6 +37,7 @@ from .state_v2 import (
     Item,
     ItemCategory,
     Location,
+    Race,
     Realm,
     RiftDef,
     RiftSubAreaDef,
@@ -2187,4 +2188,135 @@ def execute_library_search(
         action_type="library_search",
         message=msg,
         side_effects=side_effects,
+    )
+
+
+# ─── Phase 9.9-a — 길드 모집 minimal (★ 본인 답 / 6화 mention) ───
+
+# 본 commit 추측 (★ 본문 X — 후속 본문 발견 시 보강).
+RECRUIT_BASE_COST: int = 5000  # ★ 신참 모집 stone 비용 (★ namu §7.1 본격 X)
+
+# 본 commit 모집 가능 6 종족 (★ Race enum 정합).
+# 9.9-c 본격 가중치 부여 (★ 용인족 본격 본격 본격 본격 본격).
+GUILD_RECRUITABLE_RACES: tuple[str, ...] = (
+    "인간",
+    "드워프",
+    "수인",
+    "요정",
+    "바바리안",
+    "용인족",
+)
+
+
+def _create_recruit_character(rng: random.Random) -> Character:
+    """길드 모집 신참 캐릭터 생성 (★ Phase 9.9-a minimal).
+
+    본 commit:
+    - 종족 random (★ equal weight, 9.9-c 본격 가중치)
+    - level 1 신참
+    - 기본 stat (★ Race default — race-starting 본격 X 단순)
+    - 이름 placeholder (★ 본 commit minimal — 9.9-b/c 본격)
+    """
+    race_value = rng.choice(GUILD_RECRUITABLE_RACES)
+    # Race enum 본격 본격 lookup
+    race_enum = next(r for r in Race if r.value == race_value)
+    name = f"{race_value} 신참 #{rng.randint(1000, 9999)}"
+    return Character(
+        name=name,
+        race=race_enum,
+        hp=100,
+        hp_max=100,
+        level=1,
+        experience=0,
+        soul_power=20,
+        soul_power_max=20,
+        stone=0,
+    )
+
+
+def execute_recruit_from_guild(
+    actor_name: str,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+    rng: random.Random | None = None,
+) -> TurnResult:
+    """길드 신참 모험가 모집 (★ Phase 9.9-a minimal).
+
+    조건:
+    - realm=CITY + sub_area=explorer_guild_branch
+    - 빈자리 (★ len(party) < world.max_party_members)
+    - actor.stone ≥ RECRUIT_BASE_COST
+
+    Mutation (★ atomic):
+    - party.append(new_member)
+    - actor.stone -= RECRUIT_BASE_COST
+
+    본 commit 본격 X (★ 후속):
+    - 9.9-b: 등급 + 직업
+    - 9.9-c: 종족 가중치 + 호감도
+    - 9.9-d: 분배 비율
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="recruit_from_guild",
+            message="길드는 마을 본격.",
+        )
+    if location.sub_area != "explorer_guild_branch":
+        return TurnResult(
+            success=False,
+            action_type="recruit_from_guild",
+            message="탐험가 길드 지부 본격 본격 본격.",
+        )
+
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="recruit_from_guild",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    if len(party) >= world.max_party_members:
+        return TurnResult(
+            success=False,
+            action_type="recruit_from_guild",
+            message=(
+                f"파티 정원 만석 "
+                f"({len(party)}/{world.max_party_members})."
+            ),
+        )
+
+    if actor.stone < RECRUIT_BASE_COST:
+        return TurnResult(
+            success=False,
+            action_type="recruit_from_guild",
+            message=(
+                f"모집 비용 부족 "
+                f"({actor.stone}/{RECRUIT_BASE_COST} 스톤)."
+            ),
+        )
+
+    # mutation (★ atomic)
+    if rng is None:
+        rng = random.Random()
+    new_member = _create_recruit_character(rng)
+    party.append(new_member)
+    world.party_members.append(new_member.name)
+    actor.stone -= RECRUIT_BASE_COST
+
+    return TurnResult(
+        success=True,
+        action_type="recruit_from_guild",
+        message=(
+            f"탐험가 길드에서 {new_member.name}({new_member.race.value}, "
+            f"Lv {new_member.level})을(를) 모집했다. "
+            f"-{RECRUIT_BASE_COST} 스톤. "
+            f"파티 {len(party)}/{world.max_party_members}."
+        ),
+        side_effects=[
+            f"member_recruited={new_member.name}:{new_member.race.value}",
+            f"stone_paid={actor_name}:-{RECRUIT_BASE_COST}",
+        ],
     )

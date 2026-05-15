@@ -205,15 +205,12 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_21() -> None:
-    """PlayerActionType 본격 21개 (★ 13 + 2 + 1 + 3 + 2 Phase 9.7).
+def test_player_action_type_count_22() -> None:
+    """PlayerActionType 본격 22개 (★ 21 + 9.9-a RECRUIT_FROM_GUILD).
 
-    Phase 9.5 temple-heal:
-    - HEAL_AT_TEMPLE (★ 삼신교 신전 부상 치료)
-    Phase 9.7 affinity + library:
-    - DIALOGUE (★ NPC 호감도 +)
-    - LIBRARY_SEARCH (★ 19화 '파르시티에브' 서적 탐지)
+    Phase 9.9-a guild recruit:
+    - RECRUIT_FROM_GUILD (★ 길드 모집 minimal)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 21
+    assert len(list(PlayerActionType)) == 22

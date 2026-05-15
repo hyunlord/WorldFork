@@ -88,9 +88,9 @@ def test_all_sub_area_connections_valid() -> None:
 # ─── 3. NPCs ───
 
 
-def test_rapdonia_has_12_npcs() -> None:
-    """9 본격 + 3 priest (★ Phase 9.5)."""
-    assert len(RAPDONIA_NPCS) == 12
+def test_rapdonia_has_13_npcs() -> None:
+    """9 본격 + 3 priest (9.5) + 1 guild clerk (9.9-a)."""
+    assert len(RAPDONIA_NPCS) == 13
 
 
 def test_npc_ids_unique() -> None:
@@ -113,10 +113,10 @@ def test_canonical_npcs_6() -> None:
     }
 
 
-def test_placeholder_npcs_6() -> None:
-    """직책 placeholder 6명 (★ 기본 5 + 레아틀라스 사제 본문 X)."""
+def test_placeholder_npcs_7() -> None:
+    """직책 placeholder 7명 (★ 5 + 레아틀라스 사제 + 9.9-a 프라일 길드 접수원)."""
     placeholders = [n for n in RAPDONIA_NPCS if not n.is_canonical]
-    assert len(placeholders) == 6
+    assert len(placeholders) == 7
 
 
 def test_canonical_npcs_have_dialogue_intro() -> None:
