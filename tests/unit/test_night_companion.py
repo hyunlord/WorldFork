@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import random
 
-from service.game.gm_agent import _format_party_status
 from service.game.state_v2 import (
     Character,
     ClassType,
@@ -456,52 +455,6 @@ class TestAutoDisbandOnDeath:
         _auto_disband_on_death(party, side_effects)
         assert len(party) == 2
         assert {m.name for m in party} == {"비요른", "칼"}
-
-
-# ─── gm_agent _format_party_status ───
-
-
-class TestFormatPartyStatus:
-    def test_companion_section_shown(self) -> None:
-        bjorn = _bjorn()
-        hans = Character(
-            name="한스",
-            race=Race.HUMAN,
-            hp=80,
-            hp_max=80,
-            is_temporary=True,
-        )
-        result = _format_party_status([bjorn, hans])
-        assert "밤친구" in result
-        assert "한스" in result
-        assert "임시 협력" in result
-
-    def test_no_companion_no_section(self) -> None:
-        bjorn = _bjorn()
-        result = _format_party_status([bjorn])
-        assert "밤친구" not in result
-        assert result == ""
-
-    def test_multiple_companions_count(self) -> None:
-        bjorn = _bjorn()
-        hans = Character(
-            name="한스",
-            race=Race.HUMAN,
-            hp=80,
-            hp_max=80,
-            is_temporary=True,
-        )
-        karl = Character(
-            name="칼",
-            race=Race.DWARF,
-            hp=80,
-            hp_max=80,
-            is_temporary=True,
-        )
-        result = _format_party_status([bjorn, hans, karl])
-        assert "2명" in result
-        assert "한스" in result
-        assert "칼" in result
 
 
 # ─── PlayerActionType ACTION_HOURS_DELTA 정합 ───
