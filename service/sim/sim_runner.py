@@ -21,6 +21,8 @@ from service.game.state_v2 import (
     WorldState,
 )
 from service.game.turn_handler_v2 import (
+    _auto_disband_on_death,
+    _auto_disband_on_exit,
     _resolve_rift_id,
     absorb_floating_essence,
     activate_light,
@@ -33,7 +35,9 @@ from service.game.turn_handler_v2 import (
     exchange_mage_stones,
     execute_attack,
     execute_dialogue,
+    execute_disband_night_companion,
     execute_enter_dungeon,
+    execute_form_night_companion,
     execute_heal_at_temple,
     execute_library_search,
     execute_recruit_from_guild,
@@ -168,6 +172,7 @@ def _execute_action(
     world: WorldState,
     location: Location,
     force_variant: bool | None = None,
+    active_encounters: list[Encounter] | None = None,
 ) -> tuple[bool, str, list[str]]:
     """PlayerAction → turn_handler 매핑 (★ 13 ActionType 모두 mutate).
 
@@ -175,6 +180,9 @@ def _execute_action(
 
     Phase 8 A3 E2E:
     - force_variant: SimConfig 본격 ENTER_RIFT 변종 강제 (★ True/False/None).
+
+    Phase 9.17-c2:
+    - active_encounters: 밤친구 FORM 본격 PEACEFUL encounter 매칭 source.
     """
     actor = party.get(action.actor_name)
     party_list = list(party.values())
@@ -360,6 +368,29 @@ def _execute_action(
     if action.action_type == PlayerActionType.RECRUIT_FROM_GUILD:
         r = execute_recruit_from_guild(
             action.actor_name, party_list, world, location
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.17-c2 — 밤친구 FORM (★ 6/88/111화 정합).
+    # encounter_consumed side_effect 처리 본격 run_single_turn.
+    if action.action_type == PlayerActionType.FORM_NIGHT_COMPANION:
+        if not action.target:
+            return False, "target encounter name 없음.", []
+        r = execute_form_night_companion(
+            action.actor_name,
+            action.target,
+            party_list,
+            location,
+            active_encounters or [],
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.17-c2 — 밤친구 DISBAND (★ explicit 해산).
+    if action.action_type == PlayerActionType.DISBAND_NIGHT_COMPANION:
+        if not action.target:
+            return False, "target (밤친구 name 또는 'all') 없음.", []
+        r = execute_disband_night_companion(
+            action.actor_name, action.target, party_list
         )
         return r.success, r.message, r.side_effects
 
@@ -606,8 +637,26 @@ class SimRunner:
         action = response.action
 
         success, message, side_effects = _execute_action(
-            action, party, world, location, self.config.force_variant
+            action,
+            party,
+            world,
+            location,
+            self.config.force_variant,
+            active_encounters=self._active_encounters,
         )
+
+        # ★ Phase 9.17-c2 — FORM_NIGHT_COMPANION encounter_consumed 처리.
+        # handler가 발현한 side_effect 본격 _active_encounters 본격 제거.
+        consumed_names: set[str] = set()
+        for eff in side_effects:
+            if eff.startswith("encounter_consumed="):
+                consumed_names.add(eff.split("=", 1)[1])
+        if consumed_names:
+            self._active_encounters = [
+                e
+                for e in self._active_encounters
+                if e.name not in consumed_names
+            ]
 
         # ★ Phase 8 A3 — execute_attack 보스 처치 시 'essence_spawn={color}'
         # marker 발생 → active_encounters에 떠다니는 정수 Encounter push.
@@ -780,6 +829,26 @@ class SimRunner:
                 time_limit_hours=floor_def.base_time_hours,
                 turn_number=current_turn,
             )
+            # ★ Phase 9.17-c2 — 밤친구 사망 자동 해산 (★ check_party_defeated 직전).
+            # 영구 멤버 사망 본격 별도 — defeated 검증 본격 정합.
+            party_list_for_disband = list(party.values())
+            disband_death_side: list[str] = []
+            _auto_disband_on_death(
+                party_list_for_disband, disband_death_side
+            )
+            # mutation 본격 dict-backed party 본격 sync (★ 본격 멤버 제거 본격).
+            if disband_death_side:
+                disbanded_names = {
+                    eff.split("=", 1)[1]
+                    for eff in disband_death_side
+                    if eff.startswith(
+                        "night_companion_auto_disbanded_on_death="
+                    )
+                }
+                for n in disbanded_names:
+                    party.pop(n, None)
+                log.side_effects.extend(disband_death_side)
+
             check_party_defeated(
                 list(party.values()), world, turn_number=current_turn
             )
@@ -789,6 +858,23 @@ class SimRunner:
             # PARTY_DEFEATED 본격 본격 X (★ 사망 = 미궁 연료, 본인 답).
             if time_limit_triggered:
                 apply_time_limit_village_return(location)
+                # ★ Phase 9.17-c2 — 밤친구 출구 자동 해산 (★ 마을 귀환 직후).
+                party_list_for_exit = list(party.values())
+                disband_exit_side: list[str] = []
+                _auto_disband_on_exit(
+                    party_list_for_exit, disband_exit_side
+                )
+                if disband_exit_side:
+                    disbanded_names = {
+                        eff.split("=", 1)[1]
+                        for eff in disband_exit_side
+                        if eff.startswith(
+                            "night_companion_auto_disbanded_on_exit="
+                        )
+                    }
+                    for n in disbanded_names:
+                        party.pop(n, None)
+                    log.side_effects.extend(disband_exit_side)
 
             reason = _check_end_condition(self.config, party, world, completed)
             if reason is not None:

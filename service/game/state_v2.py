@@ -711,6 +711,13 @@ class Character:
     # 보스 처치 / 균열 클리어 시 증가, 초면 NPC 호감도 bonus 본격 사용처.
     fame: int = 0
 
+    # ★ Phase 9.17-c2 — 밤친구 marker (★ 6/111화 정합).
+    # True 시 던전 출구 / 사망 시 sim_runner caller 자동 해산.
+    # 본문 정합:
+    # - 6화: '임시 협력 관계의 은어'
+    # - 111화: 1층 한정 culture (★ NIGHT_COMPANION_FLOOR_LIMIT)
+    is_temporary: bool = False
+
     def is_alive(self) -> bool:
         return self.hp > 0
 

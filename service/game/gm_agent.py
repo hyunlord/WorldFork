@@ -19,7 +19,7 @@ from service.pipeline.types import Plan
 from .cities.temples import get_deity_by_sub_area
 from .init_from_plan import build_game_context
 from .state import GameState
-from .state_v2 import Realm, next_level_threshold
+from .state_v2 import Character, Realm, next_level_threshold
 
 # ★ 게임 응답 검증 기준 (★ Cross-Model LLM Judge용, A1.5)
 GAME_CRITERIA = JudgeCriteria(
@@ -58,6 +58,28 @@ class GMResponse:
     verify_passed: bool = True
 
     error: str | None = None
+
+
+def _format_party_status(party_members: list[Character]) -> str:
+    """파티 멤버 본격 prompt section 생성 (★ Phase 9.17-c2 밤친구 표시).
+
+    is_temporary=True 멤버가 있으면 '밤친구' section 추가 (★ 본문 6/111화 정합).
+    is_temporary X 본격 본격 본격 표시 X (★ minimal — 빈 문자열).
+
+    본문 정합:
+    - 6화: '임시 협력 관계의 은어'
+    - 111화: 1층 한정 culture
+    """
+    temps = [m for m in party_members if m.is_temporary]
+    if not temps:
+        return ""
+
+    lines = [f"⚡ 밤친구 ({len(temps)}명, 임시 협력):"]
+    for t in temps:
+        race_str = t.race.value if hasattr(t.race, "value") else str(t.race)
+        lines.append(f"   - {t.name} ({race_str})")
+    lines.append("   (★ 던전 출구 시 자동 해산, 6/111화 정합)")
+    return "\n".join(lines)
 
 
 def _format_simulation_status(ctx: dict[str, Any]) -> str:
@@ -979,9 +1001,10 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         )
 
     # ★ Phase 9.17-c1 — NPC encounter 가이드 (본문 정합)
+    # ★ Phase 9.17-c2 — 밤친구 단어 추가 (★ npc_peaceful → FORM 가능 signal)
     npc_encounter_block = (
         "NPC encounter (★ 9.17-c1):"
-        " npc_peaceful=우호(6화 한스) / npc_neutral=통과(24화) /"
+        " npc_peaceful=우호(6화 한스, 밤친구) / npc_neutral=통과(24화) /"
         " npc_hostile=약탈자(24/37/51화) / npc_resource=자원(6화)."
         " 빈도 흐를수록 ↑.\n\n"
     )

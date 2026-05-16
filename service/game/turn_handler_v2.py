@@ -15,6 +15,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+from service.sim.types import Encounter, EncounterType
+
 from .cities.temples import get_deity_by_sub_area
 from .floors.floor1 import get_floor1_definition
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
@@ -3176,3 +3178,210 @@ def execute_shop_buy(
             f"stone_paid={actor_name}:-{price}",
         ],
     )
+
+
+# ─── Phase 9.17-c2 — 밤친구 (★ 6/88/111화 본문 정합) ───
+
+# 1층 한정 culture (★ 111화 본문 정합).
+NIGHT_COMPANION_FLOOR_LIMIT: int = 1
+
+# 권장 총 인원 — 권장만 (★ 8화 정합, hard cap X).
+NIGHT_COMPANION_RECOMMENDED_TOTAL: int = 3
+
+# 밤친구 신참 종족 풀 (★ 88화 본문 정합 — 이종족 권장).
+_NIGHT_COMPANION_RACES: tuple[Race, ...] = (
+    Race.HUMAN,
+    Race.DWARF,
+    Race.FAERIE,
+    Race.BEASTKIN,
+)
+
+
+def execute_form_night_companion(
+    actor: str,
+    target: str,
+    party: list[Character],
+    location: Location,
+    encounters: list[Encounter],
+    rng: random.Random | None = None,
+) -> TurnResult:
+    """NPC_PEACEFUL encounter → 밤친구 형성 (★ Phase 9.17-c2).
+
+    target = Encounter.name (★ id field 없음 — name 매칭).
+    Encounter는 caller가 _active_encounters 본격 전달 (★ sim_runner wire).
+
+    본문 정합:
+    - 6화: '임시 협력 관계의 은어'
+    - 88화: 이종족 권장 (★ random race 본격)
+    - 111화: 1층 한정 culture
+
+    Producer: 9.17-c1 NPC_PEACEFUL encounter.
+    Consumer (★ 본 commit): 본 handler — encounter_consumed side_effect 발현.
+    Caller (★ sim_runner) — encounter_consumed 처리 + encounter 제거.
+    """
+    # 1층 한정 검증 (★ 111화 본문 정합)
+    if location.realm != Realm.DUNGEON:
+        return TurnResult(
+            success=False,
+            action_type="form_night_companion",
+            message="밤친구는 던전 내에서만 형성 가능.",
+        )
+    if (
+        location.floor is None
+        or location.floor > NIGHT_COMPANION_FLOOR_LIMIT
+    ):
+        return TurnResult(
+            success=False,
+            action_type="form_night_companion",
+            message=(
+                f"밤친구는 {NIGHT_COMPANION_FLOOR_LIMIT}층 한정 (★ 111화)."
+            ),
+        )
+
+    # PEACEFUL encounter 매칭 (★ Encounter.name — id field 없음)
+    peaceful_enc = next(
+        (
+            e
+            for e in encounters
+            if e.type == EncounterType.NPC_PEACEFUL
+            and (e.name == target or target in e.name)
+        ),
+        None,
+    )
+    if peaceful_enc is None:
+        return TurnResult(
+            success=False,
+            action_type="form_night_companion",
+            message="우호적 탐험가 만남 없음.",
+        )
+
+    # 새 임시 멤버 생성 (★ 88화 정합 — 이종족 권장 random race)
+    rng = rng or random.Random()
+    race = rng.choice(_NIGHT_COMPANION_RACES)
+    short_label = peaceful_enc.name[:8]
+    name = f"밤친구 {short_label}"
+
+    new_companion = Character(
+        name=name,
+        race=race,
+        hp=80,
+        hp_max=80,
+        level=1,
+        grade=1,
+        class_type=ClassType.WARRIOR.value,
+        is_temporary=True,
+    )
+    party.append(new_companion)
+
+    total = sum(1 for m in party if m.hp > 0)
+    msg = (
+        f"{name}와 밤친구가 됨 ({race.value}). "
+        "임시 협력 — 던전 출구 시 자동 해산."
+    )
+    if total > NIGHT_COMPANION_RECOMMENDED_TOTAL:
+        msg += f" (★ 권장 {NIGHT_COMPANION_RECOMMENDED_TOTAL}명 초과)"
+
+    return TurnResult(
+        success=True,
+        action_type="form_night_companion",
+        message=msg,
+        side_effects=[
+            f"night_companion_formed={name}:{race.value}",
+            # ★ caller (sim_runner)가 _active_encounters에서 제거.
+            f"encounter_consumed={peaceful_enc.name}",
+        ],
+    )
+
+
+def execute_disband_night_companion(
+    actor: str,
+    target: str,
+    party: list[Character],
+) -> TurnResult:
+    """밤친구 explicit 해산 (★ Phase 9.17-c2).
+
+    target = 밤친구 name 또는 'all' (★ 모두 해산).
+    영구 멤버는 해산 X (★ is_temporary=False 보호).
+    """
+    if target == "all":
+        disbanded = [m.name for m in party if m.is_temporary]
+        party[:] = [m for m in party if not m.is_temporary]
+        if not disbanded:
+            return TurnResult(
+                success=False,
+                action_type="disband_night_companion",
+                message="해산할 밤친구 없음.",
+            )
+        return TurnResult(
+            success=True,
+            action_type="disband_night_companion",
+            message=f"밤친구 해산: {', '.join(disbanded)}.",
+            side_effects=[
+                f"night_companion_disbanded={n}" for n in disbanded
+            ],
+        )
+
+    # 개별 해산 — 영구 멤버 보호
+    companion = next(
+        (m for m in party if m.name == target and m.is_temporary),
+        None,
+    )
+    if companion is None:
+        return TurnResult(
+            success=False,
+            action_type="disband_night_companion",
+            message=f"'{target}' 밤친구 없음.",
+        )
+
+    party.remove(companion)
+    return TurnResult(
+        success=True,
+        action_type="disband_night_companion",
+        message=f"{companion.name} 해산.",
+        side_effects=[f"night_companion_disbanded={companion.name}"],
+    )
+
+
+def _auto_disband_on_exit(
+    party: list[Character],
+    side_effects: list[str],
+) -> None:
+    """던전 출구 시 밤친구 자동 해산 (★ Phase 9.17-c2).
+
+    sim_runner caller에서 apply_time_limit_village_return 직후 호출
+    (★ TIME_LIMIT_REACHED 본격 마을 자동 귀환 본격 정합).
+
+    Mutation:
+    - is_temporary=True 본격 party에서 제거
+    - side_effects에 marker append
+    """
+    disbanded = [m.name for m in party if m.is_temporary]
+    party[:] = [m for m in party if not m.is_temporary]
+    for name in disbanded:
+        side_effects.append(
+            f"night_companion_auto_disbanded_on_exit={name}"
+        )
+
+
+def _auto_disband_on_death(
+    party: list[Character],
+    side_effects: list[str],
+) -> None:
+    """밤친구 사망 시 자동 해산 (★ Phase 9.17-c2).
+
+    sim_runner caller에서 check_party_defeated 직전 호출
+    (★ 영구 멤버 사망 본격 별도 — defeated 검증 본격 정합).
+
+    Mutation:
+    - is_temporary=True + hp<=0 본격 party에서 제거
+    - side_effects에 marker append
+    - 영구 멤버 사망 본격 본격 X (★ check_party_defeated 별도 처리)
+    """
+    dead_temps = [m.name for m in party if m.is_temporary and m.hp <= 0]
+    party[:] = [
+        m for m in party if not (m.is_temporary and m.hp <= 0)
+    ]
+    for name in dead_temps:
+        side_effects.append(
+            f"night_companion_auto_disbanded_on_death={name}"
+        )

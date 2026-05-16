@@ -58,6 +58,10 @@ class PlayerActionType(StrEnum):
     SHOP_SELL = "shop_sell"
     # ★ Phase 9.16-b — 상점 BUY (★ 21화 하프 아머 36만 / 무기 25만 정합)
     SHOP_BUY = "shop_buy"
+    # ★ Phase 9.17-c2 — 밤친구 (★ 6/88/111화 정합)
+    # 6화: '임시 협력 관계' / 88화: 이종족 권장 / 111화: 1층 한정
+    FORM_NIGHT_COMPANION = "form_night_companion"
+    DISBAND_NIGHT_COMPANION = "disband_night_companion"
 
 
 @dataclass
@@ -210,6 +214,9 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.REJECT_DIALOGUE: 0.0,
     PlayerActionType.SHOP_SELL: 0.0,
     PlayerActionType.SHOP_BUY: 0.0,
+    # ★ Phase 9.17-c2 — 밤친구 (★ 1층 본격 dungeon, 짧음).
+    PlayerActionType.FORM_NIGHT_COMPANION: 0.5,
+    PlayerActionType.DISBAND_NIGHT_COMPANION: 0.1,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

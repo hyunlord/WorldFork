@@ -205,12 +205,13 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_25() -> None:
-    """PlayerActionType 본격 25개 (★ 24 + 9.16-b SHOP_BUY).
+def test_player_action_type_count_27() -> None:
+    """PlayerActionType 본격 27개 (★ 25 + 9.17-c2 밤친구 2개).
 
-    Phase 9.16-b shop buy:
-    - SHOP_BUY (★ 21화 하프 아머 / 무기 본격 정합)
+    Phase 9.17-c2 night companion:
+    - FORM_NIGHT_COMPANION (★ 6/88/111화 본문 정합)
+    - DISBAND_NIGHT_COMPANION (★ 6/88/111화 본문 정합)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 25
+    assert len(list(PlayerActionType)) == 27
