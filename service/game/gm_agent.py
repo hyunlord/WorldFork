@@ -376,9 +376,11 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             # ★ Phase 9.9-b — grade + class_type (★ 28화 등급 정합)
             grade = info.get("grade", 1)
             cls = info.get("class_type", "warrior")
+            # ★ Phase 9.14 — 명성 (★ 452화 정합)
+            fame = info.get("fame", 0)
             line = (
                 f"  - **{name}** ({race_str}, Lv {lv} · exp {exp}/{next_thr}, "
-                f"{grade}등급 {cls})"
+                f"{grade}등급 {cls}, 명성 {fame})"
             )
             line += f": HP {hp}/{hp_max}, 영혼력 {soul}, 신장 {height}cm"
             line += (

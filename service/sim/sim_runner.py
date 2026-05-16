@@ -388,6 +388,8 @@ def _refresh_context(
                 # ★ Phase 9.9-b — 정수 등급 + 직업 (★ 28화 본문 정합)
                 "grade": c.grade,
                 "class_type": c.class_type,
+                # ★ Phase 9.14 — 명성 (★ 452화 정합)
+                "fame": c.fame,
                 # ★ Phase 9.3 — 부상 (LLM narrative 본격)
                 "injuries": [
                     {

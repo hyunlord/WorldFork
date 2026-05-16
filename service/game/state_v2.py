@@ -662,6 +662,10 @@ class Character:
     grade: int = 1  # ★ 정수 등급 1-9 (★ 본 commit default 신참)
     class_type: str = "warrior"  # ★ ClassType value (★ 본 commit default WARRIOR)
 
+    # ★ Phase 9.14 — 명성 (★ 452화 '명성 → 기본 호감도' / 74화 '작은 발칸').
+    # 보스 처치 / 균열 클리어 시 증가, 초면 NPC 호감도 bonus 본격 사용처.
+    fame: int = 0
+
     def is_alive(self) -> bool:
         return self.hp > 0
 
