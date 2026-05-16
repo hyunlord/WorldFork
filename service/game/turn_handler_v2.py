@@ -2209,10 +2209,15 @@ SHOP_PRICE_MULTIPLIER: dict[str, float] = {
 SHOP_NPC_ID: dict[str, str] = {
     "general_store": "store_owner",
     "alminus_market": "market_broker",
+    "blacksmith": "blacksmith_master",  # ★ Phase 9.16-b2 BUY 호감도 wire
 }
 
 SHOP_AFFINITY_BOOST_TIER1: float = 1.10  # ★ ≥25 +10% (9.13 정합)
 SHOP_AFFINITY_BOOST_TIER2: float = 1.20  # ★ ≥50 +20%
+
+# ★ Phase 9.16-b2 — SHOP_BUY 할인 (★ SELL boost 대칭, TIER1+2 = 2.0 invariant).
+SHOP_BUY_DISCOUNT_TIER1: float = 0.90  # ★ ≥25 -10%
+SHOP_BUY_DISCOUNT_TIER2: float = 0.80  # ★ ≥50 -20%
 
 
 def _exchange_rate_boost(affinity: int) -> float:
@@ -2270,6 +2275,15 @@ def _sell_price_for_item(
     shop_mult = SHOP_PRICE_MULTIPLIER.get(sub_area_id, 1.0)
     affinity_mult = _shop_affinity_boost(affinity)
     return int(base * shop_mult * affinity_mult)
+
+
+def _shop_buy_discount(affinity: int) -> float:
+    """SHOP_BUY 호감도 할인 multiplier (★ Phase 9.16-b2, SELL boost 대칭)."""
+    if affinity >= AFFINITY_THRESHOLD_TIER2:
+        return SHOP_BUY_DISCOUNT_TIER2
+    if affinity >= AFFINITY_THRESHOLD_TIER1:
+        return SHOP_BUY_DISCOUNT_TIER1
+    return 1.0
 
 
 LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
@@ -3008,6 +3022,15 @@ def _get_shop_item(
     return None
 
 
+def _buy_price_for_item(
+    shop_item: ShopItem, sub_area_id: str, affinity: int
+) -> int:
+    """최종 BUY 가격 = base × shop_mult × discount (★ Phase 9.16-b2)."""
+    shop_mult = SHOP_BUY_MULTIPLIER.get(sub_area_id, 1.0)
+    discount = _shop_buy_discount(affinity)
+    return int(shop_item.base_price * shop_mult * discount)
+
+
 def execute_shop_buy(
     actor_name: str,
     target: str | None,
@@ -3067,8 +3090,10 @@ def execute_shop_buy(
             message=f"'{target}' 본격 상점 catalog 본격 X.",
         )
 
-    shop_mult = SHOP_BUY_MULTIPLIER.get(location.sub_area, 1.0)
-    price = int(shop_item.base_price * shop_mult)
+    # ★ Phase 9.16-b2 — NPC 호감도 할인 (★ blacksmith_master / store_owner)
+    npc_id = SHOP_NPC_ID.get(location.sub_area, "")
+    affinity = world.npc_affinities.get(npc_id, 0) if npc_id else 0
+    price = _buy_price_for_item(shop_item, location.sub_area, affinity)
 
     if actor.stone < price:
         return TurnResult(
@@ -3097,6 +3122,10 @@ def execute_shop_buy(
     message = (
         f"{shop_name}에서 {shop_item.name} 구매. -{price} 스톤."
     )
+    discount = _shop_buy_discount(affinity)
+    if discount < 1.0:
+        pct = round((1.0 - discount) * 100)
+        message += f" (★ 호감도 할인 -{pct}%)"
 
     return TurnResult(
         success=True,

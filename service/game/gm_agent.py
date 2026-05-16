@@ -373,22 +373,40 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         lines.append("  🔨 대장간 — 제작/수리 + BUY (★ SELL X, 18화 정합).")
 
     # ★ Phase 9.16-b — 상점 BUY hint (★ blacksmith / general_store catalog)
+    # ★ Phase 9.16-b2 — 호감도 할인 표시 (★ blacksmith_master / store_owner)
     if sub.id in ("blacksmith", "general_store"):
         from .turn_handler_v2 import (
             SHOP_BUY_MULTIPLIER,
             SHOP_INVENTORY,
+            SHOP_NPC_ID,
+            _shop_buy_discount,
         )
 
         catalog = SHOP_INVENTORY.get(sub.id, [])
         if catalog:
             buy_mult = SHOP_BUY_MULTIPLIER.get(sub.id, 1.0)
-            lines.append(
-                f"  🛒 SHOP_BUY catalog (★ 가격 ×{buy_mult:.1f}):"
-            )
-            for shop_item in catalog:
-                price = int(shop_item.base_price * buy_mult)
+            buy_npc_id = SHOP_NPC_ID.get(sub.id, "")
+            buy_affinities = (
+                ctx.get("v2_world_state") or {}
+            ).get("npc_affinities") or {}
+            buy_affinity = buy_affinities.get(buy_npc_id, 0)
+            discount = _shop_buy_discount(buy_affinity)
+            if discount < 1.0:
+                pct = round((1.0 - discount) * 100)
                 lines.append(
-                    f"     - {shop_item.name}: {price:,} 스톤"
+                    f"  🛒 SHOP_BUY catalog "
+                    f"(★ ×{buy_mult:.1f} × 할인 -{pct}%):"
+                )
+            else:
+                lines.append(
+                    f"  🛒 SHOP_BUY catalog (★ 가격 ×{buy_mult:.1f}):"
+                )
+            for shop_item in catalog:
+                effective_price = int(
+                    shop_item.base_price * buy_mult * discount
+                )
+                lines.append(
+                    f"     - {shop_item.name}: {effective_price:,} 스톤"
                 )
             lines.append(
                 "     ⚡ SHOP_BUY — Item.name target."
