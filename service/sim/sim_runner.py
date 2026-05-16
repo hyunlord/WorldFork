@@ -36,6 +36,7 @@ from service.game.turn_handler_v2 import (
     execute_attack,
     execute_dialogue,
     execute_disband_night_companion,
+    execute_engage_bandit,
     execute_enter_dungeon,
     execute_form_night_companion,
     execute_heal_at_temple,
@@ -391,6 +392,21 @@ def _execute_action(
             return False, "target (밤친구 name 또는 'all') 없음.", []
         r = execute_disband_night_companion(
             action.actor_name, action.target, party_list
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.17-d — 약탈자 전투 / 도주 (★ 24/37/51화 정합).
+    # encounter_consumed 처리 본격 run_single_turn (★ 9.17-c2 mechanism 재사용).
+    if action.action_type == PlayerActionType.ENGAGE_BANDIT:
+        if not action.target:
+            return False, "target (encounter name 또는 'flee') 없음.", []
+        r = execute_engage_bandit(
+            action.actor_name,
+            action.target,
+            party_list,
+            location,
+            active_encounters or [],
+            world,
         )
         return r.success, r.message, r.side_effects
 

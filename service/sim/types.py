@@ -62,6 +62,9 @@ class PlayerActionType(StrEnum):
     # 6화: '임시 협력 관계' / 88화: 이종족 권장 / 111화: 1층 한정
     FORM_NIGHT_COMPANION = "form_night_companion"
     DISBAND_NIGHT_COMPANION = "disband_night_companion"
+    # ★ Phase 9.17-d — 약탈자 (★ 24/37/51화 정합)
+    # 24-25화 솔로 / 37화 4인조 / 51화 '장비 루팅' / 본문 도주 가능
+    ENGAGE_BANDIT = "engage_bandit"
 
 
 @dataclass
@@ -217,6 +220,8 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     # ★ Phase 9.17-c2 — 밤친구 (★ 1층 본격 dungeon, 짧음).
     PlayerActionType.FORM_NIGHT_COMPANION: 0.5,
     PlayerActionType.DISBAND_NIGHT_COMPANION: 0.1,
+    # ★ Phase 9.17-d — 약탈자 전투/도주 (★ ATTACK 본격 정합).
+    PlayerActionType.ENGAGE_BANDIT: 0.5,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

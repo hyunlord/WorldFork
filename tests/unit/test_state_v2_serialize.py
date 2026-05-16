@@ -205,13 +205,12 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_27() -> None:
-    """PlayerActionType 본격 27개 (★ 25 + 9.17-c2 밤친구 2개).
+def test_player_action_type_count_28() -> None:
+    """PlayerActionType 본격 28개 (★ 27 + 9.17-d 약탈자 1개).
 
-    Phase 9.17-c2 night companion:
-    - FORM_NIGHT_COMPANION (★ 6/88/111화 본문 정합)
-    - DISBAND_NIGHT_COMPANION (★ 6/88/111화 본문 정합)
+    Phase 9.17-d bandit encounter:
+    - ENGAGE_BANDIT (★ 24/37/51화 본문 정합)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 27
+    assert len(list(PlayerActionType)) == 28

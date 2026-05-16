@@ -839,6 +839,27 @@ class BossEncounter:
     weakness_strategy: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class BanditEncounter:
+    """약탈자 encounter — runtime (★ Phase 9.17-d).
+
+    NPC_HOSTILE encounter (★ 9.17-c1 producer) consumer.
+
+    본문 정합:
+    - 24-25화: 사이코 솔로 (★ member_count=1)
+    - 37화: 4인조 무리 (★ member_count=4)
+    - 51화: '탐험가의 장비를 루팅' (★ stone loot)
+
+    Producer: 9.17-d execute_engage_bandit 본격 _create_bandit_encounter.
+    faction_name 본격 RaiderFaction.name 정합 (★ "수정 연합" 등).
+    """
+
+    faction_name: str  # ★ RaiderFaction.name 정합
+    member_count: int  # ★ 1 (솔로) 또는 4 (무리)
+    leader_grade: int  # ★ actor.grade ± 1
+    hp_pool: int  # ★ 총 HP — 30 × member_count (★ ATTACK 공식)
+
+
 class SimulationStatus(StrEnum):
     """1층 simulation 상태 (★ Phase 8 A4 / C).
 

@@ -19,11 +19,13 @@ from service.sim.types import Encounter, EncounterType
 
 from .cities.temples import get_deity_by_sub_area
 from .floors.floor1 import get_floor1_definition
+from .floors.floor1_pvp import FLOOR1_RAIDER_FACTIONS
 from .floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
 from .floors.registry import get_current_floor_definition
 from .state_v2 import (
     SEVERITY_LEAVES_SCAR,
     SEVERITY_RECOVERY_DEFAULT,
+    BanditEncounter,
     BossEncounter,
     Character,
     ClassType,
@@ -3385,3 +3387,185 @@ def _auto_disband_on_death(
         side_effects.append(
             f"night_companion_auto_disbanded_on_death={name}"
         )
+
+
+# ─── Phase 9.17-d — 약탈자 (★ 24/37/51화 본문 정합) ───
+
+# 약탈자 1명당 HP (★ 9등급 몬스터 정합 — ATTACK 공식).
+BANDIT_HP_PER_MEMBER: int = 30
+
+# 약탈자 승리 시 명성 (★ 9.14 보스/균열 +10보다 ↓ — PvP는 약함).
+BANDIT_FAME_GAIN_WIN: int = 5
+
+# 24화 솔로 vs 37화 4인조 분포 (★ 추측 — 솔로 더 흔함).
+BANDIT_SOLO_PROBABILITY: float = 0.7
+
+# 약탈자 1명당 stone loot (★ 51화 '장비 루팅' 정합 추측).
+BANDIT_STONE_PER_MEMBER: int = 5000
+
+# 약탈자 leader_grade 본격 actor.grade ± 1 (★ 본격 균형).
+_BANDIT_GRADE_DELTA: tuple[int, ...] = (-1, 0, 1)
+
+
+def _create_bandit_encounter(
+    actor_grade: int,
+    faction_name: str,
+    rng: random.Random,
+) -> BanditEncounter:
+    """약탈자 encounter 생성 — producer (★ Phase 9.17-d).
+
+    본문 정합:
+    - 24화 솔로 (★ 70% default — BANDIT_SOLO_PROBABILITY)
+    - 37화 4인조 (★ 30%)
+    - leader_grade = actor.grade ± 1 (★ 균형)
+    - hp_pool = 30 × member_count (★ ATTACK 공식 정합)
+
+    faction_name 본격 RaiderFaction.name 정합 (★ "수정 연합" 등).
+    """
+    if rng.random() < BANDIT_SOLO_PROBABILITY:
+        member_count = 1
+    else:
+        member_count = 4
+
+    leader_grade = max(1, actor_grade + rng.choice(_BANDIT_GRADE_DELTA))
+
+    return BanditEncounter(
+        faction_name=faction_name,
+        member_count=member_count,
+        leader_grade=leader_grade,
+        hp_pool=BANDIT_HP_PER_MEMBER * member_count,
+    )
+
+
+def execute_engage_bandit(
+    actor: str,
+    target: str,
+    party: list[Character],
+    location: Location,
+    encounters: list[Encounter],
+    world: WorldState,
+    rng: random.Random | None = None,
+) -> TurnResult:
+    """NPC_HOSTILE encounter → 약탈자 전투 / 도주 (★ Phase 9.17-d).
+
+    target = Encounter.name 또는 'flee'.
+    Encounter는 caller가 _active_encounters 본격 전달 (★ sim_runner wire).
+
+    본문 정합:
+    - 24-25화: 약탈자 솔로
+    - 37화: 4인조 진압
+    - 51화: 장비 루팅 (★ stone gain)
+    - gm_agent:972: '4명 이내 위협 도주 가능' (★ flee 항상 성공)
+
+    Producer: 9.17-c1 NPC_HOSTILE encounter.
+    Consumer (★ 본 commit): 본 handler — encounter_consumed side_effect.
+    Caller (★ sim_runner) — encounter_consumed 처리 + encounter 제거.
+    """
+    # NPC_HOSTILE encounter 매칭 (★ flee 시 첫번째 HOSTILE 본격 자동 매칭)
+    hostile_enc = next(
+        (
+            e
+            for e in encounters
+            if e.type == EncounterType.NPC_HOSTILE
+            and (
+                e.name == target
+                or target == "flee"
+                or target in e.name
+            )
+        ),
+        None,
+    )
+    if hostile_enc is None:
+        return TurnResult(
+            success=False,
+            action_type="engage_bandit",
+            message="약탈자 만남 없음.",
+        )
+
+    actor_char = next((m for m in party if m.name == actor), None)
+    if actor_char is None:
+        return TurnResult(
+            success=False,
+            action_type="engage_bandit",
+            message=f"{actor} 본격 party 본격 X.",
+        )
+
+    # 도주 — 항상 성공 (★ gm_agent:972 본문 정합)
+    if target == "flee":
+        return TurnResult(
+            success=True,
+            action_type="engage_bandit",
+            message="약탈자로부터 도주 — 4명 이내 위협 회피.",
+            side_effects=[
+                f"encounter_consumed={hostile_enc.name}",
+                f"fled_from_bandit={actor}",
+            ],
+        )
+
+    # 전투 — BanditEncounter 생성 (★ FLOOR1_RAIDER_FACTIONS 본격 faction_name)
+    rng = rng or random.Random()
+    faction_name = (
+        FLOOR1_RAIDER_FACTIONS[0].name
+        if FLOOR1_RAIDER_FACTIONS
+        else "약탈자"
+    )
+    bandit = _create_bandit_encounter(
+        actor_char.grade, faction_name, rng
+    )
+
+    # 전투 계산 (★ ATTACK 공식 단순화 — grade × 10 + 20).
+    # 단일 turn 모델 (★ B minimal — 본격 multi-turn 후속).
+    actor_attack = actor_char.grade * 10 + 20
+
+    if actor_attack >= bandit.hp_pool:
+        # 승리 — stone + 명성
+        stone_gain = bandit.member_count * BANDIT_STONE_PER_MEMBER
+        actor_char.stone += stone_gain
+        actor_char.fame += BANDIT_FAME_GAIN_WIN
+
+        msg = (
+            f"{bandit.faction_name} {bandit.member_count}인 격퇴. "
+            f"+{stone_gain} 스톤 +{BANDIT_FAME_GAIN_WIN} 명성."
+        )
+        return TurnResult(
+            success=True,
+            action_type="engage_bandit",
+            message=msg,
+            side_effects=[
+                f"encounter_consumed={hostile_enc.name}",
+                f"bandit_defeated="
+                f"{bandit.faction_name}:{bandit.member_count}",
+                f"stone_gained={actor}:+{stone_gain}",
+                f"fame_gain={actor}:+{BANDIT_FAME_GAIN_WIN}_bandit",
+            ],
+        )
+
+    # 패배 — HP 감소 + 부상 generation (★ _generate_injury_from_damage 재사용)
+    damage = bandit.hp_pool - actor_attack
+    old_hp = actor_char.hp
+    actor_char.hp = max(0, actor_char.hp - damage)
+    hp_loss = old_hp - actor_char.hp
+
+    side_effects: list[str] = [
+        f"encounter_consumed={hostile_enc.name}",
+        f"bandit_defeat={actor}:damage_{damage}",
+        f"hp_loss={actor}:-{hp_loss}",
+    ]
+
+    injury = _generate_injury_from_damage(hp_loss, rng=rng)
+    if injury is not None:
+        actor_char.injuries.append(injury)
+        side_effects.append(
+            f"injury_inflicted={actor}:"
+            f"{injury.body_part}_{injury.severity}"
+        )
+
+    return TurnResult(
+        success=False,
+        action_type="engage_bandit",
+        message=(
+            f"{bandit.faction_name} {bandit.member_count}인에 패배. "
+            f"-{damage} HP."
+        ),
+        side_effects=side_effects,
+    )

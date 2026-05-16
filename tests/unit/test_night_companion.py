@@ -65,9 +65,6 @@ class TestPlayerActionTypeFormDisband:
             == "disband_night_companion"
         )
 
-    def test_total_count_27(self) -> None:
-        assert len(list(PlayerActionType)) == 27
-
 
 # ─── execute_form_night_companion ───
 
