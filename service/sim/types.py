@@ -92,6 +92,12 @@ class EncounterType(StrEnum):
     ITEM = "item"            # 아이템 발견
     EVENT = "event"          # 일반 이벤트
     NARRATIVE = "narrative"  # narrative만 (★ encounter X)
+    # ★ Phase 9.17-c1 — NPC encounter 4 type (★ 본문 정합).
+    # 후속 consumer: 9.17-c2 밤친구 (PEACEFUL) / 9.17-d 약탈자 (HOSTILE).
+    NPC_PEACEFUL = "npc_peaceful"   # ★ 6화 한스 — 우호 만남 (밤친구 trigger)
+    NPC_NEUTRAL = "npc_neutral"     # ★ 24화 인간 셋 — 통과
+    NPC_HOSTILE = "npc_hostile"     # ★ 24/37/51화 약탈자 — 적대
+    NPC_RESOURCE = "npc_resource"   # ★ 6화 연못 — 자원 spot
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +132,11 @@ ENCOUNTER_TTL: dict[EncounterType, int] = {
     EncounterType.ITEM: 50,       # ★ 아이템 길게
     EncounterType.EVENT: 3,       # ★ 이벤트 짧음
     EncounterType.NARRATIVE: 1,   # ★ 즉시 만료
+    # ★ Phase 9.17-c1 — NPC encounter TTL (★ 추측, 후속 tuning).
+    EncounterType.NPC_PEACEFUL: 5,   # ★ 짧은 만남 (★ 6화 한스)
+    EncounterType.NPC_NEUTRAL: 3,    # ★ 통과 — 즉시 (★ 24화)
+    EncounterType.NPC_HOSTILE: 5,    # ★ 전투/도주 trigger
+    EncounterType.NPC_RESOURCE: 10,  # ★ 자원 spot — 잠시 머무름
 }
 
 

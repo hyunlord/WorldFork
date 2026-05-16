@@ -978,6 +978,14 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             "- 화살 회수: 본문 룰 — 그냥 주워서 사용 (★ 11화)\n\n"
         )
 
+    # ★ Phase 9.17-c1 — NPC encounter 가이드 (본문 정합)
+    npc_encounter_block = (
+        "NPC encounter (★ 9.17-c1):"
+        " npc_peaceful=우호(6화 한스) / npc_neutral=통과(24화) /"
+        " npc_hostile=약탈자(24/37/51화) / npc_resource=자원(6화)."
+        " 빈도 흐를수록 ↑.\n\n"
+    )
+
     return (
         f"{status_header}"
         f"{city_block}"
@@ -993,6 +1001,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         f"{v2_block}"
         f"현재 위치: {ctx['current_location']}\n"
         f"현재 턴: {ctx['current_turn']}\n\n"
+        f"{npc_encounter_block}"
         f"스타일 규칙:\n"
         f"- 격식체 사용 (...입니다, ...있습니다)\n"
         f"- 자연스러운 격식 (공문서체 X)\n"
