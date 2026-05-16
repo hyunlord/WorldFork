@@ -342,6 +342,36 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
                 f"{LIBRARY_FREE_AFFINITY_THRESHOLD} 면제)."
             )
 
+    # ★ Phase 9.16-a — 상점 SELL hint (★ general_store / alminus_market)
+    if sub.id in ("general_store", "alminus_market"):
+        from .turn_handler_v2 import (
+            SHOP_NPC_ID,
+            SHOP_PRICE_MULTIPLIER,
+            _shop_affinity_boost,
+        )
+
+        affinities = (
+            ctx.get("v2_world_state") or {}
+        ).get("npc_affinities") or {}
+        npc_id = SHOP_NPC_ID[sub.id]
+        affinity = affinities.get(npc_id, 0)
+        multiplier = SHOP_PRICE_MULTIPLIER[sub.id]
+        boost = _shop_affinity_boost(affinity)
+        final_mult = multiplier * boost
+        shop_label = (
+            "잡화점" if sub.id == "general_store" else "알미너스 거래소"
+        )
+        lines.append(
+            f"  🏪 {shop_label} — ⚡ SHOP_SELL (★ Item.name target)."
+        )
+        lines.append(
+            f"     가격 ×{final_mult:.2f} "
+            f"(★ shop ×{multiplier:.1f} × 호감도 ×{boost:.2f})."
+        )
+    if sub.id == "blacksmith":
+        # ★ 18화 본문 — 제작/수리만, SELL X (★ 9.16-a strict 정합)
+        lines.append("  🔨 대장간 — 제작/수리만 (★ SELL X, 본문 18화 정합).")
+
     return "\n".join(lines) + "\n\n"
 
 

@@ -55,9 +55,9 @@ def test_reject_dialogue_enum_value() -> None:
     assert PlayerActionType.REJECT_DIALOGUE.value == "reject_dialogue"
 
 
-def test_player_action_type_count_23() -> None:
-    """22 → 23 (★ 9.12 REJECT_DIALOGUE)."""
-    assert len(list(PlayerActionType)) == 23
+def test_reject_dialogue_enum_present() -> None:
+    """9.12 본격 enum 정합 (★ 전역 count는 test_state_v2_serialize 본격)."""
+    assert PlayerActionType.REJECT_DIALOGUE in set(PlayerActionType)
 
 
 # ─── 3. execute_reject_dialogue ───

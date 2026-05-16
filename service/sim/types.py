@@ -54,6 +54,8 @@ class PlayerActionType(StrEnum):
     RECRUIT_FROM_GUILD = "recruit_from_guild"
     # ★ Phase 9.12 — NPC 대화 거절 (★ 303화 호감도 하락 정합)
     REJECT_DIALOGUE = "reject_dialogue"
+    # ★ Phase 9.16-a — 상점 SELL (★ 18화 SELL 위주 정합)
+    SHOP_SELL = "shop_sell"
 
 
 @dataclass
@@ -193,6 +195,7 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.LIBRARY_SEARCH: 0.0,
     PlayerActionType.RECRUIT_FROM_GUILD: 0.0,
     PlayerActionType.REJECT_DIALOGUE: 0.0,
+    PlayerActionType.SHOP_SELL: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

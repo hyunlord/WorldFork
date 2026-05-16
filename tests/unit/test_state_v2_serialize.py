@@ -205,12 +205,12 @@ def test_game_state_v2_to_dict_json_roundtrip() -> None:
 # ─── Phase 7j: PlayerActionType 정합 ───
 
 
-def test_player_action_type_count_23() -> None:
-    """PlayerActionType 본격 23개 (★ 22 + 9.12 REJECT_DIALOGUE).
+def test_player_action_type_count_24() -> None:
+    """PlayerActionType 본격 24개 (★ 23 + 9.16-a SHOP_SELL).
 
-    Phase 9.12 reject dialogue:
-    - REJECT_DIALOGUE (★ 303화 호감도 하락)
+    Phase 9.16-a shop sell:
+    - SHOP_SELL (★ 18화 상점 SELL 본격 정합)
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 23
+    assert len(list(PlayerActionType)) == 24

@@ -2171,6 +2171,48 @@ TEMPLE_DISCOUNT_MULTIPLIER_TIER2: float = 0.50  # ★ -50%
 GUILD_DISCOUNT_MULTIPLIER_TIER1: float = 0.80  # ★ -20%
 GUILD_DISCOUNT_MULTIPLIER_TIER2: float = 0.50  # ★ -50%
 
+# ─── Phase 9.16-a shop SELL (★ 18화 SELL + '값을 잘 쳐주는 상점') ───
+#
+# 본문 정합:
+# - 18화: 무기/방어구/잡화 상점 SELL 위주 + shop별 가격 차등 명시
+# - blacksmith = '제작/수리' (★ SELL X)
+# - general_store = '전리품 처분' (★ SELL host)
+# - alminus_market = '거래' (★ SELL premium)
+#
+# 환전 우대 invariant (★ 본문 정합 보존):
+# - 9등급 max SHOP_SELL (1.0 × 1.2 shop × 1.2 affinity = 1.44) × 5 = 7 < 환전 20
+# - 8등급 max SHOP_SELL (1.44 × 30) = 43 < 환전 100
+#
+# 추측 (본문 X — docstring 명시):
+# - base 가격 (★ 환전 비율 본격 아래 유지)
+# - shop multiplier 수치 (★ alminus 1.2 premium)
+# - 호감도 boost 수치 (★ 9.13 +10%/+20% 정합)
+SHOP_SELL_PRICE_BY_GRADE: dict[int, int] = {
+    9: 5,           # ★ 환전 20 미만
+    8: 30,          # ★ 환전 100 미만
+    7: 200,         # 추측 (1층 본격 X)
+    6: 1000,
+    5: 5000,
+    4: 25000,
+    3: 100000,
+    2: 500000,
+    1: 2500000,
+}
+SHOP_SELL_PRICE_DEFAULT: int = 10  # ★ grade=None (식량/횃불 등 잡화)
+
+SHOP_PRICE_MULTIPLIER: dict[str, float] = {
+    "general_store": 1.0,    # ★ 표준
+    "alminus_market": 1.2,   # ★ '거래소' 우대
+}
+
+SHOP_NPC_ID: dict[str, str] = {
+    "general_store": "store_owner",
+    "alminus_market": "market_broker",
+}
+
+SHOP_AFFINITY_BOOST_TIER1: float = 1.10  # ★ ≥25 +10% (9.13 정합)
+SHOP_AFFINITY_BOOST_TIER2: float = 1.20  # ★ ≥50 +20%
+
 
 def _exchange_rate_boost(affinity: int) -> float:
     """환전소 호감도 본격 환전 비율 multiplier (★ Phase 9.13)."""
@@ -2203,6 +2245,32 @@ def _guild_recruit_discount(affinity: int) -> float:
     if affinity >= AFFINITY_THRESHOLD_TIER1:
         return GUILD_DISCOUNT_MULTIPLIER_TIER1
     return 1.0
+
+
+def _shop_affinity_boost(affinity: int) -> float:
+    """shop NPC 호감도 본격 SELL 가격 boost (★ Phase 9.16-a, 9.13 정합)."""
+    if affinity >= AFFINITY_THRESHOLD_TIER2:
+        return SHOP_AFFINITY_BOOST_TIER2
+    if affinity >= AFFINITY_THRESHOLD_TIER1:
+        return SHOP_AFFINITY_BOOST_TIER1
+    return 1.0
+
+
+def _sell_price_for_item(
+    item: Item, sub_area_id: str, affinity: int
+) -> int:
+    """최종 SELL 가격 = base × shop_mult × affinity_mult (★ Phase 9.16-a)."""
+    if item.grade is not None:
+        base = SHOP_SELL_PRICE_BY_GRADE.get(
+            item.grade, SHOP_SELL_PRICE_DEFAULT
+        )
+    else:
+        base = SHOP_SELL_PRICE_DEFAULT
+    shop_mult = SHOP_PRICE_MULTIPLIER.get(sub_area_id, 1.0)
+    affinity_mult = _shop_affinity_boost(affinity)
+    return int(base * shop_mult * affinity_mult)
+
+
 LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
 LIBRARY_FREE_AFFINITY_THRESHOLD: int = 50  # ★ 본인 답 (★ 추측)
 LIBRARIAN_NPC_ID: str = "ragna"  # ★ a-2 NPCDef.id
@@ -2739,5 +2807,115 @@ def execute_recruit_from_guild(
         side_effects=[
             f"member_recruited={new_member.name}:{new_member.race.value}",
             f"stone_paid={actor_name}:-{effective_cost}",
+        ],
+    )
+
+
+# ─── Phase 9.16-a — SHOP_SELL (★ 18화 SELL + shop 차등 + 호감도) ───
+
+
+def execute_shop_sell(
+    actor_name: str,
+    target: str | None,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """상점 SELL — 18화 본문 정합 (★ Phase 9.16-a).
+
+    허용 sub_area (★ 본문 strict):
+    - general_store (★ '전리품 처분')
+    - alminus_market (★ '거래')
+    - blacksmith X — '제작/수리'만 (★ 본 commit SELL X)
+
+    가격 공식: base × shop_mult × affinity_mult
+    - base: Item.grade 본격 SHOP_SELL_PRICE_BY_GRADE, grade=None 본격 DEFAULT
+    - shop_mult: general 1.0 / alminus 1.2 (★ '값을 잘 쳐주는 상점' 정합)
+    - affinity_mult: ≥25 +10% / ≥50 +20% (★ 9.13 정합)
+
+    Mutation (★ atomic):
+    - inventory.items.remove(item)
+    - stone += effective_price
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message="상점은 마을 본격.",
+        )
+
+    if location.sub_area not in SHOP_PRICE_MULTIPLIER:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message=(
+                "잡화점 또는 알미너스 거래소 본격 본격 본격 "
+                "(★ 대장간 SELL X — 제작/수리만)."
+            ),
+        )
+
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    if not actor.inventory.items:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message=f"{actor_name} 본격 판매 아이템 X.",
+        )
+
+    if not target:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message="target X — Item.name 본격 본격.",
+        )
+
+    target_item: Item | None = None
+    for it in actor.inventory.items:
+        if it.name == target or target in it.name:
+            target_item = it
+            break
+    if target_item is None:
+        return TurnResult(
+            success=False,
+            action_type="shop_sell",
+            message=f"'{target}' 본격 inventory 본격 X.",
+        )
+
+    # 가격 계산 (★ shop + 호감도)
+    npc_id = SHOP_NPC_ID[location.sub_area]
+    affinity = world.npc_affinities.get(npc_id, 0)
+    price = _sell_price_for_item(target_item, location.sub_area, affinity)
+
+    # mutation (★ atomic)
+    actor.inventory.items.remove(target_item)
+    actor.stone += price
+
+    shop_name = (
+        "잡화점"
+        if location.sub_area == "general_store"
+        else "알미너스 거래소"
+    )
+    message = (
+        f"{shop_name}에서 {target_item.name} 판매. +{price} 스톤."
+    )
+    boost = _shop_affinity_boost(affinity)
+    if boost > 1.0:
+        pct = round((boost - 1.0) * 100)
+        message += f" (★ 호감도 boost +{pct}%)"
+
+    return TurnResult(
+        success=True,
+        action_type="shop_sell",
+        message=message,
+        side_effects=[
+            f"item_sold={actor_name}:{target_item.name}",
+            f"stone_gained={actor_name}:+{price}",
         ],
     )
