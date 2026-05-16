@@ -43,6 +43,7 @@ from .state_v2 import (
     Realm,
     RiftDef,
     RiftSubAreaDef,
+    Role,
     Scar,
     ShopItem,
     SimulationStatus,
@@ -2558,6 +2559,29 @@ def execute_library_search(
 # 2층+ 멤버 수 검증 본격 후속 commit (★ 2층 콘텐츠 본격 후 본격).
 MIN_PARTY_SIZE_FLOOR1: int = 1  # ★ 20화 정합 — 1인 진입 가능
 MAX_PARTY_SIZE: int = 5  # ★ WorldState.max_party_members + RiftDef.party_capacity 정합
+
+
+# ─── Phase 9.17-b — Role mapping (★ 44화 정합) ───
+#
+# 본문 정합:
+# - 44화: 탱커 / 탐색꾼 / 역할군 부재 치명적 (★ '고블린 숲' 탐색꾼 필수)
+# - 28화: 마법사 = '최강의 직업' (★ DPS)
+# - 5화: 신관 = 중층 이상 (★ HEALER)
+#
+# 추측 (본문 X — docstring):
+# - paladin → SUPPORT (★ 본문 명시 X, 성기사 자연 보호/지원)
+CLASS_TO_ROLE: dict[str, str] = {
+    ClassType.WARRIOR.value: Role.TANK.value,
+    ClassType.MAGE.value: Role.DPS.value,
+    ClassType.PRIEST.value: Role.HEALER.value,
+    ClassType.PALADIN.value: Role.SUPPORT.value,
+    ClassType.SCOUT.value: Role.SCOUT.value,
+}
+
+
+def get_role_for_class(class_type: str) -> str:
+    """class_type 본격 Role value (★ unknown → DPS fallback)."""
+    return CLASS_TO_ROLE.get(class_type, Role.DPS.value)
 
 
 # ─── Phase 9.9-a — 길드 모집 minimal (★ 본인 답 / 6화 mention) ───

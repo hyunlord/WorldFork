@@ -604,17 +604,24 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         if party := world_state.get("party_members"):
             ws_lines.append(f"- 파티원: {', '.join(party)}")
             # ★ Phase 9.17-a — 1인 / 팀 narrative hint (20/44화 정합)
+            # ★ Phase 9.17-b — 역할 분포 + 부재 경고 (44화 정합)
             from .turn_handler_v2 import (
                 MAX_PARTY_SIZE,
                 MIN_PARTY_SIZE_FLOOR1,
+                get_role_for_class,
             )
 
             v2_chars_for_hint = ctx.get("v2_characters") or {}
             alive_count = 0
+            role_counts: dict[str, int] = {}
             for member_name in party:
                 info = v2_chars_for_hint.get(member_name) or {}
                 if info.get("hp", 1) > 0:
                     alive_count += 1
+                    role = get_role_for_class(
+                        info.get("class_type", "warrior")
+                    )
+                    role_counts[role] = role_counts.get(role, 0) + 1
             if alive_count == MIN_PARTY_SIZE_FLOOR1:
                 ws_lines.append(
                     "  ⚠ 1인 진입 — 1층 한정 "
@@ -627,6 +634,26 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
                 ws_lines.append(
                     "  ✓ 팀 구성 — 2층+ 권장 (★ 44화 정합)."
                 )
+            # ★ 역할 분포 + 부재 경고 (★ 3+ alive — 1-2인 9.17-a 정합 본격 제외)
+            if role_counts:
+                role_summary = ", ".join(
+                    f"{r} {c}"
+                    for r, c in sorted(role_counts.items())
+                )
+                ws_lines.append(f"  역할 분포: {role_summary}")
+                if alive_count >= 3:
+                    missing: list[str] = []
+                    if "tank" not in role_counts:
+                        missing.append("탱커")
+                    if "healer" not in role_counts:
+                        missing.append("힐러")
+                    if "scout" not in role_counts:
+                        missing.append("탐색꾼")
+                    if missing:
+                        ws_lines.append(
+                            f"  ⚠ 역할 부재: {', '.join(missing)} "
+                            f"(★ 44화: 층 올라갈수록 치명적)."
+                        )
         if shares := world_state.get("party_share_ratios"):
             shares_str = ", ".join(
                 f"{n} {int(r * 100)}%" for n, r in shares.items()

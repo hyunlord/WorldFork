@@ -156,6 +156,25 @@ class ClassType(StrEnum):
     MAGE = "mage"  # ★ 마법사 (★ 28화 — 후속)
     PRIEST = "priest"  # ★ 신관 (★ 5화 — 후속)
     PALADIN = "paladin"  # ★ 성기사 (★ 후속)
+    SCOUT = "scout"  # ★ 탐색꾼 (★ 44화 '고블린 숲 필수' — Phase 9.17-b)
+
+
+class Role(StrEnum):
+    """파티 역할군 — Phase 9.17-b (★ 44화 본문 정합).
+
+    44화: '역할군 세밀 / 층 올라갈수록 부재 치명적'.
+    - 탱커 (★ 비요른 바바리안)
+    - 탐색꾼 (★ 고블린 숲 필수)
+    - 마법사 = 공격 (★ 28화 최강)
+    - 신관 = 회복 (★ 5화 중층)
+    - 성기사 = 본문 명시 X 추측 → SUPPORT
+    """
+
+    TANK = "tank"
+    DPS = "dps"
+    SCOUT = "scout"
+    SUPPORT = "support"
+    HEALER = "healer"
 
 
 class Realm(StrEnum):
