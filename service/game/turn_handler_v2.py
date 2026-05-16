@@ -44,6 +44,7 @@ from .state_v2 import (
     RiftDef,
     RiftSubAreaDef,
     Scar,
+    ShopItem,
     SimulationStatus,
     WorldState,
     level_for_exp,
@@ -2917,5 +2918,192 @@ def execute_shop_sell(
         side_effects=[
             f"item_sold={actor_name}:{target_item.name}",
             f"stone_gained={actor_name}:+{price}",
+        ],
+    )
+
+
+# ─── Phase 9.16-b — SHOP_BUY (★ 21화 정합: 하프 아머 36만 / 무기 25만) ───
+#
+# 본문 정합 (★ 21화 직접):
+# - 하프 아머 = 36만 스톤
+# - 무기 = 25만 스톤
+# - blacksmith BUY 본격 (★ 본문 명시)
+#
+# 추측 (본문 X — docstring 명시):
+# - 강철 투구 15만 / 단검 5만 (★ 21화 무기 25만 기준 본격)
+# - 회복 포션 1만 / 식량 500 / 횃불 100 (★ namu §4.3 본격 명시 X)
+#
+# alminus_market BUY 본 commit X (★ 후속 — 마석/정수 거래소).
+SHOP_INVENTORY: dict[str, list[ShopItem]] = {
+    "blacksmith": [
+        # ★ 21화 본문 정합 직접
+        ShopItem(
+            name="강철 검",
+            item_category=ItemCategory.WEAPON,
+            base_price=250_000,
+            weight=5,
+        ),
+        ShopItem(
+            name="하프 아머",
+            item_category=ItemCategory.ARMOR,
+            base_price=360_000,
+            weight=8,
+        ),
+        # ★ 추측 (본문 X — docstring 정합)
+        ShopItem(
+            name="강철 투구",
+            item_category=ItemCategory.ARMOR,
+            base_price=150_000,
+            weight=3,
+        ),
+        ShopItem(
+            name="단검",
+            item_category=ItemCategory.WEAPON,
+            base_price=50_000,
+            weight=2,
+        ),
+    ],
+    "general_store": [
+        # ★ 본문 명시 X — 추측 (docstring 정합)
+        ShopItem(
+            name="회복 포션",
+            item_category=ItemCategory.CONSUMABLE,
+            base_price=10_000,
+            weight=1,
+        ),
+        ShopItem(
+            name="식량",
+            item_category=ItemCategory.CONSUMABLE,
+            base_price=500,
+            weight=1,
+        ),
+        ShopItem(
+            name="횃불",
+            item_category=ItemCategory.CONSUMABLE,
+            base_price=100,
+            weight=1,
+        ),
+    ],
+    # ★ alminus_market BUY 본 commit X (후속 9.16-d)
+}
+
+# SHOP_BUY 본격 sub_area별 multiplier (★ 본 commit minimal — baseline 1.0).
+# SHOP_SELL multiplier (★ 9.16-a)와 별개 — BUY/SELL 분리 의도.
+SHOP_BUY_MULTIPLIER: dict[str, float] = {
+    "blacksmith": 1.0,
+    "general_store": 1.0,
+}
+
+
+def _get_shop_item(
+    sub_area_id: str, item_name: str | None
+) -> ShopItem | None:
+    """sub_area 본격 SHOP_INVENTORY 본격 item_name 매칭 (★ substring)."""
+    if not item_name:
+        return None
+    inventory = SHOP_INVENTORY.get(sub_area_id, [])
+    for item in inventory:
+        if item.name == item_name or item_name in item.name:
+            return item
+    return None
+
+
+def execute_shop_buy(
+    actor_name: str,
+    target: str | None,
+    party: list[Character],
+    world: WorldState,
+    location: Location,
+) -> TurnResult:
+    """상점 BUY — 21화 본문 정합 (★ Phase 9.16-b).
+
+    허용 sub_area:
+    - blacksmith (★ 21화: 하프 아머 36만 + 무기 25만)
+    - general_store (★ 포션/소모품)
+    - alminus_market BUY 본 commit X (★ 후속)
+
+    가격 = base × shop_mult (★ 9.16-a SHOP_SELL 정합 대칭).
+
+    Mutation (★ atomic):
+    - stone -= price
+    - inventory.items.append(new Item)
+    """
+    if location.realm != Realm.CITY:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message="상점은 마을 본격.",
+        )
+
+    if location.sub_area not in SHOP_INVENTORY:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message=(
+                "대장간 또는 잡화점 본격 본격 본격 (★ BUY 가능 sub_area)."
+            ),
+        )
+
+    actor = next((m for m in party if m.name == actor_name), None)
+    if actor is None:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message=f"{actor_name} 본격 본격 X.",
+        )
+
+    if not target:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message="target X — Item.name 본격 본격.",
+        )
+
+    shop_item = _get_shop_item(location.sub_area, target)
+    if shop_item is None:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message=f"'{target}' 본격 상점 catalog 본격 X.",
+        )
+
+    shop_mult = SHOP_BUY_MULTIPLIER.get(location.sub_area, 1.0)
+    price = int(shop_item.base_price * shop_mult)
+
+    if actor.stone < price:
+        return TurnResult(
+            success=False,
+            action_type="shop_buy",
+            message=(
+                f"비용 부족 ({actor.stone}/{price} 스톤)."
+            ),
+        )
+
+    # mutation (★ atomic)
+    actor.stone -= price
+    new_item = Item(
+        name=shop_item.name,
+        category=shop_item.item_category,
+        weight=shop_item.weight,
+        grade=shop_item.grade,
+    )
+    actor.inventory.items.append(new_item)
+
+    shop_name = (
+        "대장간"
+        if location.sub_area == "blacksmith"
+        else "잡화점"
+    )
+    message = (
+        f"{shop_name}에서 {shop_item.name} 구매. -{price} 스톤."
+    )
+
+    return TurnResult(
+        success=True,
+        action_type="shop_buy",
+        message=message,
+        side_effects=[
+            f"item_bought={actor_name}:{shop_item.name}",
+            f"stone_paid={actor_name}:-{price}",
         ],
     )

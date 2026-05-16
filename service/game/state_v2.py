@@ -368,6 +368,32 @@ class Item:
     grade: int | None = None
 
 
+# ─── Phase 9.16-b — Shop catalog (★ BUY 본격 inventory) ───
+
+
+@dataclass(frozen=True, slots=True)
+class ShopItem:
+    """상점 판매 catalog (★ Phase 9.16-b shop BUY).
+
+    21화 본문 정합:
+    - 하프 아머 36만 / 무기 25만 (★ 본문 직접)
+
+    본 commit 대상:
+    - blacksmith (★ 장비)
+    - general_store (★ 포션/소모품)
+
+    Item 본격 본격 차이:
+    - ShopItem = 상점 catalog (★ name + base_price)
+    - Item = 캐릭터 inventory instance (★ 구매 시 변환)
+    """
+
+    name: str
+    item_category: ItemCategory
+    base_price: int
+    weight: int = 1
+    grade: int | None = None
+
+
 # ─── Inventory / Equipment ───
 
 

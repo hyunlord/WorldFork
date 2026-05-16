@@ -369,8 +369,30 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             f"(★ shop ×{multiplier:.1f} × 호감도 ×{boost:.2f})."
         )
     if sub.id == "blacksmith":
-        # ★ 18화 본문 — 제작/수리만, SELL X (★ 9.16-a strict 정합)
-        lines.append("  🔨 대장간 — 제작/수리만 (★ SELL X, 본문 18화 정합).")
+        # ★ 18화 본문 — SELL X 본격, 9.16-b BUY 본격 (★ 21화 정합)
+        lines.append("  🔨 대장간 — 제작/수리 + BUY (★ SELL X, 18화 정합).")
+
+    # ★ Phase 9.16-b — 상점 BUY hint (★ blacksmith / general_store catalog)
+    if sub.id in ("blacksmith", "general_store"):
+        from .turn_handler_v2 import (
+            SHOP_BUY_MULTIPLIER,
+            SHOP_INVENTORY,
+        )
+
+        catalog = SHOP_INVENTORY.get(sub.id, [])
+        if catalog:
+            buy_mult = SHOP_BUY_MULTIPLIER.get(sub.id, 1.0)
+            lines.append(
+                f"  🛒 SHOP_BUY catalog (★ 가격 ×{buy_mult:.1f}):"
+            )
+            for shop_item in catalog:
+                price = int(shop_item.base_price * buy_mult)
+                lines.append(
+                    f"     - {shop_item.name}: {price:,} 스톤"
+                )
+            lines.append(
+                "     ⚡ SHOP_BUY — Item.name target."
+            )
 
     return "\n".join(lines) + "\n\n"
 

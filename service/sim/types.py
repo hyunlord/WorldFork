@@ -56,6 +56,8 @@ class PlayerActionType(StrEnum):
     REJECT_DIALOGUE = "reject_dialogue"
     # ★ Phase 9.16-a — 상점 SELL (★ 18화 SELL 위주 정합)
     SHOP_SELL = "shop_sell"
+    # ★ Phase 9.16-b — 상점 BUY (★ 21화 하프 아머 36만 / 무기 25만 정합)
+    SHOP_BUY = "shop_buy"
 
 
 @dataclass
@@ -196,6 +198,7 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.RECRUIT_FROM_GUILD: 0.0,
     PlayerActionType.REJECT_DIALOGUE: 0.0,
     PlayerActionType.SHOP_SELL: 0.0,
+    PlayerActionType.SHOP_BUY: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물
