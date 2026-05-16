@@ -2544,6 +2544,22 @@ def execute_library_search(
     )
 
 
+# ─── Phase 9.17-a — 1인 진입 명시 (★ 20/44/111화 본문 정합) ───
+#
+# 진단 결과: 1인 진입 이미 가능 (★ enter_rift 본격 하한 검증 X).
+# 본 상수는 의미 명시 + regression 보존 + LLM narrative trigger 목적.
+# 코드 동작 변경 X (★ 본 commit minimal — mechanism 명시).
+#
+# 본문 정합:
+# - 20화: '혼자 미궁에 들어갈 생각' / '팀을 꾸리기에는 돈이 부족'
+# - 44화: 파티 강제 / 역할군 부재 치명적 (★ 불가능 X, 어려움)
+# - 111화: '1층에 국한된 문화' / 2층 팀 본격
+#
+# 2층+ 멤버 수 검증 본격 후속 commit (★ 2층 콘텐츠 본격 후 본격).
+MIN_PARTY_SIZE_FLOOR1: int = 1  # ★ 20화 정합 — 1인 진입 가능
+MAX_PARTY_SIZE: int = 5  # ★ WorldState.max_party_members + RiftDef.party_capacity 정합
+
+
 # ─── Phase 9.9-a — 길드 모집 minimal (★ 본인 답 / 6화 mention) ───
 
 # 본 commit 추측 (★ 본문 X — 후속 본문 발견 시 보강).

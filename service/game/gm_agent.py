@@ -603,6 +603,30 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
             ws_lines.append(f"- 활성 균열: {', '.join(rifts)}")
         if party := world_state.get("party_members"):
             ws_lines.append(f"- 파티원: {', '.join(party)}")
+            # ★ Phase 9.17-a — 1인 / 팀 narrative hint (20/44화 정합)
+            from .turn_handler_v2 import (
+                MAX_PARTY_SIZE,
+                MIN_PARTY_SIZE_FLOOR1,
+            )
+
+            v2_chars_for_hint = ctx.get("v2_characters") or {}
+            alive_count = 0
+            for member_name in party:
+                info = v2_chars_for_hint.get(member_name) or {}
+                if info.get("hp", 1) > 0:
+                    alive_count += 1
+            if alive_count == MIN_PARTY_SIZE_FLOOR1:
+                ws_lines.append(
+                    "  ⚠ 1인 진입 — 1층 한정 "
+                    "(★ 20화: 비용 사정 시 자연 선택)."
+                )
+                ws_lines.append(
+                    "    역할군 부재로 어려움 가능 (★ 44화)."
+                )
+            elif alive_count >= MAX_PARTY_SIZE - 1:
+                ws_lines.append(
+                    "  ✓ 팀 구성 — 2층+ 권장 (★ 44화 정합)."
+                )
         if shares := world_state.get("party_share_ratios"):
             shares_str = ", ".join(
                 f"{n} {int(r * 100)}%" for n, r in shares.items()
