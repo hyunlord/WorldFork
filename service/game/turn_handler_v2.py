@@ -2167,6 +2167,10 @@ EXCHANGE_BOOST_MULTIPLIER_TIER2: float = 1.20  # ★ +20%
 TEMPLE_DISCOUNT_MULTIPLIER_TIER1: float = 0.80  # ★ -20%
 TEMPLE_DISCOUNT_MULTIPLIER_TIER2: float = 0.50  # ★ -50%
 
+# ★ Phase 9.15 — 길드 비용 할인 (★ 9.13 신전 정합 유지).
+GUILD_DISCOUNT_MULTIPLIER_TIER1: float = 0.80  # ★ -20%
+GUILD_DISCOUNT_MULTIPLIER_TIER2: float = 0.50  # ★ -50%
+
 
 def _exchange_rate_boost(affinity: int) -> float:
     """환전소 호감도 본격 환전 비율 multiplier (★ Phase 9.13)."""
@@ -2183,6 +2187,21 @@ def _temple_heal_discount(affinity: int) -> float:
         return TEMPLE_DISCOUNT_MULTIPLIER_TIER2
     if affinity >= AFFINITY_THRESHOLD_TIER1:
         return TEMPLE_DISCOUNT_MULTIPLIER_TIER1
+    return 1.0
+
+
+def _guild_recruit_discount(affinity: int) -> float:
+    """프라일 호감도 본격 recruit 비용 multiplier (★ Phase 9.15).
+
+    9.13 신전 할인 정합:
+    - ≥50 → ×0.5 (★ -50%)
+    - ≥25 → ×0.8 (★ -20%)
+    - else → ×1.0
+    """
+    if affinity >= AFFINITY_THRESHOLD_TIER2:
+        return GUILD_DISCOUNT_MULTIPLIER_TIER2
+    if affinity >= AFFINITY_THRESHOLD_TIER1:
+        return GUILD_DISCOUNT_MULTIPLIER_TIER1
     return 1.0
 LIBRARY_SEARCH_FEE: int = 3000  # ★ namu §4.3 본문 — 도서관 수수료 3천 스톤
 LIBRARY_FREE_AFFINITY_THRESHOLD: int = 50  # ★ 본인 답 (★ 추측)
@@ -2676,13 +2695,17 @@ def execute_recruit_from_guild(
             ),
         )
 
-    if actor.stone < RECRUIT_BASE_COST:
+    # ★ Phase 9.15 — 프라일 호감도 비용 할인 (★ 9.13 신전 정합)
+    guild_clerk_affinity = world.npc_affinities.get(GUILD_CLERK_NPC_ID, 0)
+    discount = _guild_recruit_discount(guild_clerk_affinity)
+    effective_cost = int(RECRUIT_BASE_COST * discount)
+    if actor.stone < effective_cost:
         return TurnResult(
             success=False,
             action_type="recruit_from_guild",
             message=(
                 f"모집 비용 부족 "
-                f"({actor.stone}/{RECRUIT_BASE_COST} 스톤)."
+                f"({actor.stone}/{effective_cost} 스톤)."
             ),
         )
 
@@ -2691,26 +2714,30 @@ def execute_recruit_from_guild(
         rng = random.Random()
     # ★ Phase 9.9-c — actor 종족 + 길드 호감도 본격 가중치
     # ★ Phase 9.9-d — actor grade 본격 신참 grade range
-    guild_clerk_affinity = world.npc_affinities.get(GUILD_CLERK_NPC_ID, 0)
     new_member = _create_recruit_character(
         actor.race.value, actor.grade, guild_clerk_affinity, rng
     )
     party.append(new_member)
     world.party_members.append(new_member.name)
-    actor.stone -= RECRUIT_BASE_COST
+    actor.stone -= effective_cost
+
+    message = (
+        f"탐험가 길드에서 {new_member.name}"
+        f"({new_member.race.value}, "
+        f"{new_member.grade}등급 Lv {new_member.level})을(를) 모집했다. "
+        f"-{effective_cost} 스톤. "
+        f"파티 {len(party)}/{world.max_party_members}."
+    )
+    if discount < 1.0:
+        pct = round((1.0 - discount) * 100)
+        message += f" (★ 프라일 호감도 boost -{pct}%)"
 
     return TurnResult(
         success=True,
         action_type="recruit_from_guild",
-        message=(
-            f"탐험가 길드에서 {new_member.name}"
-            f"({new_member.race.value}, "
-            f"{new_member.grade}등급 Lv {new_member.level})을(를) 모집했다. "
-            f"-{RECRUIT_BASE_COST} 스톤. "
-            f"파티 {len(party)}/{world.max_party_members}."
-        ),
+        message=message,
         side_effects=[
             f"member_recruited={new_member.name}:{new_member.race.value}",
-            f"stone_paid={actor_name}:-{RECRUIT_BASE_COST}",
+            f"stone_paid={actor_name}:-{effective_cost}",
         ],
     )

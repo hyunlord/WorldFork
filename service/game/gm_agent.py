@@ -255,6 +255,7 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
             AFFINITY_BOOST_UNCOMMON_THRESHOLD,
             GUILD_CLERK_NPC_ID,
             RECRUIT_BASE_COST,
+            _guild_recruit_discount,
             _max_recruit_grade,
         )
 
@@ -271,12 +272,21 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         leader_info = v2_chars.get(main_name) or {}
         leader_grade = int(leader_info.get("grade", 1))
         max_recruit_grade = _max_recruit_grade(leader_grade)
+        # ★ Phase 9.15 — 프라일 호감도 비용 할인
+        recruit_discount = _guild_recruit_discount(guild_affinity)
+        effective_recruit_cost = int(RECRUIT_BASE_COST * recruit_discount)
         lines.append("  🛡 탐험가 길드 지부")
         if slots_free > 0:
             lines.append(
                 f"     ⚡ RECRUIT_FROM_GUILD — 신참 모집 가능 "
-                f"(★ 빈자리 {slots_free}, 비용 {RECRUIT_BASE_COST} 스톤)."
+                f"(★ 빈자리 {slots_free}, 비용 {effective_recruit_cost} 스톤)."
             )
+            if recruit_discount < 1.0:
+                discount_pct = round((1.0 - recruit_discount) * 100)
+                lines.append(
+                    f"     ★ 프라일 호감도 {guild_affinity} — "
+                    f"비용 -{discount_pct}% (★ 9.15)."
+                )
             lines.append(
                 f"     ★ {main_name} {leader_grade}등급 → "
                 f"신참 grade 1~{max_recruit_grade} 본격 모집 가능 "
