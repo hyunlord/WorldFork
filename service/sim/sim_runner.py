@@ -9,7 +9,9 @@
 
 from __future__ import annotations
 
+import random
 import time
+import uuid
 from typing import Any
 
 from service.game.floors.registry import get_current_floor_definition
@@ -80,6 +82,70 @@ _BOSS_REWARD_ESSENCE_LABEL: dict[str, str] = {
     "green": "녹색 정수",    # 녹색탄광 (★ 위치스램프 정수 alias)
     "yellow": "노란 정수",   # 강철의 묘 (★ 본격 매핑 없음 — 후속 정합)
 }
+
+
+# ─── Phase 9.17-e2 — REST 후 random encounter generator (★ 6/7화 위험) ───
+
+# 9.17-e rest 중 encounter 분포 — 본문 정합 (★ 6/7화 1인 선잠 위험).
+# string key (★ test/lookup 본격 간결) — 본격 EncounterType 변환 본격 generator.
+REST_ENCOUNTER_WEIGHTS: dict[str, int] = {
+    "npc_hostile": 60,    # ★ 6/7화 위험 — 약탈자 / 적대 NPC
+    "npc_neutral": 30,    # ★ 24화 통과
+    "npc_peaceful": 10,   # ★ 6화 한스 본격 X — rest 중 우호 만남
+}
+
+# narrative templates (★ 6/7/24화 본문 정합).
+REST_ENCOUNTER_DESCRIPTIONS: dict[str, list[str]] = {
+    "npc_hostile": [
+        "쉬는 사이 약탈자의 기척이 들린다.",
+        "어둠 속에서 적대적인 발소리가 다가온다.",
+    ],
+    "npc_neutral": [
+        "야영지 너머 다른 탐험가 무리의 횃불이 보인다.",
+    ],
+    "npc_peaceful": [
+        "쉬는 동안 우호적 탐험가와 마주쳤다.",
+    ],
+}
+
+
+def _generate_encounter_after_rest(
+    rng: random.Random,
+    location_label: str = "rest_site",
+    turn_number: int = 0,
+) -> Encounter:
+    """rest 중 random encounter 생성 (★ Phase 9.17-e2).
+
+    9.17-c1 generator 본격 fast variant — HOSTILE 위주 분포.
+    9.17-e trigger_encounter_after_rest side_effect 본격 consumer.
+
+    분포 (★ REST_ENCOUNTER_WEIGHTS — 6/7화 1인 선잠 위험 정합):
+    - npc_hostile 60% — 약탈자 / 적대
+    - npc_neutral 30% — 통과
+    - npc_peaceful 10% — 우호 (★ rest 중 본격 드묾)
+
+    Args:
+        rng: random.Random instance (★ test reproducibility)
+        location_label: encounter.location (★ sub_area 또는 rift_id)
+        turn_number: spawned_at_turn (★ TTL 계산)
+    """
+    types = list(REST_ENCOUNTER_WEIGHTS.keys())
+    weights = list(REST_ENCOUNTER_WEIGHTS.values())
+    chosen_type_str = rng.choices(types, weights=weights, k=1)[0]
+    chosen_type = EncounterType(chosen_type_str)
+
+    descriptions = REST_ENCOUNTER_DESCRIPTIONS[chosen_type_str]
+    description = rng.choice(descriptions)
+
+    unique_id = uuid.uuid4().hex[:8]
+    return Encounter(
+        type=chosen_type,
+        name=f"rest_enc_{unique_id}",
+        location=location_label,
+        description=description,
+        spawned_at_turn=turn_number,
+        ttl_turns=ENCOUNTER_TTL.get(chosen_type, 5),
+    )
 
 
 def _world_snapshot(world: WorldState) -> dict[str, Any]:
@@ -688,6 +754,27 @@ class SimRunner:
                 for e in self._active_encounters
                 if e.name not in consumed_names
             ]
+
+        # ★ Phase 9.17-e2 — REST_AND_NIGHT_WATCH trigger_encounter_after_rest 처리.
+        # handler가 발현한 trigger marker 본격 실제 encounter 생성 + append.
+        # 9.17-c1 generator 본격 fast variant — HOSTILE 60% 분포.
+        if "trigger_encounter_after_rest" in side_effects:
+            rest_rng = random.Random()
+            location_label = (
+                location.rift_id
+                or location.sub_area
+                or "rest_site"
+            )
+            new_enc = _generate_encounter_after_rest(
+                rest_rng,
+                location_label=location_label,
+                turn_number=turn_number,
+            )
+            self._active_encounters.append(new_enc)
+            side_effects.append(
+                f"encounter_spawned_after_rest="
+                f"{new_enc.name}:{new_enc.type.value}"
+            )
 
         # ★ Phase 8 A3 — execute_attack 보스 처치 시 'essence_spawn={color}'
         # marker 발생 → active_encounters에 떠다니는 정수 Encounter push.
