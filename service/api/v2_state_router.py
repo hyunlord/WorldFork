@@ -1,10 +1,10 @@
-"""Tier 2 state API (★ Phase 7a + 7j).
+"""Tier 2 state API (★ Phase 7a + 7j + 9.18-a).
 
 본 router 본격:
 - GET /api/v2/state — 현재 (party + world + location) JSON 본격
 - GET /api/v2/state/recent_actions — 최근 N 행동 본격
 - POST /api/v2/state/reset — 새 본격 default 본격
-- POST /api/v2/action — 13 PlayerActionType 본격 execute (★ Phase 7j)
+- POST /api/v2/action — execute (★ Phase 7j) + encounter wire (★ Phase 9.18-a)
 
 본격 본질:
 - singleton holder (★ 본격 단순 — 후속 session-aware 본격)
@@ -12,16 +12,27 @@
   비요른 (바바리안) + 에르웬 (요정), 1층 진입점 DUNGEON
 - recent_actions 본격 빈 list (★ 본 commit /action 시 본격 append)
 
+Phase 9.18-a 본격 (★ §E fix from 30턴 playthrough):
+- _V2StateHolder.active_encounters 필드
+- _V2StateHolder._sim_gm_agent lazy init (★ 9B Q3 / 8083)
+- post_action 본격 SimGMAgent.generate_encounters 호출 (★ 던전 한정)
+- side_effect handlers (★ encounter_consumed / trigger_encounter_after_rest /
+  essence_spawn — sim_runner pattern reuse)
+- ActionResponse.encounters 필드
+
 frontend 본격 (Phase 7b 이하 + 본 commit).
 """
 
 from __future__ import annotations
 
+import logging
+import random
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from core.llm.local_client import get_qwen35_9b_q3
 from service.game.state_v2 import (
     Character,
     Location,
@@ -30,8 +41,22 @@ from service.game.state_v2 import (
     WorldState,
 )
 from service.game.state_v2_serialize import game_state_v2_to_dict
-from service.sim.sim_runner import _execute_action
-from service.sim.types import PlayerAction, PlayerActionType
+from service.sim.sim_gm_agent import SimGMAgent
+from service.sim.sim_runner import (
+    _BOSS_REWARD_ESSENCE_LABEL,
+    _execute_action,
+    _generate_encounter_after_rest,
+    _refresh_context,
+)
+from service.sim.types import (
+    ENCOUNTER_TTL,
+    Encounter,
+    EncounterType,
+    PlayerAction,
+    PlayerActionType,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-state"])
 
@@ -40,7 +65,12 @@ router = APIRouter(prefix="/api/v2", tags=["tier2-state"])
 
 
 class _V2StateHolder:
-    """본격 in-process (party, world, location, recent_actions) holder."""
+    """본격 in-process (party, world, location, recent_actions) holder.
+
+    Phase 9.18-a 본격 확장 (★ encounter wire):
+    - active_encounters: GM 본격 spawn 본격 본격 — TTL 본격 자연 소멸
+    - _sim_gm_agent: lazy init (★ 9B Q3 / 8083, encounter generator 한정)
+    """
 
     def __init__(self) -> None:
         self.party: dict[str, Character] = {}
@@ -48,6 +78,9 @@ class _V2StateHolder:
         self.location: Location = Location(realm=Realm.DUNGEON)
         self.recent_actions: list[dict[str, Any]] = []
         self.turn: int = 0
+        # ★ Phase 9.18-a — encounter wire
+        self.active_encounters: list[Encounter] = []
+        self._sim_gm_agent: SimGMAgent | None = None
         self._init_default()
 
     def _init_default(self) -> None:
@@ -82,10 +115,24 @@ class _V2StateHolder:
         )
         self.recent_actions = []
         self.turn = 0
+        # ★ Phase 9.18-a — encounter state reset (★ SimGMAgent instance 본격 보존)
+        self.active_encounters = []
 
     def reset(self) -> None:
-        """default 본격 재초기화."""
+        """default 본격 재초기화 (★ SimGMAgent instance 본격 본격 본격)."""
         self._init_default()
+
+    def get_sim_gm_agent(self) -> SimGMAgent:
+        """SimGMAgent lazy init — 9B Q3 (port 8083) for encounter generator.
+
+        ★ Phase 9.18-a — narrative 본격 본격 본격 (★ 본격 B.2b 본격).
+        9B Q3 본격 38 tok/s × 400 max_tokens ≈ 5-10s/turn.
+        """
+        if self._sim_gm_agent is None:
+            self._sim_gm_agent = SimGMAgent(
+                llm_client=get_qwen35_9b_q3(),
+            )
+        return self._sim_gm_agent
 
 
 _HOLDER: _V2StateHolder | None = None
@@ -97,6 +144,165 @@ def get_holder() -> _V2StateHolder:
     if _HOLDER is None:
         _HOLDER = _V2StateHolder()
     return _HOLDER
+
+
+# ─── Phase 9.18-a — encounter wire helpers ───
+
+
+def _expire_encounters(
+    active_encounters: list[Encounter],
+    current_turn: int,
+) -> list[str]:
+    """TTL 만료 encounter 제거 (★ sim_runner pattern).
+
+    sim_runner.run 본격 동일 — `is_expired(current_turn)` 본격 본격.
+
+    Args:
+        active_encounters: holder 본격 list (★ in-place mutation)
+        current_turn: 현재 turn (★ TTL 계산 본격)
+
+    Returns:
+        제거된 encounter name list (★ trace 본격).
+    """
+    expired_names: list[str] = []
+    remaining: list[Encounter] = []
+    for e in active_encounters:
+        if e.is_expired(current_turn):
+            expired_names.append(e.name)
+        else:
+            remaining.append(e)
+    active_encounters[:] = remaining
+    return expired_names
+
+
+def _serialize_encounter(enc: Encounter) -> dict[str, Any]:
+    """Encounter → dict (★ ActionResponse.encounters JSON 본격)."""
+    return {
+        "name": enc.name,
+        "type": enc.type.value,
+        "location": enc.location,
+        "description": enc.description,
+        "spawned_at_turn": enc.spawned_at_turn,
+        "ttl_turns": enc.ttl_turns,
+        "ttl_remaining": max(
+            0, enc.ttl_turns - (max(0, enc.spawned_at_turn) - enc.spawned_at_turn)
+        ),
+    }
+
+
+def _handle_encounter_side_effects(
+    side_effects: list[str],
+    active_encounters: list[Encounter],
+    location: Location,
+    current_turn: int,
+    rng: random.Random | None = None,
+) -> None:
+    """side_effect 처리 — sim_runner.run_single_turn pattern 재사용.
+
+    본 commit (★ Phase 9.18-a):
+    - encounter_consumed=NAME → active_encounters 본격 제거 (★ 9.17-c2/d 정합)
+    - trigger_encounter_after_rest → REST encounter spawn (★ 9.17-e2 정합)
+    - essence_spawn=COLOR → 떠다니는 정수 encounter (★ Phase 8 A3 정합)
+
+    Mutation:
+    - active_encounters (★ in-place)
+    - side_effects (★ encounter_spawned_after_rest marker append)
+    """
+    rng = rng or random.Random()
+
+    # encounter_consumed 본격 collect + 제거 (★ batch 본격 본격)
+    consumed_names: set[str] = set()
+    for eff in side_effects:
+        if eff.startswith("encounter_consumed="):
+            consumed_names.add(eff.split("=", 1)[1])
+    if consumed_names:
+        active_encounters[:] = [
+            e for e in active_encounters if e.name not in consumed_names
+        ]
+
+    # trigger_encounter_after_rest 본격 REST encounter spawn
+    if "trigger_encounter_after_rest" in side_effects:
+        location_label = (
+            location.rift_id
+            or location.sub_area
+            or "rest_site"
+        )
+        new_enc = _generate_encounter_after_rest(
+            rng,
+            location_label=location_label,
+            turn_number=current_turn,
+        )
+        active_encounters.append(new_enc)
+        side_effects.append(
+            f"encounter_spawned_after_rest="
+            f"{new_enc.name}:{new_enc.type.value}"
+        )
+
+    # essence_spawn 본격 boss 처치 본격 떠다니는 정수 (★ sim_runner pattern)
+    for eff in side_effects:
+        if eff.startswith("essence_spawn="):
+            color = eff.split("=", 1)[1]
+            essence_label = _BOSS_REWARD_ESSENCE_LABEL.get(
+                color, f"{color} 정수"
+            )
+            active_encounters.append(
+                Encounter(
+                    type=EncounterType.ESSENCE,
+                    name=essence_label,
+                    location=(
+                        location.rift_id or location.sub_area or ""
+                    ),
+                    description=(
+                        "보스 처치 보상 — 떠다니는 정수 "
+                        "(★ ABSORB_ESSENCE 본격)."
+                    ),
+                    spawned_at_turn=current_turn,
+                    ttl_turns=ENCOUNTER_TTL.get(
+                        EncounterType.ESSENCE, 30
+                    ),
+                )
+            )
+
+
+def _maybe_spawn_encounters(holder: _V2StateHolder) -> None:
+    """매 turn SimGMAgent.generate_encounters 호출 (★ 던전 한정).
+
+    던전 외 (CITY / WILDERNESS 등) 본격 본격 본격 X — narrative 본격 본격.
+    LLM 실패 시 silent fallback (★ mechanical 본격 계속 진행 보장).
+    """
+    if holder.location.realm != Realm.DUNGEON:
+        return
+    try:
+        gm_ctx = _refresh_context(
+            holder.party,
+            holder.world,
+            holder.location,
+            base_ctx=None,
+            active_encounters=holder.active_encounters,
+            current_turn=holder.turn,
+        )
+        gm_response = holder.get_sim_gm_agent().generate_encounters(
+            turn_number=holder.turn,
+            game_context=gm_ctx,
+        )
+        # 신규 encounters 본격 spawned_at_turn / TTL 부여 (★ sim_runner.run pattern)
+        for e in gm_response.encounters:
+            holder.active_encounters.append(
+                Encounter(
+                    type=e.type,
+                    name=e.name,
+                    location=e.location,
+                    description=e.description,
+                    details=dict(e.details),
+                    spawned_at_turn=holder.turn,
+                    ttl_turns=ENCOUNTER_TTL.get(e.type, 30),
+                )
+            )
+    except Exception as exc:  # noqa: BLE001
+        # LLM 실패 본격 silent — mechanical 본격 계속 진행
+        logger.warning(
+            "encounter generator failed (silent fallback): %s", exc
+        )
 
 
 # ─── response models ───
@@ -204,6 +410,11 @@ class ActionResponse(BaseModel):
     side_effects: list[str] = Field(description="state side effects 본격")
     state: dict[str, Any] = Field(description="post-action state 본격")
     turn: int = Field(description="post-action turn 본격")
+    # ★ Phase 9.18-a — active encounters (★ frontend 본격 NPC encounter 본격)
+    encounters: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="active encounters after action (★ 9.17 시리즈 consumer trigger)",
+    )
 
 
 def _resolve_actor(holder: _V2StateHolder, actor: str | None) -> str:
@@ -217,14 +428,17 @@ def _resolve_actor(holder: _V2StateHolder, actor: str | None) -> str:
 
 @router.post("/action", response_model=ActionResponse)
 async def post_action(req: ActionRequest) -> ActionResponse:
-    """Player action 본격 execute + state mutation (★ Phase 7j).
+    """Player action 본격 execute + state mutation (★ Phase 7j + 9.18-a).
 
-    flow:
+    flow (★ Phase 9.18-a 본격 확장 — encounter wire):
     1. action_type 본격 PlayerActionType 본격 검증 (★ 400 unknown)
     2. PlayerAction 본격 build
-    3. sim_runner._execute_action(action, party, world, location)
-    4. holder.turn++, recent_actions 본격 append
-    5. ActionResponse 본격 반환
+    3. TTL 만료 encounter 제거 (★ holder.active_encounters)
+    4. SimGMAgent.generate_encounters (★ 던전 한정, silent fallback)
+    5. sim_runner._execute_action(...active_encounters=...)
+    6. side_effect handlers (★ encounter_consumed/trigger/essence_spawn)
+    7. holder.turn++, recent_actions 본격 append
+    8. ActionResponse 본격 반환 (★ encounters 필드 포함)
     """
     # ★ PlayerActionType StrEnum 본격 — value 본격 lookup
     try:
@@ -250,8 +464,27 @@ async def post_action(req: ActionRequest) -> ActionResponse:
         rationale=req.rationale,
     )
 
+    # ★ Phase 9.18-a — TTL 만료 cleanup (★ 매 turn 시작)
+    _expire_encounters(h.active_encounters, h.turn)
+
+    # ★ Phase 9.18-a — encounter generator (★ 던전 한정, silent fallback)
+    _maybe_spawn_encounters(h)
+
+    # ★ mechanical handler 본격 active_encounters 전달 (★ 9.17 본격 consumer)
     success, message, side_effects = _execute_action(
-        action, h.party, h.world, h.location
+        action,
+        h.party,
+        h.world,
+        h.location,
+        active_encounters=h.active_encounters,
+    )
+
+    # ★ Phase 9.18-a — side_effect handlers (★ sim_runner pattern reuse)
+    _handle_encounter_side_effects(
+        side_effects,
+        h.active_encounters,
+        h.location,
+        h.turn,
     )
 
     # ★ recent_actions 본격 append (★ frontend recent_actions API 본격)
@@ -274,4 +507,7 @@ async def post_action(req: ActionRequest) -> ActionResponse:
         side_effects=side_effects,
         state=game_state_v2_to_dict(h.party, h.world, h.location),
         turn=h.turn,
+        encounters=[
+            _serialize_encounter(e) for e in h.active_encounters
+        ],
     )
