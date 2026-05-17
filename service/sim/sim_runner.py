@@ -269,11 +269,15 @@ def _execute_action(
         if not action.target:
             return False, "target sub_area 없음.", []
         r = move_to_sub_area(party_list, world, location, action.target)
-        # ★ Phase 8 A1 — RIFT 내부 이동 성공 시 rift_sub_area 본격 갱신
-        if r.success and location.realm == Realm.RIFT:
+        # ★ Phase 8 A1 — RIFT 내부 이동 성공 시 rift_sub_area 본격 갱신.
+        # ★ §B fix (30턴 playthrough) — DUNGEON 이동 시 sub_area 본격 mutation.
+        # 본격 RIFT/DUNGEON 본격 parallel branch (★ side_effect emitter 본격 정합).
+        if r.success:
             for eff in r.side_effects:
                 if eff.startswith("target_rift_sub_area="):
                     location.rift_sub_area = eff.split("=", 1)[1]
+                elif eff.startswith("target_sub_area="):
+                    location.sub_area = eff.split("=", 1)[1]
         return r.success, r.message, r.side_effects
 
     if action.action_type == PlayerActionType.ATTACK:
