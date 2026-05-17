@@ -188,6 +188,29 @@ class Realm(StrEnum):
     WILDERNESS = "야외"  # 도시 외 야외
 
 
+class AffinityTier(StrEnum):
+    """NPC 호감도 단계 — Phase 9.17-g (★ 162화 본문 정합).
+
+    본문 정합:
+    - 162화: '새로운 절친이 되는' (★ 시간 발전 단계 명시)
+    - 9.13/9.15/9.16 threshold 정합 (★ 25/50)
+    - 본 commit: 75 (CLOSE_FRIEND) 신규
+
+    Boundary (★ 9.7 npc_affinities 본격 0-100 정합):
+    - 0-24: STRANGER (지인) — 본문 명시 X, 본 commit 명칭
+    - 25-49: ACQUAINTANCE (동료) — 9.13 TIER1
+    - 50-74: FRIEND (친구) — 9.13 TIER2
+    - 75+: CLOSE_FRIEND (절친) — 162화 정합
+
+    gameplay 영향 X — narrative + LLM hint 본격 (★ 9.13 효과 별도).
+    """
+
+    STRANGER = "stranger"
+    ACQUAINTANCE = "acquaintance"
+    FRIEND = "friend"
+    CLOSE_FRIEND = "close_friend"
+
+
 class MonsterGrade(IntEnum):
     """몬스터 등급 (★ 정수와 동일 척도)."""
 

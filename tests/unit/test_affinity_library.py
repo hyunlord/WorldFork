@@ -292,7 +292,8 @@ def test_prompt_shows_npc_affinity_in_plaza() -> None:
     ctx = _base_ctx()
     ctx["v2_world_state"] = {"npc_affinities": {"aenar": 25}}
     prompt = _gm_system_prompt(ctx)
-    assert "아이나르 (호감도 25)" in prompt
+    # ★ Phase 9.17-g — label 추가 (★ 162화 정합)
+    assert "아이나르 (호감도 25 동료)" in prompt
     assert "DIALOGUE" in prompt
 
 
@@ -300,7 +301,8 @@ def test_prompt_shows_default_affinity_0() -> None:
     """npc_affinities 본격 X → 0 default 표시."""
     ctx = _base_ctx()
     prompt = _gm_system_prompt(ctx)
-    assert "아이나르 (호감도 0)" in prompt
+    # ★ Phase 9.17-g — label 추가 (★ 0 = 지인)
+    assert "아이나르 (호감도 0 지인)" in prompt
 
 
 def test_prompt_library_low_affinity_shows_fee() -> None:

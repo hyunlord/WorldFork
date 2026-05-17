@@ -25,6 +25,7 @@ from .floors.registry import get_current_floor_definition
 from .state_v2 import (
     SEVERITY_LEAVES_SCAR,
     SEVERITY_RECOVERY_DEFAULT,
+    AffinityTier,
     BanditEncounter,
     BossEncounter,
     Character,
@@ -2166,6 +2167,54 @@ EXCHANGE_CLERK_NPC_ID: str = "exchange_clerk"  # ★ rapdonia.py NPCDef
 
 AFFINITY_THRESHOLD_TIER1: int = 25
 AFFINITY_THRESHOLD_TIER2: int = 50
+
+# ★ Phase 9.17-g — 4 tier 단계 (★ 162화 '새로운 절친' 정합).
+# 기존 9.13 threshold 본격 alias — STRANGER/ACQUAINTANCE/FRIEND 본격.
+# CLOSE_FRIEND 본격 새 임계값 75 (★ 162화 절친 본격).
+AFFINITY_TIER_THRESHOLD_ACQUAINTANCE: int = AFFINITY_THRESHOLD_TIER1  # ★ 25
+AFFINITY_TIER_THRESHOLD_FRIEND: int = AFFINITY_THRESHOLD_TIER2  # ★ 50
+AFFINITY_TIER_THRESHOLD_CLOSE_FRIEND: int = 75
+
+AFFINITY_TIER_KOREAN_LABELS: dict[str, str] = {
+    AffinityTier.STRANGER.value: "지인",
+    AffinityTier.ACQUAINTANCE.value: "동료",
+    AffinityTier.FRIEND.value: "친구",
+    AffinityTier.CLOSE_FRIEND.value: "절친",  # ★ 162화 본문
+}
+
+
+def get_affinity_tier(affinity: int) -> str:
+    """호감도 → 4 tier 분류 (★ Phase 9.17-g, 162화 정합).
+
+    Boundary:
+    - 0-24: STRANGER (지인)
+    - 25-49: ACQUAINTANCE (동료, 9.13 TIER1)
+    - 50-74: FRIEND (친구, 9.13 TIER2)
+    - 75+: CLOSE_FRIEND (절친, 162화)
+
+    음수 본격 STRANGER 본격 처리 (★ 9.12 floor 0 정합).
+    """
+    if affinity >= AFFINITY_TIER_THRESHOLD_CLOSE_FRIEND:
+        return AffinityTier.CLOSE_FRIEND.value
+    if affinity >= AFFINITY_TIER_THRESHOLD_FRIEND:
+        return AffinityTier.FRIEND.value
+    if affinity >= AFFINITY_TIER_THRESHOLD_ACQUAINTANCE:
+        return AffinityTier.ACQUAINTANCE.value
+    return AffinityTier.STRANGER.value
+
+
+def get_affinity_label(affinity: int) -> str:
+    """호감도 → 한국어 label (★ prompt display 본격).
+
+    예시:
+    - 0 → "지인"
+    - 25 → "동료"
+    - 50 → "친구"
+    - 75 → "절친" (★ 162화)
+    """
+    tier = get_affinity_tier(affinity)
+    return AFFINITY_TIER_KOREAN_LABELS[tier]
+
 
 EXCHANGE_BOOST_MULTIPLIER_TIER1: float = 1.10  # ★ +10%
 EXCHANGE_BOOST_MULTIPLIER_TIER2: float = 1.20  # ★ +20%

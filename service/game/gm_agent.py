@@ -161,13 +161,17 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         npcs_here = [n for n in RAPDONIA.npcs if n.id in sub.npc_ids]
         if npcs_here:
             # ★ Phase 9.7 — NPC 호감도 표시 (★ DIALOGUE target enabler)
+            # ★ Phase 9.17-g — 호감도 단계 label 추가 (★ 162화 절친 정합)
+            from .turn_handler_v2 import get_affinity_label
+
             affinities = (
                 ctx.get("v2_world_state") or {}
             ).get("npc_affinities") or {}
             npc_entries: list[str] = []
             for n in npcs_here:
                 aff = affinities.get(n.id, 0)
-                npc_entries.append(f"{n.name} (호감도 {aff})")
+                label = get_affinity_label(aff)
+                npc_entries.append(f"{n.name} (호감도 {aff} {label})")
             lines.append(f"  여기 NPC: {', '.join(npc_entries)}")
             lines.append(
                 "  ⚡ DIALOGUE 호감도 +5 / "
