@@ -241,6 +241,51 @@ def save_post(no: str, subject: str, body: str) -> None:
     out.write_text(md, encoding="utf-8")
 
 
+# ─── Phase 9.19-a-2: quality filter (scope-neutral) ───
+
+_URL_RE = re.compile(r"https?://\S+")
+_AD_KEYWORDS = (
+    "광고", "홍보", "이벤트", "쿠폰", "할인코드", "프로모션",
+)
+
+
+def _should_keep_post(title: str, body: str) -> tuple[bool, str]:
+    """쓸모없는 글 filter. Returns (keep, reason).
+
+    Phase 9.19-a-2 — scale-neutral quality logic. 빈 글/광고/도배 제외.
+    """
+    title = title.strip()
+    body = body.strip()
+
+    # rule 1: 본문 + title 합쳐도 정보 부족
+    if len(body) < 30:
+        total = len(title) + len(body)
+        if total < 50:
+            return False, "too_short"
+
+    # rule 2: URL only / 광고 의심
+    urls = _URL_RE.findall(body)
+    body_no_url = _URL_RE.sub("", body)
+    if len(urls) > 2 and len(body_no_url.strip()) < 20:
+        return False, "url_only"
+
+    # rule 3: 도배 (동일 char 80%+)
+    if len(body) >= 30:
+        counts: dict[str, int] = {}
+        for c in body:
+            counts[c] = counts.get(c, 0) + 1
+        if max(counts.values()) / len(body) > 0.8:
+            return False, "spam_repeat"
+
+    # rule 4: 광고 keyword 2회+
+    haystack = title + body
+    spam_hits = sum(1 for k in _AD_KEYWORDS if k in haystack)
+    if spam_hits >= 2 and len(body) < 200:
+        return False, "ad_keyword"
+
+    return True, "keep"
+
+
 def save_list(page: int, posts: list[dict[str, str]]) -> None:
     out = LIST_DIR / f"page_{page:04d}.json"
     out.write_text(
@@ -267,6 +312,7 @@ def crawl(max_list_pages: int, max_posts: int) -> int:
     list_done = 0
     posts_saved = 0
     posts_skipped = 0
+    posts_filtered: dict[str, int] = {}
     consecutive_errors = 0
 
     for page in range(1, max_list_pages + 1):
@@ -321,6 +367,13 @@ def crawl(max_list_pages: int, max_posts: int) -> int:
             consecutive_errors = 0
 
             title, body = parse_post_page(html)
+            keep, reason = _should_keep_post(title or subj, body)
+            if not keep:
+                posts_filtered[reason] = (
+                    posts_filtered.get(reason, 0) + 1
+                )
+                time.sleep(RATE_DELAY)
+                continue
             save_post(no, title or subj, body)
             posts_saved += 1
             if posts_saved % 10 == 0:
@@ -339,6 +392,11 @@ def crawl(max_list_pages: int, max_posts: int) -> int:
     print(f"list pages processed: {list_done}")
     print(f"posts saved:          {posts_saved}")
     print(f"posts skipped (exists): {posts_skipped}")
+    if posts_filtered:
+        total_filtered = sum(posts_filtered.values())
+        print(f"posts filtered (quality): {total_filtered}")
+        for reason, count in sorted(posts_filtered.items()):
+            print(f"  {reason}: {count}")
     print(f"output: {OUT_DIR}")
     return 0
 
