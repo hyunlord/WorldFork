@@ -32,7 +32,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from core.llm.local_client import get_qwen35_9b_q3
+from core.llm.local_client import get_qwen35_9b_q3, get_qwen36_27b_q3
+from service.game.gm_agent import GMAgent
 from service.game.state_v2 import (
     Character,
     Location,
@@ -81,6 +82,8 @@ class _V2StateHolder:
         # ★ Phase 9.18-a — encounter wire
         self.active_encounters: list[Encounter] = []
         self._sim_gm_agent: SimGMAgent | None = None
+        # ★ Phase 9.18-c — V2 narrative (★ 27B Q3 / 8081)
+        self._gm_narrator: GMAgent | None = None
         self._init_default()
 
     def _init_default(self) -> None:
@@ -133,6 +136,21 @@ class _V2StateHolder:
                 llm_client=get_qwen35_9b_q3(),
             )
         return self._sim_gm_agent
+
+    def get_gm_narrator(self) -> GMAgent:
+        """GMAgent lazy init — 27B Q3 (port 8081) for V2 narrative.
+
+        ★ Phase 9.18-c — §A 해소 본격.
+        - verify_llm=None (★ V2 본격 verify mechanism 미정의)
+        - Cross-Model 강제 본격 본격 본격 (★ GMAgent 본격 verify_llm None 본격 본격)
+        - 27B Q3 ~14 tok/s × 400 max_tokens ≈ 23s/turn
+        """
+        if self._gm_narrator is None:
+            self._gm_narrator = GMAgent(
+                game_llm=get_qwen36_27b_q3(),
+                verify_llm=None,
+            )
+        return self._gm_narrator
 
 
 _HOLDER: _V2StateHolder | None = None
@@ -305,6 +323,128 @@ def _maybe_spawn_encounters(holder: _V2StateHolder) -> None:
         )
 
 
+# ─── Phase 9.18-c — V2 narrative wire helpers ───
+
+
+def _serialize_char_min(c: Character) -> dict[str, Any]:
+    """Character → narrative ctx 본격 minimal dict (★ noise 제거)."""
+    return {
+        "name": c.name,
+        "race": c.race.value if hasattr(c.race, "value") else str(c.race),
+        "hp": c.hp,
+        "hp_max": c.hp_max,
+        "level": c.level,
+        "grade": c.grade,
+        "class_type": c.class_type,
+        "is_temporary": c.is_temporary,
+        "has_active_light": c.has_active_light(),
+        "essence_slots_used": c.essence_slots_used(),
+    }
+
+
+def _serialize_world_min(w: WorldState) -> dict[str, Any]:
+    """WorldState → narrative ctx 본격 minimal dict."""
+    return {
+        "hours_in_dungeon": w.hours_in_dungeon,
+        "month_number": w.month_number,
+        "day_in_month": w.day_in_month,
+        "active_rifts": list(w.active_rifts),
+        "is_dark_zone": w.is_dark_zone,
+    }
+
+
+def _serialize_location_min(loc: Location) -> dict[str, Any]:
+    """Location → narrative ctx 본격 minimal dict."""
+    return {
+        "realm": loc.realm.value if loc.realm else None,
+        "floor": loc.floor,
+        "sub_area": loc.sub_area,
+        "rift_id": loc.rift_id,
+        "rift_sub_area": loc.rift_sub_area,
+        "has_light": loc.has_light,
+        "visibility_meters": loc.visibility_meters,
+    }
+
+
+def _build_v2_ctx(holder: _V2StateHolder) -> dict[str, Any]:
+    """V2 state → _gm_system_prompt ctx (★ Phase 9.18-c).
+
+    V1 build_game_context 본격 본격 본격 — V2 native default Plan 본격 + V2 state.
+    _gm_system_prompt required fields:
+    - work_name / work_genre / world_setting / world_tone / world_rules
+    - main_character_name / main_character_role / supporting_characters
+    - current_location / current_turn
+    - language / character_response
+    - v2_characters / v2_world_state / v2_initial_location / active_encounters
+    """
+    main_name = "비요른"
+    supporting = [
+        {"name": n, "role": "동료"}
+        for n in holder.party
+        if n != main_name
+    ]
+
+    return {
+        "work_name": "1층 미궁",
+        "work_genre": "판타지",
+        "world_setting": "라프도니아",
+        "world_tone": "차분하고 신중한 톤",
+        "world_rules": [
+            "1층 어둠 본질",
+            "한국어만",
+            "격식체",
+            "라프도니아 본문 정합 — 추측 사실 X",
+        ],
+        "main_character_name": main_name,
+        "main_character_role": "주인공",
+        "supporting_characters": supporting,
+        "current_location": holder.location.sub_area or "진입점",
+        "current_turn": holder.turn,
+        "language": "ko",
+        "character_response": True,
+        # V2 fields (★ _gm_system_prompt 본격 본격 schema 정합)
+        "v2_characters": {
+            n: _serialize_char_min(c) for n, c in holder.party.items()
+        },
+        "v2_world_state": _serialize_world_min(holder.world),
+        "v2_initial_location": _serialize_location_min(holder.location),
+        "active_encounters": [
+            _serialize_encounter(e) for e in holder.active_encounters
+        ],
+    }
+
+
+def _maybe_narrate(
+    holder: _V2StateHolder,
+    action: PlayerAction,
+    result_message: str,
+    result_side_effects: list[str],
+    success: bool,
+) -> str | None:
+    """27B Q3 narrative — silent fallback (★ Phase 9.18-c).
+
+    Policy:
+    - success=False → None (★ fail 본격 mechanical 본격 본격)
+    - LLM 실패 → None + log warning (★ silent)
+    - 정상 → 한국어 narrative text
+    """
+    if not success:
+        return None
+    try:
+        ctx = _build_v2_ctx(holder)
+        narrator = holder.get_gm_narrator()
+        result = narrator.narrate_action_v2(
+            action, result_message, result_side_effects, ctx
+        )
+        # 본격 fallback 본격 본격 result_message 본격 본격 본격 — 본격 본격 None 본격 본격
+        if result == result_message:
+            return None
+        return result
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("narrate_action_v2 failed: %s", exc)
+        return None
+
+
 # ─── response models ───
 
 
@@ -415,6 +555,15 @@ class ActionResponse(BaseModel):
         default_factory=list,
         description="active encounters after action (★ 9.17 시리즈 consumer trigger)",
     )
+    # ★ Phase 9.18-c — V2 narrative (★ 27B Q3 / 8081 본격)
+    narrative: str | None = Field(
+        default=None,
+        description=(
+            "한국어 narrative text (★ §A — frontend 본격 본격 본격 본격). "
+            "None = success=False 본격 LLM 실패 본격 silent fallback "
+            "(★ message 본격 본격 사용)."
+        ),
+    )
 
 
 def _resolve_actor(holder: _V2StateHolder, actor: str | None) -> str:
@@ -487,6 +636,12 @@ async def post_action(req: ActionRequest) -> ActionResponse:
         h.turn,
     )
 
+    # ★ Phase 9.18-c — V2 narrative (★ 27B Q3, silent fallback)
+    # success=False 본격 None / LLM 실패 본격 None (★ frontend message 본격 본격)
+    narrative = _maybe_narrate(
+        h, action, message, side_effects, success
+    )
+
     # ★ recent_actions 본격 append (★ frontend recent_actions API 본격)
     h.turn += 1
     h.recent_actions.append(
@@ -510,4 +665,5 @@ async def post_action(req: ActionRequest) -> ActionResponse:
         encounters=[
             _serialize_encounter(e) for e in h.active_encounters
         ],
+        narrative=narrative,
     )

@@ -21,6 +21,9 @@ from .init_from_plan import build_game_context
 from .state import GameState
 from .state_v2 import Realm, next_level_threshold
 
+# ★ Phase 9.18-c — V2 narrative wire (★ TYPE_CHECKING 본격 본격 본격 X — runtime 본격)
+# 본격 본격 service/sim 본격 import 본격 본격 service/game 본격 본격 본격 본격 본격.
+
 # ★ 게임 응답 검증 기준 (★ Cross-Model LLM Judge용, A1.5)
 GAME_CRITERIA = JudgeCriteria(
     name="game_response_quality",
@@ -1213,3 +1216,140 @@ class GMAgent:
             parts.append(f"[현재 턴 {state.turn + 1}]\n플레이어: {user_action}")
 
         return "\n".join(parts)
+
+    # ─── Phase 9.18-c — V2 native narrative (★ structured input) ───
+
+    def narrate_action_v2(
+        self,
+        action: Any,
+        result_message: str,
+        result_side_effects: list[str],
+        ctx: dict[str, Any],
+    ) -> str:
+        """V2 native narrative — structured PlayerAction + mechanical result → 한국어.
+
+        Phase 9.18-c (★ §A 해소):
+        - V1 generate_response 본격 본격 본격 X (★ plan/GameState 본격 본격 본격)
+        - V2 native — PlayerAction 본격 + TurnResult 본격 + V2 ctx dict
+        - system: _gm_system_prompt(ctx) 재사용 (★ npc_encounter_block 포함)
+        - max_tokens: 400 (★ 1-2 문단)
+
+        LLM 실패 본격 result_message 본격 본격 fallback (★ silent).
+        ctx 본격 _gm_system_prompt required field 본격 본격 본격 (★ 본격 본격 본격
+        본격 본격 본격 — caller responsibility).
+
+        Args:
+            action: PlayerAction (★ duck typed — action_type/actor_name/target)
+            result_message: TurnResult.message (★ mechanical placeholder)
+            result_side_effects: TurnResult.side_effects (★ 본격 marker list)
+            ctx: V2 state ctx dict (★ _gm_system_prompt 본격 본격 schema)
+
+        Returns:
+            한국어 narrative text. LLM 실패 본격 result_message 본격.
+        """
+        try:
+            system = _gm_system_prompt(ctx)
+            user_text = self._build_user_prompt_v2(
+                action, result_message, result_side_effects, ctx
+            )
+            prompt = Prompt(system=system, user=user_text)
+            response = self._game_llm.generate(prompt, max_tokens=400)
+        except Exception:
+            # silent fallback (★ mechanical 본격 본격)
+            return result_message
+
+        text = (response.text or "").strip()
+        return text if text else result_message
+
+    @staticmethod
+    def _build_user_prompt_v2(
+        action: Any,
+        result_message: str,
+        result_side_effects: list[str],
+        ctx: dict[str, Any],
+    ) -> str:
+        """V2 user prompt — structured action + result + significant side_effects.
+
+        Phase 9.18-c — narrate_action_v2 본격 user prompt 본격.
+
+        본격 noise 제거 — SIGNIFICANT_PREFIXES 본격 prefix 본격 side_effect 본격 본격.
+        """
+        # action 본격 duck-typed (★ PlayerAction or namespace 본격 본격)
+        actor = getattr(action, "actor_name", None) or "탐사대"
+        action_type_obj = getattr(action, "action_type", None)
+        # action_type 본격 StrEnum 본격 본격 본격 str
+        if action_type_obj is None:
+            action_type = "?"
+        elif hasattr(action_type_obj, "value"):
+            action_type = str(action_type_obj.value)
+        else:
+            action_type = str(action_type_obj)
+        target = getattr(action, "target", None) or ""
+
+        lines: list[str] = [
+            "# 본 턴 행동 (★ structured)",
+            f"- 행위자: {actor}",
+            f"- 행동: {action_type}",
+        ]
+        if target:
+            lines.append(f"- 대상: {target}")
+
+        lines.extend(
+            [
+                "",
+                "# 본 턴 결과 (★ mechanical)",
+                f"- {result_message}",
+            ]
+        )
+
+        # 주요 side_effect 본격 filter (★ noise 제거)
+        significant_prefixes = (
+            "encounter_consumed",
+            "encounter_spawned",
+            "night_companion_formed",
+            "night_companion_disbanded",
+            "night_companion_auto_disbanded",
+            "bandit_defeated",
+            "bandit_defeat",
+            "fled_from_bandit",
+            "mutual_defense",
+            "hp_recovered",
+            "hp_loss",
+            "level_up",
+            "fame_gain",
+            "stone_gained",
+            "stone_paid",
+            "injury_inflicted",
+        )
+        significant = [
+            se
+            for se in result_side_effects
+            if any(se.startswith(p) for p in significant_prefixes)
+        ]
+        if significant:
+            lines.append("")
+            lines.append("# 주요 변화 (★ trace)")
+            for s in significant[:5]:
+                lines.append(f"- {s}")
+
+        # active encounters context (★ narrative 본격 본격 본격 본격)
+        active = ctx.get("active_encounters") or []
+        if active:
+            lines.append("")
+            lines.append("# 현재 active encounters")
+            for e in active[:3]:
+                etype = e.get("type", "?")
+                ename = e.get("name", "?")
+                lines.append(f"- [{etype}] {ename}")
+
+        lines.extend(
+            [
+                "",
+                "# 작성 지시",
+                "위 mechanical 결과를 본문 어조(라프도니아, 격식체, 차분)로 "
+                "1-2 문단 한국어 narrative 작성.",
+                "추측 사실 추가 X (★ mechanical result 본격 본격 본격).",
+                "선택지 / 시스템 메시지 / JSON 본격 본격 X (★ 본격 narrative 본격).",
+            ]
+        )
+        return "\n".join(lines)
