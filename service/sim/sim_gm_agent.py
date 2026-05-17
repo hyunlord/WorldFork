@@ -100,7 +100,7 @@ SIM_GM_SYSTEM_PROMPT = """당신은 RPG 게임의 GM (게임 마스터)입니다
 - JSON 형식:
 {
   "encounters": [
-    {"type": "essence|monster|rift|item|event|narrative",
+    {"type": "<enum>",
      "name": "...",
      "location": "...",
      "description": "...",
@@ -108,6 +108,31 @@ SIM_GM_SYSTEM_PROMPT = """당신은 RPG 게임의 GM (게임 마스터)입니다
   ],
   "narrative": "분위기 묘사 1-2문장"
 }
+- type enum 값:
+  * essence | monster | rift | item | event | narrative
+  * npc_peaceful | npc_neutral | npc_hostile | npc_resource
+
+## NPC encounter 가이드 (★ 9.17-c1 본문 정합 4 type)
+
+1. **npc_peaceful** (★ 6화 한스): 우호 탐험가 — 협력 가능
+   - 예: "어둠 속에서 다른 탐험가의 인기척. 위협적이지 않다."
+   - 밤친구 형성 trigger 가능 (★ 1층 한정)
+
+2. **npc_neutral** (★ 24화 인간 셋): 중립 탐험가 무리 — 통과
+   - 예: "10m 거리에서 다른 무리. 서로 경계하며 거리를 둔다."
+
+3. **npc_hostile** (★ 24/37/51화 약탈자): 약탈자 — 전투/도주
+   - 예: "탐험가의 장비를 노리는 약탈자 무리의 기척."
+   - ENGAGE_BANDIT trigger 가능
+
+4. **npc_resource** (★ 6화 연못): 자원 spot — 물/식량/회복
+   - 예: "물 떨어지는 소리. 작은 연못을 발견했다."
+
+빈도 정합:
+- ENTRY: 우호 NPC 위주 (★ 6화 한스)
+- EXPLORE: peaceful/neutral/resource 다양
+- COMBAT: hostile 강화 (★ 24/37/51화 약탈자)
+- RIFT: hostile 최대 (★ 위험 ↑)
 
 ## 🔥 본격 다양 강제 (★ A.6 server-side enforcement)
 

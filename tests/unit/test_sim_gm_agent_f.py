@@ -107,10 +107,13 @@ def test_build_phase_section_rift() -> None:
 
 
 def test_build_phase_section_includes_weights() -> None:
-    """phase section에 weight % 본격 명시."""
+    """phase section에 weight % 본격 명시.
+
+    ★ Phase 9.18-b — EXPLORE essence 35% → 25% (★ NPC type 분포 본격 본격).
+    """
     s = _build_phase_section(hours_in_dungeon=10)  # EXPLORE
-    # EXPLORE에서 essence 35%
-    assert "35%" in s
+    # EXPLORE essence 25% (★ Phase 9.18-b 본격)
+    assert "25%" in s
 
 
 # ─── _is_phase_mismatch ───

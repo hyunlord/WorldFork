@@ -261,33 +261,54 @@ def action_hours_delta(
     return base * time_scale
 
 
-# phase별 권장 type 분포 (★ F commit, 본격 본질, sum ~1.0)
+# phase별 권장 type 분포 (★ F commit, 본격 본질, sum=1.0).
+# Phase 9.18-b 본격 NPC type 4 추가 (★ 9.17-c1 dead consumer 본격 활성화).
+# 본 commit 검증용 한시 비율 ↑ — 본문 정합 fine-tune 후속 commit.
+# 본문 정합:
+# - ENTRY: 우호 NPC 위주 (★ 6화 한스)
+# - EXPLORE: peaceful/neutral/resource 다양 (★ 6/24/6화)
+# - COMBAT: hostile 강화 (★ 24/37/51화 약탈자)
+# - RIFT: hostile 최대 (★ 위험 ↑)
 PHASE_TYPE_WEIGHTS: dict[DungeonPhase, dict[EncounterType, float]] = {
     DungeonPhase.ENTRY: {
-        EncounterType.NARRATIVE: 0.60,
-        EncounterType.ESSENCE: 0.20,
-        EncounterType.EVENT: 0.20,
+        EncounterType.NARRATIVE: 0.45,
+        EncounterType.ESSENCE: 0.15,
+        EncounterType.EVENT: 0.15,
+        # ★ Phase 9.18-b — NPC type (★ 우호 위주)
+        EncounterType.NPC_NEUTRAL: 0.15,
+        EncounterType.NPC_PEACEFUL: 0.10,
     },
     DungeonPhase.EXPLORE: {
-        EncounterType.ESSENCE: 0.35,
-        EncounterType.MONSTER: 0.25,
-        EncounterType.ITEM: 0.20,
-        EncounterType.EVENT: 0.10,
-        EncounterType.NARRATIVE: 0.10,
+        EncounterType.ESSENCE: 0.25,
+        EncounterType.MONSTER: 0.20,
+        EncounterType.ITEM: 0.10,
+        EncounterType.EVENT: 0.05,
+        EncounterType.NARRATIVE: 0.05,
+        # ★ Phase 9.18-b — NPC type (★ 다양)
+        EncounterType.NPC_NEUTRAL: 0.15,
+        EncounterType.NPC_PEACEFUL: 0.10,
+        EncounterType.NPC_RESOURCE: 0.10,
     },
     DungeonPhase.COMBAT: {
-        EncounterType.MONSTER: 0.40,
-        EncounterType.ESSENCE: 0.25,
-        EncounterType.ITEM: 0.15,
-        EncounterType.EVENT: 0.10,
-        EncounterType.NARRATIVE: 0.10,
+        EncounterType.MONSTER: 0.30,
+        EncounterType.ESSENCE: 0.15,
+        EncounterType.ITEM: 0.10,
+        EncounterType.EVENT: 0.05,
+        EncounterType.NARRATIVE: 0.05,
+        # ★ Phase 9.18-b — NPC type (★ hostile 강화)
+        EncounterType.NPC_HOSTILE: 0.25,
+        EncounterType.NPC_NEUTRAL: 0.05,
+        EncounterType.NPC_PEACEFUL: 0.05,
     },
     DungeonPhase.RIFT: {
-        EncounterType.RIFT: 0.40,
-        EncounterType.MONSTER: 0.25,
-        EncounterType.EVENT: 0.15,
-        EncounterType.NARRATIVE: 0.10,
-        EncounterType.ESSENCE: 0.10,
+        EncounterType.RIFT: 0.30,
+        EncounterType.MONSTER: 0.15,
+        EncounterType.EVENT: 0.10,
+        EncounterType.NARRATIVE: 0.05,
+        EncounterType.ESSENCE: 0.05,
+        # ★ Phase 9.18-b — NPC type (★ hostile 최대)
+        EncounterType.NPC_HOSTILE: 0.30,
+        EncounterType.NPC_NEUTRAL: 0.05,
     },
 }
 
@@ -301,33 +322,44 @@ PHASE_SPAWN_FREQUENCY: dict[DungeonPhase, float] = {
 }
 
 
-# phase별 권장 (top weight) types (★ enforcement 본격)
+# phase별 권장 (top weight) types (★ enforcement 본격).
+# Phase 9.18-b 본격 NPC type 본격 포함 (★ prompt 본격 본격 표시 본격).
 PHASE_PRIORITY_TYPES: dict[DungeonPhase, list[EncounterType]] = {
     DungeonPhase.ENTRY: [
         EncounterType.NARRATIVE,
         EncounterType.ESSENCE,
         EncounterType.EVENT,
+        EncounterType.NPC_NEUTRAL,
+        EncounterType.NPC_PEACEFUL,
     ],
     DungeonPhase.EXPLORE: [
         EncounterType.ESSENCE,
         EncounterType.MONSTER,
         EncounterType.ITEM,
+        EncounterType.NPC_NEUTRAL,
+        EncounterType.NPC_PEACEFUL,
+        EncounterType.NPC_RESOURCE,
         EncounterType.EVENT,
         EncounterType.NARRATIVE,
     ],
     DungeonPhase.COMBAT: [
         EncounterType.MONSTER,
+        EncounterType.NPC_HOSTILE,
         EncounterType.ESSENCE,
         EncounterType.ITEM,
         EncounterType.EVENT,
         EncounterType.NARRATIVE,
+        EncounterType.NPC_NEUTRAL,
+        EncounterType.NPC_PEACEFUL,
     ],
     DungeonPhase.RIFT: [
         EncounterType.RIFT,
+        EncounterType.NPC_HOSTILE,
         EncounterType.MONSTER,
         EncounterType.EVENT,
         EncounterType.NARRATIVE,
         EncounterType.ESSENCE,
+        EncounterType.NPC_NEUTRAL,
     ],
 }
 
