@@ -3513,18 +3513,27 @@ def execute_engage_bandit(
         actor_char.grade, faction_name, rng
     )
 
-    # 전투 계산 (★ ATTACK 공식 단순화 — grade × 10 + 20).
+    # 전투 계산 (★ Phase 9.17-e mutual defense — 10화 맹세 정합).
+    # alive_members 본격 attack pool 합산 (★ 밤친구 + 영구 멤버 자동 참여).
     # 단일 turn 모델 (★ B minimal — 본격 multi-turn 후속).
-    actor_attack = actor_char.grade * 10 + 20
+    alive_members = [m for m in party if m.hp > 0]
+    total_attack = sum(m.grade * 10 + 20 for m in alive_members)
+    defender_count = len(alive_members)
 
-    if actor_attack >= bandit.hp_pool:
+    if total_attack >= bandit.hp_pool:
         # 승리 — stone + 명성
         stone_gain = bandit.member_count * BANDIT_STONE_PER_MEMBER
         actor_char.stone += stone_gain
         actor_char.fame += BANDIT_FAME_GAIN_WIN
 
+        defender_label = (
+            f"{defender_count}인 mutual defense"
+            if defender_count > 1
+            else actor
+        )
         msg = (
-            f"{bandit.faction_name} {bandit.member_count}인 격퇴. "
+            f"{defender_label} — {bandit.faction_name} "
+            f"{bandit.member_count}인조 격퇴. "
             f"+{stone_gain} 스톤 +{BANDIT_FAME_GAIN_WIN} 명성."
         )
         return TurnResult(
@@ -3537,35 +3546,164 @@ def execute_engage_bandit(
                 f"{bandit.faction_name}:{bandit.member_count}",
                 f"stone_gained={actor}:+{stone_gain}",
                 f"fame_gain={actor}:+{BANDIT_FAME_GAIN_WIN}_bandit",
+                f"mutual_defense={defender_count}",
             ],
         )
 
-    # 패배 — HP 감소 + 부상 generation (★ _generate_injury_from_damage 재사용)
-    damage = bandit.hp_pool - actor_attack
-    old_hp = actor_char.hp
-    actor_char.hp = max(0, actor_char.hp - damage)
-    hp_loss = old_hp - actor_char.hp
+    # 패배 — damage 분담 (★ Phase 9.17-e mutual defense).
+    # damage_per_member 본격 alive_members 본격 분담 (★ 다인 경감).
+    damage_total = bandit.hp_pool - total_attack
+    damage_per_member = damage_total // defender_count
 
     side_effects: list[str] = [
         f"encounter_consumed={hostile_enc.name}",
-        f"bandit_defeat={actor}:damage_{damage}",
-        f"hp_loss={actor}:-{hp_loss}",
+        f"mutual_defense={defender_count}",
+        f"mutual_defense_damage_per_member={damage_per_member}",
     ]
 
-    injury = _generate_injury_from_damage(hp_loss, rng=rng)
-    if injury is not None:
-        actor_char.injuries.append(injury)
+    # 각 defender 본격 hp 감소 + 부상 generation (★ 9.10 정합)
+    for member in alive_members:
+        old_hp = member.hp
+        member.hp = max(0, member.hp - damage_per_member)
+        hp_loss = old_hp - member.hp
         side_effects.append(
-            f"injury_inflicted={actor}:"
-            f"{injury.body_part}_{injury.severity}"
+            f"bandit_defeat={member.name}:damage_{damage_per_member}"
         )
+        side_effects.append(f"hp_loss={member.name}:-{hp_loss}")
+        injury = _generate_injury_from_damage(hp_loss, rng=rng)
+        if injury is not None:
+            member.injuries.append(injury)
+            side_effects.append(
+                f"injury_inflicted={member.name}:"
+                f"{injury.body_part}_{injury.severity}"
+            )
 
     return TurnResult(
         success=False,
         action_type="engage_bandit",
         message=(
-            f"{bandit.faction_name} {bandit.member_count}인에 패배. "
-            f"-{damage} HP."
+            f"{bandit.faction_name} {bandit.member_count}인조에 패배. "
+            f"각 멤버 -{damage_per_member} HP."
         ),
+        side_effects=side_effects,
+    )
+
+
+# ─── Phase 9.17-e — 불침번 + 분쟁 mutual defense (★ 6/7/10/27/111화 정합) ───
+
+# 불침번 1회 = 6시간 (★ 본문 추측, REST 4h 본격 별도).
+NIGHT_WATCH_HOURS: float = 6.0
+
+# 1인 rest 회복률 (★ 6/7화: '목숨을 하늘에 맡기고 선잠' 본문 정합).
+NIGHT_WATCH_RECOVERY_PCT_SOLO: float = 0.0
+
+# 2인 rest 회복률 (★ 111화: 인원 많을수록 효율 ↑).
+NIGHT_WATCH_RECOVERY_PCT_TWO: float = 0.8
+
+# 3인+ rest 회복률 (★ 본문 정합 — 완전 회복).
+NIGHT_WATCH_RECOVERY_PCT_THREE_PLUS: float = 1.0
+
+# rest 시 random encounter 확률 (★ 9.17-c1 0.10 본격 위험 증가).
+NIGHT_WATCH_ENCOUNTER_PROBABILITY: float = 0.20
+
+
+def _recovery_pct_for_party_size(alive_count: int) -> float:
+    """인원 수별 rest 회복률 — 본문 정합 (★ Phase 9.17-e).
+
+    6/7화: 1인 = 위험 (★ 회복 0)
+    111화: 인원 많을수록 효율 ↑
+    """
+    if alive_count <= 1:
+        return NIGHT_WATCH_RECOVERY_PCT_SOLO
+    if alive_count == 2:
+        return NIGHT_WATCH_RECOVERY_PCT_TWO
+    return NIGHT_WATCH_RECOVERY_PCT_THREE_PLUS
+
+
+def execute_rest_and_night_watch(
+    actor: str,
+    target: str,
+    party: list[Character],
+    location: Location,
+    encounters: list[Encounter],
+    world: WorldState,
+    rng: random.Random | None = None,
+) -> TurnResult:
+    """던전 내 불침번 + rest (★ Phase 9.17-e).
+
+    target 사용 X (★ party-wide rest — 본격 placeholder).
+    encounters 본격 future-use (★ 본 commit 직접 사용 X — sim_runner caller).
+
+    본문 정합:
+    - 6/7화: 1인 = 선잠 위험 (★ recovery=0)
+    - 10화: 맹세 → 분쟁 mutual defense (★ ENGAGE_BANDIT 본격 wire)
+    - 27화: 비요른 불침번 회상
+    - 111화: 인원 많을수록 효율 ↑
+
+    Producer: 본 handler — trigger_encounter_after_rest side_effect.
+    Consumer (★ sim_runner): trigger marker 본격 trace (★ 본 commit 직접 generator 호출 X).
+    """
+    # 던전 한정 (★ 마을 본격 WAIT_IN_VILLAGE 별도)
+    if location.realm != Realm.DUNGEON:
+        return TurnResult(
+            success=False,
+            action_type="rest_and_night_watch",
+            message="불침번은 던전 내에서만 가능.",
+        )
+
+    alive = [m for m in party if m.hp > 0]
+    if not alive:
+        return TurnResult(
+            success=False,
+            action_type="rest_and_night_watch",
+            message="살아있는 멤버 없음.",
+        )
+
+    # 인원 수별 회복률 (★ 본문 정합)
+    recovery_pct = _recovery_pct_for_party_size(len(alive))
+
+    side_effects: list[str] = []
+    healed: list[str] = []
+    for member in alive:
+        if recovery_pct <= 0:
+            continue
+        # ★ Phase 9.10 effective_hp_max cap 본격 정합 (★ disability 적용)
+        target_hp = int(member.hp_max * recovery_pct)
+        new_hp = min(member.effective_hp_max, max(member.hp, target_hp))
+        if new_hp > member.hp:
+            hp_gain = new_hp - member.hp
+            old_hp = member.hp
+            member.hp = new_hp
+            healed.append(f"{member.name}:{old_hp}->{new_hp}")
+            side_effects.append(
+                f"hp_recovered={member.name}:+{hp_gain}"
+            )
+
+    # random encounter trigger marker (★ 9.17-c1 본격 trace)
+    # 본 commit: side_effect로 trigger marker (★ 실제 generator sim_runner caller).
+    rng = rng or random.Random()
+    encounter_warning = ""
+    if rng.random() < NIGHT_WATCH_ENCOUNTER_PROBABILITY:
+        side_effects.append("trigger_encounter_after_rest")
+        encounter_warning = " ⚠ rest 중 인기척 — encounter 가능."
+
+    # 메시지 본격 분기
+    if recovery_pct <= 0:
+        msg = (
+            "1인 선잠 — HP 회복 없음 (★ 6/7화 정합)."
+            + encounter_warning
+        )
+    else:
+        healed_str = ", ".join(healed) if healed else "HP 변화 없음"
+        msg = (
+            f"{len(alive)}인 불침번 — {int(recovery_pct * 100)}% 회복 "
+            f"({healed_str})."
+            + encounter_warning
+        )
+
+    return TurnResult(
+        success=True,
+        action_type="rest_and_night_watch",
+        message=msg,
         side_effects=side_effects,
     )

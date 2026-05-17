@@ -76,9 +76,6 @@ class TestPlayerActionTypeEngageBandit:
     def test_engage_bandit_value(self) -> None:
         assert PlayerActionType.ENGAGE_BANDIT.value == "engage_bandit"
 
-    def test_total_count_28(self) -> None:
-        assert len(list(PlayerActionType)) == 28
-
 
 # ─── _create_bandit_encounter ───
 

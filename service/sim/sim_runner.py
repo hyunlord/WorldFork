@@ -43,6 +43,7 @@ from service.game.turn_handler_v2 import (
     execute_library_search,
     execute_recruit_from_guild,
     execute_reject_dialogue,
+    execute_rest_and_night_watch,
     execute_shop_buy,
     execute_shop_sell,
     execute_wait_in_village,
@@ -403,6 +404,20 @@ def _execute_action(
         r = execute_engage_bandit(
             action.actor_name,
             action.target,
+            party_list,
+            location,
+            active_encounters or [],
+            world,
+        )
+        return r.success, r.message, r.side_effects
+
+    # ★ Phase 9.17-e — 불침번 + 분쟁 mutual defense (★ 6/7/10/27/111화 정합).
+    # trigger_encounter_after_rest side_effect 본격 trace marker (★ 본 commit 직접
+    # 추가 generator 호출 X — 다음 turn 본격 자연 encounter generation 본격).
+    if action.action_type == PlayerActionType.REST_AND_NIGHT_WATCH:
+        r = execute_rest_and_night_watch(
+            action.actor_name,
+            action.target or "",
             party_list,
             location,
             active_encounters or [],
