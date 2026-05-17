@@ -185,7 +185,7 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 ⚠️ EXIT_RIFT 직후 active_rifts empty 본격 — ENTER_RIFT 호출 X (★ success=False)
 → EXIT 후 반드시 OFFER_TO_STONE 먼저 (★ 새 균열 활성화)
 
-## action_type 가능 값 (13 종류 — 다양 사용 본격)
+## action_type 가능 값 (★ 핵심 13 + 9.17 시리즈 본격)
 
 | action_type | 사용 시점 | target |
 |---|---|---|
@@ -202,6 +202,7 @@ PLAYER_AGENT_SYSTEM_PROMPT = """당신은 RPG 게임 플레이어입니다.
 | wait | 시간 흘려야 할 때 | null |
 | communicate | 파티원 소식 | 받는 자 |
 | flee | 강한 적 만남 | 위협 이름 |
+| rest_and_night_watch | 던전 내 불침번 (★ 6/10/111화) | null |
 
 ## 🔥 본격 ActionType 다양 강제 (★ E commit server-side)
 
