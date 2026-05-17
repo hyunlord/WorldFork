@@ -25,7 +25,8 @@ def _parse_cors_origins() -> list[str]:
     환경변수 ALLOWED_ORIGINS (콤마 구분):
       ALLOWED_ORIGINS="http://localhost:4000,http://100.70.109.50:4000"
 
-    기본값: localhost/127.0.0.1 의 3000 + 4000 (Next.js dev).
+    기본값: localhost/127.0.0.1 의 3000 + 4000 (Next.js dev) +
+    DGX Spark Tailscale IP 4000 (★ 본인 Mac 본격 manual playthrough access).
     """
     env_value = os.environ.get("ALLOWED_ORIGINS", "").strip()
     if env_value:
@@ -35,6 +36,9 @@ def _parse_cors_origins() -> list[str]:
         "http://localhost:4000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:4000",
+        # ★ DGX Spark Tailscale IP — Mac browser 본격 dev access
+        "http://100.70.109.50:3000",
+        "http://100.70.109.50:4000",
     ]
 
 
