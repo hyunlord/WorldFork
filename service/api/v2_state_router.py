@@ -82,7 +82,7 @@ class _V2StateHolder:
         # ★ Phase 9.18-a — encounter wire
         self.active_encounters: list[Encounter] = []
         self._sim_gm_agent: SimGMAgent | None = None
-        # ★ Phase 9.18-c — V2 narrative (★ 27B Q3 / 8081)
+        # ★ Phase 9.18-c — V2 narrative (★ 27B SGLang FP8 + MTP / 8081)
         self._gm_narrator: GMAgent | None = None
         self._init_default()
 
@@ -138,7 +138,7 @@ class _V2StateHolder:
         return self._sim_gm_agent
 
     def get_gm_narrator(self) -> GMAgent:
-        """GMAgent lazy init — 27B Q3 (port 8081) for V2 narrative.
+        """GMAgent lazy init — 27B SGLang FP8 + MTP (port 8081) for V2 narrative.
 
         ★ Phase 9.18-c — §A 해소 본격.
         - verify_llm=None (★ V2 본격 verify mechanism 미정의)
@@ -555,7 +555,7 @@ class ActionResponse(BaseModel):
         default_factory=list,
         description="active encounters after action (★ 9.17 시리즈 consumer trigger)",
     )
-    # ★ Phase 9.18-c — V2 narrative (★ 27B Q3 / 8081 본격)
+    # ★ Phase 9.18-c — V2 narrative (★ 27B SGLang FP8 + MTP / 8081)
     narrative: str | None = Field(
         default=None,
         description=(

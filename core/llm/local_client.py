@@ -1,9 +1,8 @@
-"""Local LLM Client — llama-server HTTP (OpenAI compat).
+"""Local LLM Client — llama-server / SGLang HTTP (OpenAI compat).
 
-Tier 1 W1 D1: DGX Spark 3-server 구성.
-  - qwen36-27b-q3 (8081): GM 후보, 긴 응답
-  - qwen36-27b-q2 (8082): 본인 직관 baseline
-  - qwen35-9b-q3  (8083): NPC dialogue ★ (38 tok/s, 5초 이하)
+DGX Spark 구성 (Phase A.2 이후):
+  - qwen3.6-27b   (8081): SGLang FP8 + MTP NEXTN, narrative GM
+  - qwen35-9b-q3  (8083): llama-server, NPC dialogue (38 tok/s)
 
 Thinking OFF: chat_template_kwargs={"enable_thinking": false} 기본 적용.
   Qwen3.5/3.6 공통 — 사용 전 반드시 OFF 해야 latency 정상.
@@ -108,11 +107,15 @@ class LocalLLMClient(LLMClient):
 # ---------------------------------------------------------------------------
 
 def get_qwen36_27b_q3() -> LocalLLMClient:
-    """Qwen3.6-27B Q3_K_XL — GM 후보, 높은 품질 (port 8081)."""
+    """Qwen3.6-27B — SGLang FP8 + MTP NEXTN, narrative GM (port 8081).
+
+    Phase A.2: llama-server Q3 GGUF → SGLang safetensors FP8 on-the-fly +
+    EAGLE/NEXTN speculative decoding. ``model_key`` 본 호환 위해 유지.
+    """
     return LocalLLMClient(
         model_key="qwen36-27b-q3",
         base_url="http://localhost:8081",
-        model_name_in_request="qwen36-27b-q3",
+        model_name_in_request="qwen3.6-27b",
     )
 
 
