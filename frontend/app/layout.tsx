@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "WorldFork — 한국어 어드벤처",
-  description: "Tier 2 D9 W3 Next.js Web UI",
+  description: "LLM 기반 한국어 인터랙티브 게임",
 };
 
 export default function RootLayout({
@@ -13,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="bg-slate-900 text-slate-100 min-h-screen">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
