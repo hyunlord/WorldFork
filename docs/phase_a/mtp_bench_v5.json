@@ -1,0 +1,62 @@
+{
+  "label": "v5_steps3_draft2",
+  "started_at": "2026-05-18T18:40:57",
+  "finished_at": "2026-05-18T18:43:43",
+  "endpoint": "http://localhost:8081",
+  "model": "qwen3.6-27b",
+  "max_tokens": 400,
+  "temperature": 0.7,
+  "elapsed_total_s": 137.09492337424308,
+  "elapsed_avg_s": 27.418984674848616,
+  "tokens_total": 2000,
+  "tokens_avg": 400.0,
+  "tok_per_s_avg": 14.679676030460616,
+  "tok_per_s_min": 13.400354876703211,
+  "tok_per_s_max": 16.45186967629899,
+  "spec_accept_rate_avg": 0.547391304347826,
+  "spec_accept_len_avg": 2.642173913043479,
+  "spec_throughput_avg": 13.755652173913044,
+  "spec_sample_count": 23,
+  "per_prompt": [
+    {
+      "prompt": "비요른이 횃불을 켜자 어둠이 걷히며",
+      "elapsed_s": 24.31334601296112,
+      "completion_tokens": 400,
+      "prompt_tokens": 91,
+      "tok_per_s": 16.45186967629899,
+      "text_head": ""
+    },
+    {
+      "prompt": "한스가 천천히 다가왔다. 그의 눈빛은",
+      "elapsed_s": 28.21729815378785,
+      "completion_tokens": 400,
+      "prompt_tokens": 84,
+      "tok_per_s": 14.1757016500995,
+      "text_head": ""
+    },
+    {
+      "prompt": "균열 너머에서 들리는 그르렁대는 소리. 비요른은",
+      "elapsed_s": 29.160733393393457,
+      "completion_tokens": 400,
+      "prompt_tokens": 89,
+      "tok_per_s": 13.717076131241008,
+      "text_head": ""
+    },
+    {
+      "prompt": "마석 거래소의 노인은 본인을 보더니",
+      "elapsed_s": 25.55359007185325,
+      "completion_tokens": 400,
+      "prompt_tokens": 82,
+      "tok_per_s": 15.65337781796037,
+      "text_head": ""
+    },
+    {
+      "prompt": "에르웬의 손길이 비석을 어루만지자",
+      "elapsed_s": 29.849955742247403,
+      "completion_tokens": 400,
+      "prompt_tokens": 86,
+      "tok_per_s": 13.400354876703211,
+      "text_head": ""
+    }
+  ]
+}
