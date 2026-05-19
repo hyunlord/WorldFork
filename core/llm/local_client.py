@@ -6,22 +6,60 @@ DGX Spark 구성 (Phase A.2 이후):
 
 Thinking OFF: chat_template_kwargs={"enable_thinking": false} 기본 적용.
   Qwen3.5/3.6 공통 — 사용 전 반드시 OFF 해야 latency 정상.
+
+Phase A.3-b 추가:
+  - LocalLLMClient.generate_json 오버라이드
+  - supports_json_schema=True 인 backend (★ SGLang xgrammar) 에서는 OpenAI
+    response_format json_schema 본 inject → server-side 정합 강제
+  - 그 외 backend 는 base class 의 post-hoc parse 그대로 사용
 """
 
+import json
 import time
 from typing import Any
 
 import requests
 
-from .client import LLMClient, LLMError, LLMResponse, Prompt
+from .client import (
+    JSONLLMResponse,
+    LLMClient,
+    LLMError,
+    LLMResponse,
+    Prompt,
+)
 
 _THINKING_OFF: dict[str, Any] = {"enable_thinking": False}
+
+
+def _to_strict_object_schema(
+    partial: dict[str, Any],
+) -> dict[str, Any]:
+    """JUDGE_SCHEMA 류 sparse dict 본 SGLang strict-mode 정합 schema 본 변환.
+
+    입력 dict 가 root ``type`` / ``additionalProperties`` 없이도, root object
+    schema 본 정합 형태로 wrap. ``additionalProperties`` 가 명시되어 있으면
+    원본 그대로 유지 (★ caller override 허용).
+    """
+    if partial.get("type") == "object" and "additionalProperties" in partial:
+        return dict(partial)
+
+    properties = partial.get("properties", {})
+    required = partial.get("required", list(properties.keys()))
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": partial.get("additionalProperties", False),
+    }
 
 
 class LocalLLMClient(LLMClient):
     """llama-server / SGLang / vLLM OpenAI-compat HTTP 클라이언트.
 
     chat_template_kwargs defaults to thinking OFF for Qwen3.x series.
+
+    Phase A.3-b: supports_json_schema=True 인 backend (★ SGLang xgrammar
+    backend) 본 generate_json 시 OpenAI response_format json_schema 본 사용.
     """
 
     def __init__(
@@ -31,22 +69,26 @@ class LocalLLMClient(LLMClient):
         model_name_in_request: str = "default",
         timeout: int = 120,
         chat_template_kwargs: dict[str, Any] | None = None,
+        supports_json_schema: bool = False,
     ) -> None:
         self._key = model_key
         self._base_url = base_url.rstrip("/")
         self._model_name_in_request = model_name_in_request
         self._timeout = timeout
-        # Qwen3.x thinking OFF — caller가 명시적으로 None 전달하면 그대로
         self._chat_template_kwargs: dict[str, Any] = (
             _THINKING_OFF if chat_template_kwargs is None else chat_template_kwargs
         )
+        self._supports_json_schema = supports_json_schema
 
     @property
     def model_name(self) -> str:
         return self._key
 
-    def generate(self, prompt: Prompt, **kwargs: Any) -> LLMResponse:
-        """OpenAI-compat /v1/chat/completions 호출."""
+    def _build_payload(
+        self,
+        prompt: Prompt,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         messages: list[dict[str, str]] = []
         if prompt.system:
             messages.append({"role": "system", "content": prompt.system})
@@ -60,7 +102,12 @@ class LocalLLMClient(LLMClient):
         }
         if self._chat_template_kwargs:
             payload["chat_template_kwargs"] = self._chat_template_kwargs
+        return payload
 
+    def _post(
+        self,
+        payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], int]:
         start = time.time()
         try:
             resp = requests.post(
@@ -69,29 +116,105 @@ class LocalLLMClient(LLMClient):
                 timeout=self._timeout,
             )
         except requests.RequestException as e:
-            raise LLMError(f"Local LLM request failed [{self._key}]: {e}") from e
+            raise LLMError(
+                f"Local LLM request failed [{self._key}]: {e}"
+            ) from e
 
         latency_ms = int((time.time() - start) * 1000)
 
         if resp.status_code != 200:
             raise LLMError(
-                f"Local LLM HTTP {resp.status_code} [{self._key}]: {resp.text[:500]}"
+                f"Local LLM HTTP {resp.status_code} [{self._key}]: "
+                f"{resp.text[:500]}"
             )
 
         try:
             data = resp.json()
         except ValueError as e:
-            raise LLMError(f"JSON parse failed [{self._key}]: {e}") from e
+            raise LLMError(
+                f"JSON parse failed [{self._key}]: {e}"
+            ) from e
+        return data, latency_ms
 
+    @staticmethod
+    def _extract_content(data: dict[str, Any], key: str) -> str:
         try:
-            text = data["choices"][0]["message"]["content"]
+            return data["choices"][0]["message"]["content"]  # type: ignore[no-any-return]
         except (KeyError, IndexError) as e:
             raise LLMError(
-                f"Unexpected response format [{self._key}]: {data}"
+                f"Unexpected response format [{key}]: {data}"
             ) from e
 
+    def generate(self, prompt: Prompt, **kwargs: Any) -> LLMResponse:
+        """OpenAI-compat /v1/chat/completions 호출."""
+        payload = self._build_payload(prompt, **kwargs)
+        data, latency_ms = self._post(payload)
+        text = self._extract_content(data, self._key)
+        if text is None:
+            raise LLMError(
+                f"Empty content [{self._key}] (★ reasoning tokens?): {data}"
+            )
         usage = data.get("usage", {})
         return LLMResponse(
+            text=text,
+            model=self._key,
+            cost_usd=0.0,
+            latency_ms=latency_ms,
+            input_tokens=int(usage.get("prompt_tokens", 0)),
+            output_tokens=int(usage.get("completion_tokens", 0)),
+            raw={"data": data, "base_url": self._base_url},
+        )
+
+    def generate_json(
+        self,
+        prompt: Prompt,
+        schema: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> JSONLLMResponse:
+        """JSON 응답 생성.
+
+        ``supports_json_schema=True`` + ``schema`` 제공 시 SGLang
+        ``response_format: json_schema`` 본 사용 (★ xgrammar 강제 정합).
+        그 외 base class 의 post-hoc parse 본 fallback.
+        """
+        if not self._supports_json_schema or schema is None:
+            return super().generate_json(prompt, schema, **kwargs)
+
+        wrapped = _to_strict_object_schema(schema)
+        payload = self._build_payload(prompt, **kwargs)
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": kwargs.get("schema_name", "Response"),
+                "schema": wrapped,
+                "strict": True,
+            },
+        }
+
+        data, latency_ms = self._post(payload)
+        text = self._extract_content(data, self._key)
+        if text is None:
+            raise LLMError(
+                f"Empty content under json_schema [{self._key}]: {data}"
+            )
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise LLMError(
+                f"json_schema parse failed [{self._key}]: {e}\n"
+                f"Text: {text[:500]}"
+            ) from e
+
+        if not isinstance(parsed, dict):
+            raise LLMError(
+                f"Expected JSON object [{self._key}], got "
+                f"{type(parsed).__name__}: {text[:200]}"
+            )
+
+        usage = data.get("usage", {})
+        return JSONLLMResponse(
+            parsed=parsed,
             text=text,
             model=self._key,
             cost_usd=0.0,
@@ -111,11 +234,15 @@ def get_qwen36_27b_q3() -> LocalLLMClient:
 
     Phase A.2: llama-server Q3 GGUF → SGLang safetensors FP8 on-the-fly +
     EAGLE/NEXTN speculative decoding. ``model_key`` 본 호환 위해 유지.
+
+    Phase A.3-b: SGLang xgrammar backend 본 활용하여 generate_json 시
+    ``response_format: json_schema`` 본 server-side 정합 강제.
     """
     return LocalLLMClient(
         model_key="qwen36-27b-q3",
         base_url="http://localhost:8081",
         model_name_in_request="qwen3.6-27b",
+        supports_json_schema=True,
     )
 
 

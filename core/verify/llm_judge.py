@@ -14,8 +14,18 @@ JUDGE_SCHEMA: dict[str, Any] = {
     "properties": {
         "score": {"type": "number", "minimum": 0, "maximum": 100},
         "verdict": {"type": "string", "enum": ["pass", "warn", "fail"]},
-        "issues": {"type": "array", "items": {"type": "string"}},
-        "suggestions": {"type": "array", "items": {"type": "string"}},
+        # ★ Phase A.3-b — xgrammar strict mode 본 string runaway 방지.
+        # max_tokens 한계 본 unterminated string 본 방지하기 위해 길이 제한.
+        "issues": {
+            "type": "array",
+            "items": {"type": "string", "maxLength": 200},
+            "maxItems": 5,
+        },
+        "suggestions": {
+            "type": "array",
+            "items": {"type": "string", "maxLength": 200},
+            "maxItems": 5,
+        },
     },
 }
 
@@ -148,7 +158,11 @@ class LLMJudge:
         """LLM 응답을 criteria로 평가."""
         prompt = build_judge_prompt(response, criteria, context)
 
-        result = self.judge.generate_json(prompt, schema=JUDGE_SCHEMA)
+        # ★ Phase A.3-b — schema 강제 + max_tokens 본 string runaway 여유 확보.
+        # 27B 본 한국어 verbose JSON 본 1500 tok 한계 본 부족했음.
+        result = self.judge.generate_json(
+            prompt, schema=JUDGE_SCHEMA, max_tokens=2000
+        )
         parsed = result.parsed
 
         score_raw = parsed.get("score", 0)

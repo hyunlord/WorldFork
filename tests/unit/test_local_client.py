@@ -152,12 +152,154 @@ class TestLocalLLMClientGenerate:
         assert r.raw["base_url"] == "http://localhost:8081"
 
 
+class TestLocalLLMClientGenerateJSON:
+    """Phase A.3-b — generate_json + response_format json_schema 강제."""
+
+    _SCHEMA = {
+        "properties": {
+            "score": {"type": "number"},
+            "verdict": {"type": "string"},
+        },
+        "required": ["score", "verdict"],
+    }
+
+    @patch("core.llm.local_client.requests.post")
+    def test_supports_schema_injects_response_format(
+        self, mock_post: MagicMock
+    ) -> None:
+        """supports_json_schema=True 시 response_format 자동 주입."""
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [
+                {"message": {"content": '{"score": 92, "verdict": "pass"}'}}
+            ],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 8},
+        }
+        mock_post.return_value = resp
+        c = LocalLLMClient(
+            model_key="t",
+            base_url="http://x",
+            supports_json_schema=True,
+        )
+        result = c.generate_json(Prompt(system="", user="u"), schema=self._SCHEMA)
+
+        payload = mock_post.call_args.kwargs["json"]
+        rf = payload["response_format"]
+        assert rf["type"] == "json_schema"
+        assert rf["json_schema"]["strict"] is True
+        wrapped = rf["json_schema"]["schema"]
+        assert wrapped["type"] == "object"
+        assert wrapped["additionalProperties"] is False
+        assert wrapped["required"] == ["score", "verdict"]
+
+        assert result.parsed == {"score": 92, "verdict": "pass"}
+        assert result.model == "t"
+
+    @patch("core.llm.local_client.requests.post")
+    def test_without_supports_schema_falls_back(
+        self, mock_post: MagicMock
+    ) -> None:
+        """supports_json_schema=False 면 response_format 미주입 + post-hoc parse."""
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [
+                {"message": {"content": '{"score": 78, "verdict": "warn"}'}}
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 8},
+        }
+        mock_post.return_value = resp
+        c = LocalLLMClient(model_key="fallback", base_url="http://x")
+        result = c.generate_json(
+            Prompt(system="", user="u"), schema=self._SCHEMA
+        )
+        payload = mock_post.call_args.kwargs["json"]
+        assert "response_format" not in payload
+        assert result.parsed == {"score": 78, "verdict": "warn"}
+
+    @patch("core.llm.local_client.requests.post")
+    def test_schema_none_falls_back(self, mock_post: MagicMock) -> None:
+        """schema=None 이면 supports flag 와 무관하게 fallback."""
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [
+                {"message": {"content": '{"k": 1}'}}
+            ],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        mock_post.return_value = resp
+        c = LocalLLMClient(
+            model_key="t",
+            base_url="http://x",
+            supports_json_schema=True,
+        )
+        c.generate_json(Prompt(system="", user="u"), schema=None)
+        payload = mock_post.call_args.kwargs["json"]
+        assert "response_format" not in payload
+
+    @patch("core.llm.local_client.requests.post")
+    def test_preserves_explicit_additional_properties(
+        self, mock_post: MagicMock
+    ) -> None:
+        """입력 schema 가 type=object + additionalProperties 명시 시 원본 유지."""
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": "{}"}}],
+            "usage": {},
+        }
+        mock_post.return_value = resp
+        c = LocalLLMClient(
+            model_key="t",
+            base_url="http://x",
+            supports_json_schema=True,
+        )
+        explicit_schema = {
+            "type": "object",
+            "properties": {"x": {"type": "integer"}},
+            "required": ["x"],
+            "additionalProperties": True,
+        }
+        c.generate_json(Prompt(system="", user="u"), schema=explicit_schema)
+        wrapped = mock_post.call_args.kwargs["json"]["response_format"][
+            "json_schema"
+        ]["schema"]
+        assert wrapped["additionalProperties"] is True
+
+    @patch("core.llm.local_client.requests.post")
+    def test_empty_content_under_schema_raises(
+        self, mock_post: MagicMock
+    ) -> None:
+        """SGLang 가 reasoning_content 만 채우고 content=null 인 케이스 explicit 에러."""
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "choices": [{"message": {"content": None}}],
+            "usage": {},
+        }
+        mock_post.return_value = resp
+        c = LocalLLMClient(
+            model_key="t",
+            base_url="http://x",
+            supports_json_schema=True,
+        )
+        with pytest.raises(LLMError, match="Empty content"):
+            c.generate_json(Prompt(system="", user="u"), schema=self._SCHEMA)
+
+
 class TestFactoryFunctions:
     def test_get_qwen36_27b_q3(self) -> None:
         c = get_qwen36_27b_q3()
         assert c.model_name == "qwen36-27b-q3"
         assert "8081" in c._base_url
         assert c._chat_template_kwargs == {"enable_thinking": False}
+        assert c._supports_json_schema is True
+
+    def test_get_qwen35_9b_q3_no_schema_support(self) -> None:
+        c = get_qwen35_9b_q3()
+        assert c._supports_json_schema is False
 
     def test_get_qwen36_27b_q2(self) -> None:
         c = get_qwen36_27b_q2()
