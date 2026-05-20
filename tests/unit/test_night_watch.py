@@ -80,7 +80,7 @@ class TestPlayerActionTypeRest:
         )
 
     def test_total_count_29(self) -> None:
-        assert len(list(PlayerActionType)) == 29
+        assert len(list(PlayerActionType)) == 31
 
     def test_action_hours_delta(self) -> None:
         assert (

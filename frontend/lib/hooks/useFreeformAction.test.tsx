@@ -29,6 +29,8 @@ describe("useFreeformAction", () => {
         affinity_changes: {},
       },
       fallback_reason: null,
+      session_id: null,
+      session_state: null,
     });
 
     const { result } = renderHook(() => useFreeformAction());
@@ -84,6 +86,8 @@ describe("useFreeformAction", () => {
         affinity_changes: {},
       },
       fallback_reason: "자유 행동",
+      session_id: null,
+      session_state: null,
     });
 
     const { result } = renderHook(() => useFreeformAction());

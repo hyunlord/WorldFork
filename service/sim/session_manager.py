@@ -1,14 +1,15 @@
-"""Phase D step 4 — in-memory + SQLite 세션 매니저."""
+"""Phase D step 4/6b — in-memory + SQLite 세션 매니저."""
 
 from __future__ import annotations
 
 import asyncio
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from service.persistence.sqlite_store import SessionRow, SqliteStore, TurnRow
 from service.sim.action_context import ActionResult
+from service.sim.equipment import DEFAULT_EQUIPMENT_DICT
 
 
 @dataclass
@@ -24,6 +25,10 @@ class SessionState:
     turn_count: int
     created_at: float
     last_active: float
+    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
+    equipment: dict[str, object] = field(  # ★ 6b
+        default_factory=lambda: dict(DEFAULT_EQUIPMENT_DICT)
+    )
 
 
 def _new_id() -> str:
@@ -44,6 +49,8 @@ def _to_row(s: SessionState) -> SessionRow:
         inventory=list(s.inventory),
         location=s.location,
         turn_count=s.turn_count,
+        status_effects=list(s.status_effects),
+        equipment=dict(s.equipment),
     )
 
 
@@ -58,6 +65,8 @@ def _from_row(r: SessionRow) -> SessionState:
         location=r.location,
         encounters=[],  # encounters는 turn마다 재구성 — DB 비저장
         turn_count=r.turn_count,
+        status_effects=list(r.status_effects),
+        equipment=dict(r.equipment),
     )
 
 
@@ -91,6 +100,8 @@ class SessionManager:
             turn_count=0,
             created_at=now,
             last_active=now,
+            status_effects=[],
+            equipment=dict(DEFAULT_EQUIPMENT_DICT),
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -130,11 +141,18 @@ class SessionManager:
             ]
         if result.location is not None:
             state.location = result.location
-        # ★ encounters update (in-memory only, non-persisted)
+        # encounters update (in-memory only, non-persisted)
         if result.encounters_update is not None:
             state.encounters = list(result.encounters_update)
         elif result.encounter_resolved:
             state.encounters = []
+        # status + equipment update (★ 6b)
+        if result.status_update is not None:
+            state.status_effects = list(result.status_update)
+        if result.equipment_update is not None:
+            eq = dict(state.equipment)
+            eq.update(result.equipment_update)
+            state.equipment = eq
         state.turn_count += 1
         state.last_active = _now()
 

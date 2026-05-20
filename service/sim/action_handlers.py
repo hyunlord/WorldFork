@@ -1,4 +1,4 @@
-"""Phase D step 3/6a — 29 PlayerActionType deterministic handler.
+"""Phase D step 3/6a/6b — 31 PlayerActionType deterministic handler.
 
 LLM 호출 없음 — template narrative + state mutate.
 27B narrative는 fallback path(freeform_handler)에서 담당.
@@ -6,10 +6,11 @@ LLM 호출 없음 — template narrative + state mutate.
 
 from __future__ import annotations
 
+import asyncio
 import random
 from collections.abc import Awaitable, Callable
 
-from service.canon.context import get_entity_index
+from service.canon.context import get_entity_index, get_item_registry
 from service.canon.effects import classify_skill, parse_essence_abilities
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_helpers import (
@@ -20,7 +21,16 @@ from service.sim.action_helpers import (
     get_first_enemy,
     get_first_npc,
 )
+from service.sim.combat import (
+    CombatTurnLog,
+    cleanup_dead_enemies,
+    execute_enemy_turn,
+    execute_player_attack,
+    find_target_index,
+)
 from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
+from service.sim.equipment import equipment_to_dict
+from service.sim.status import deserialize_status, serialize_status
 from service.sim.types import PlayerActionType
 
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
@@ -189,23 +199,71 @@ def _compute_player_agility(ctx: ActionContext) -> int:
     return base + bonus
 
 
-def _compute_damage(player_attack: int, enemy: Enemy, user_input: str) -> int:
-    """attack - defense, weakness 배율 적용."""
-    base = max(1, player_attack - enemy.defense)
-    multiplier = 1.0
-    for race in enemy.weakness_races:
-        if race in user_input:
-            multiplier = 1.5
-            break
-    return max(1, int(base * multiplier))
+def _compute_player_defense(ctx: ActionContext) -> int:
+    """base 5 + 정수 defense_bonus + 장비 defense_bonus."""
+    base = 5
+    bonus = 0
+    index = get_entity_index()
+    if index:
+        for item in ctx.inventory:
+            ref = index.lookup_by_name(item)
+            if ref is None or ref.entity_type != "essence":
+                continue
+            raw = index.get_raw_essence(item)
+            if raw is None:
+                continue
+            abilities_raw = raw.get("abilities", {})
+            if not isinstance(abilities_raw, dict):
+                continue
+            effects = parse_essence_abilities(abilities_raw)
+            bonus += effects.get("defense_bonus", 0)
+    if ctx.equipment is not None:
+        bonus += ctx.equipment.total_defense_bonus()
+    return base + bonus
+
+
+def _build_attack_narrative(
+    player_log: CombatTurnLog,
+    enemy_logs: list[CombatTurnLog],
+    essence_drops: list[str],
+    all_resolved: bool,
+) -> str:
+    """template 기반 전투 narrative."""
+    parts: list[str] = []
+
+    if player_log.enemy_resolved:
+        parts.append(
+            f"비요른은 {player_log.target_name}에게 일격을 가합니다."
+            f" 쓰러지는 {player_log.target_name}에서 빛이 사그라듭니다."
+        )
+        for drop in essence_drops:
+            parts.append(f" {drop}이(가) 바닥에 떨어집니다.")
+    else:
+        parts.append(
+            f"비요른은 {player_log.target_name}을(를) 공격합니다."
+            f" {player_log.damage_dealt} 피해를 줍니다."
+        )
+
+    for log in enemy_logs:
+        if log.notes and "hp +" in log.notes:
+            parts.append(f" {log.actor}이(가) 상처를 회복합니다.")
+        elif log.damage_received > 0:
+            parts.append(
+                f" {log.actor}이(가) {log.action_name}으로 반격합니다."
+                f" 비요른이 {log.damage_received} 피해를 받습니다."
+            )
+            if log.status_applied:
+                parts.append(f" ({', '.join(log.status_applied)} 적용)")
+
+    return "".join(parts)
 
 
 # ─── 전투 ───
 
 
 async def handle_attack(ctx: ActionContext) -> ActionResult:
-    enemy_dict = get_first_enemy(ctx.encounters)
-    if not enemy_dict:
+    """multi-enemy turn loop 전투."""
+    if not ctx.encounters:
         return ActionResult(
             narrative="공격할 대상이 없습니다.",
             success=False,
@@ -213,40 +271,66 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
             time_advance=0,
         )
 
-    enemy = enemy_from_dict(enemy_dict)
+    enemies = [enemy_from_dict(e) for e in ctx.encounters]
     player_attack = _compute_player_attack(ctx)
-    damage = _compute_damage(player_attack, enemy, ctx.user_input)
-    enemy.hp = max(0, enemy.hp - damage)
-    resolved = enemy.hp <= 0
+    player_defense = _compute_player_defense(ctx)
+    player_status = [deserialize_status(s) for s in ctx.status_effects]
 
-    inventory_add: list[str] = []
-    if resolved and enemy.essence_drop:
-        inventory_add.append(enemy.essence_drop)
+    # Step 1: 플레이어 공격
+    target_idx = find_target_index(enemies, ctx.user_input)
+    item_pool = None
+    registry = get_item_registry()
+    if registry:
+        item_pool = registry.all_items()
+    enemies, player_log = execute_player_attack(
+        enemies, target_idx, player_attack, ctx.user_input
+    )
 
-    if resolved:
-        narrative = (
-            f"비요른은 {enemy.name}에게 일격을 가합니다."
-            f" 쓰러지는 {enemy.name}에서 빛이 사그라듭니다."
+    # Step 2: 죽은 enemy 정리 + drop
+    enemies, essence_drops, equipment_drops = cleanup_dead_enemies(enemies, item_pool)
+
+    # Step 3: 남은 enemy turn
+    enemy_logs: list[CombatTurnLog] = []
+    hp_change = 0
+    new_status = player_status
+    if enemies:
+        enemies, new_player_hp, new_status, enemy_logs = execute_enemy_turn(
+            enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status
         )
-        if enemy.essence_drop:
-            narrative += f" {enemy.essence_drop}이(가) 바닥에 떨어집니다."
-    else:
-        narrative = (
-            f"비요른은 {enemy.name}을(를) 공격합니다. "
-            f"{damage} 피해를 줍니다. (남은 HP {enemy.hp}/{enemy.max_hp})"
-        )
+        hp_change = new_player_hp - ctx.current_hp
 
-    new_encounters = list(ctx.encounters)
-    if resolved:
-        new_encounters.pop(0)
-    else:
-        new_encounters[0] = enemy_to_dict(enemy)
+    all_resolved = len(enemies) == 0
+
+    # Step 4: narrative — 27B 시도 후 template fallback
+    narrative = _build_attack_narrative(player_log, enemy_logs, essence_drops, all_resolved)
+    try:
+        from service.sim.freeform_handler import compose_combat_narrative
+        richer = await asyncio.to_thread(
+            compose_combat_narrative, player_log, enemy_logs, essence_drops
+        )
+        if richer:
+            narrative = richer
+    except Exception:
+        pass
+
+    new_encounters = [enemy_to_dict(e) for e in enemies]
+    new_status_dicts: list[dict[str, object]] = [serialize_status(s) for s in new_status]
+
+    inventory_add = list(essence_drops)
+    if equipment_drops:
+        # 장비 드롭 → inventory 이름만 추가 (실제 착용은 EQUIP action)
+        for eq_dict in equipment_drops:
+            name_val = eq_dict.get("name")
+            if isinstance(name_val, str):
+                inventory_add.append(name_val)
 
     return ActionResult(
         narrative=narrative,
+        hp_change=hp_change,
         inventory_add=inventory_add,
-        encounter_resolved=resolved,
-        encounters_update=new_encounters if not resolved else None,
+        encounter_resolved=all_resolved,
+        encounters_update=new_encounters if not all_resolved else None,
+        status_update=new_status_dicts,
         time_advance=1,
     )
 
@@ -281,6 +365,86 @@ async def handle_flee(ctx: ActionContext) -> ActionResult:
         fail_reason="flee_failed",
         time_advance=2,
     )
+
+
+async def handle_equip(ctx: ActionContext) -> ActionResult:
+    """inventory 아이템을 장비 slot에 착용."""
+    registry = get_item_registry()
+    if registry is None:
+        return ActionResult(
+            narrative="장비 정보를 확인할 수 없습니다.",
+            success=False,
+            fail_reason="no_registry",
+            time_advance=0,
+        )
+    item_name = _find_equippable(ctx.user_input, ctx.inventory, registry)
+    if item_name is None or item_name not in ctx.inventory:
+        return ActionResult(
+            narrative="착용할 장비를 찾을 수 없습니다.",
+            success=False,
+            fail_reason="no_item",
+            time_advance=0,
+        )
+    eq = registry.lookup(item_name)
+    if eq is None:
+        return ActionResult(
+            narrative=f"{item_name}은(는) 장비가 아닙니다.",
+            success=False,
+            fail_reason="not_equipment",
+            time_advance=0,
+        )
+    return ActionResult(
+        narrative=f"비요른은 {item_name}을(를) 착용합니다.",
+        inventory_remove=[item_name],
+        equipment_update={eq.slot.value: equipment_to_dict(eq)},
+        time_advance=1,
+    )
+
+
+async def handle_unequip(ctx: ActionContext) -> ActionResult:
+    """장비 slot에서 아이템 해제 → inventory 복귀."""
+    if ctx.equipment is None:
+        return ActionResult(
+            narrative="착용 중인 장비가 없습니다.",
+            success=False,
+            fail_reason="no_equipment",
+            time_advance=0,
+        )
+    # user_input에서 slot 이름 매칭
+    for slot_name in ("weapon", "armor", "accessory"):
+        piece = getattr(ctx.equipment, slot_name)
+        if piece is not None and (piece.name in ctx.user_input or slot_name in ctx.user_input):
+            return ActionResult(
+                narrative=f"비요른은 {piece.name}을(를) 벗습니다.",
+                inventory_add=[piece.name],
+                equipment_update={slot_name: None},
+                time_advance=1,
+            )
+    return ActionResult(
+        narrative="해제할 장비를 찾을 수 없습니다.",
+        success=False,
+        fail_reason="no_match",
+        time_advance=0,
+    )
+
+
+def _find_equippable(
+    user_input: str,
+    inventory: list[str],
+    registry: object,
+) -> str | None:
+    """user_input 또는 inventory에서 장비 이름 탐색."""
+    from service.canon.items import ItemRegistry
+    if not isinstance(registry, ItemRegistry):
+        return None
+    for name in inventory:
+        if name in user_input and registry.lookup(name) is not None:
+            return name
+    # fallback: inventory 첫 장비
+    for name in inventory:
+        if registry.lookup(name) is not None:
+            return name
+    return None
 
 
 async def handle_engage_bandit(ctx: ActionContext) -> ActionResult:
@@ -576,9 +740,11 @@ ACTION_HANDLERS: dict[PlayerActionType, _Handler] = {
     PlayerActionType.DISBAND_NIGHT_COMPANION: handle_disband_night_companion,
     PlayerActionType.ENGAGE_BANDIT: handle_engage_bandit,
     PlayerActionType.REST_AND_NIGHT_WATCH: handle_rest_and_night_watch,
+    PlayerActionType.EQUIP: handle_equip,
+    PlayerActionType.UNEQUIP: handle_unequip,
 }
 
-assert len(ACTION_HANDLERS) == 29, f"handler count mismatch: {len(ACTION_HANDLERS)}"
+assert len(ACTION_HANDLERS) == 31, f"handler count mismatch: {len(ACTION_HANDLERS)}"
 
 
 async def dispatch_action(

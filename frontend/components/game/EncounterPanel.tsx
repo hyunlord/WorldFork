@@ -4,6 +4,7 @@ import type {
   EncounterPanelData,
   EncounterTarget,
   EncounterAction,
+  StatusEffectDisplay,
 } from "./types";
 
 interface Props {
@@ -74,7 +75,25 @@ function ActionBtn({
   );
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  poison: "독",
+  paralyze: "마비",
+  bleed: "출혈",
+  burn: "화상",
+  slow: "둔화",
+};
+
+function StatusBadge({ effect }: { effect: StatusEffectDisplay }) {
+  const label = STATUS_LABEL[effect.type] ?? effect.type;
+  return (
+    <span className="rounded-[1px] border border-crimson/40 bg-crimson/10 px-1.5 py-0.5 font-mono text-[0.6rem] text-crimson">
+      {label} {effect.duration}턴
+    </span>
+  );
+}
+
 export function EncounterPanel({ data, onTarget, onAction }: Props) {
+  const statusEffects = data.status_effects ?? [];
   return (
     <div className="relative overflow-y-auto border-b border-border-rune bg-bg-panel px-6 py-4">
       <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-crimson to-transparent opacity-40" />
@@ -95,6 +114,14 @@ export function EncounterPanel({ data, onTarget, onAction }: Props) {
           onClick={onTarget ? () => onTarget(t.id) : undefined}
         />
       ))}
+
+      {statusEffects.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {statusEffects.map((e, i) => (
+            <StatusBadge key={`${e.type}-${i}`} effect={e} />
+          ))}
+        </div>
+      )}
 
       <div className="mt-2.5 grid grid-cols-4 gap-1.5">
         {data.actions.map((a) => (

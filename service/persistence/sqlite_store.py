@@ -1,4 +1,4 @@
-"""Phase D step 4 — SQLite 기반 세션/턴 영속 스토어."""
+"""Phase D step 4/6b — SQLite 기반 세션/턴 영속 스토어."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_DEFAULT_EQUIPMENT = '{"weapon":null,"armor":null,"accessory":null}'
 
 
 @dataclass
@@ -18,6 +20,10 @@ class SessionRow:
     inventory: list[str]
     location: str
     turn_count: int
+    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
+    equipment: dict[str, object] = field(  # ★ 6b
+        default_factory=lambda: {"weapon": None, "armor": None, "accessory": None}
+    )
 
 
 @dataclass
@@ -51,6 +57,27 @@ class SqliteStore:
         sql = schema_path.read_text(encoding="utf-8")
         with self._connect() as conn:
             conn.executescript(sql)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """기존 DB에 새 컬럼 추가 (ALTER TABLE — 이미 있으면 무시)."""
+        migrations = [
+            (
+                "status_effects",
+                "ALTER TABLE sessions ADD COLUMN status_effects TEXT NOT NULL DEFAULT '[]'",
+            ),
+            (
+                "equipment",
+                "ALTER TABLE sessions ADD COLUMN equipment TEXT NOT NULL DEFAULT"
+                f" '{_DEFAULT_EQUIPMENT}'",
+            ),
+        ]
+        with self._connect() as conn:
+            cur = conn.execute("PRAGMA table_info(sessions)")
+            existing_cols = {row["name"] for row in cur.fetchall()}
+            for col_name, alter_sql in migrations:
+                if col_name not in existing_cols:
+                    conn.execute(alter_sql)
 
     # ── sessions ──────────────────────────────────────────────────────────────
 
@@ -58,15 +85,17 @@ class SqliteStore:
         sql = """
         INSERT INTO sessions
             (session_id, created_at, last_active, current_hp, max_hp,
-             inventory, location, turn_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             inventory, location, turn_count, status_effects, equipment)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
-            last_active  = excluded.last_active,
-            current_hp   = excluded.current_hp,
-            max_hp        = excluded.max_hp,
-            inventory    = excluded.inventory,
-            location     = excluded.location,
-            turn_count   = excluded.turn_count
+            last_active    = excluded.last_active,
+            current_hp     = excluded.current_hp,
+            max_hp         = excluded.max_hp,
+            inventory      = excluded.inventory,
+            location       = excluded.location,
+            turn_count     = excluded.turn_count,
+            status_effects = excluded.status_effects,
+            equipment      = excluded.equipment
         """
         with self._connect() as conn:
             conn.execute(
@@ -80,6 +109,8 @@ class SqliteStore:
                     json.dumps(row.inventory, ensure_ascii=False),
                     row.location,
                     row.turn_count,
+                    json.dumps(row.status_effects, ensure_ascii=False),
+                    json.dumps(row.equipment, ensure_ascii=False),
                 ),
             )
 
@@ -91,6 +122,10 @@ class SqliteStore:
             row = cur.fetchone()
         if row is None:
             return None
+        status_raw = row["status_effects"] if "status_effects" in row.keys() else "[]"
+        equipment_raw = row["equipment"] if "equipment" in row.keys() else _DEFAULT_EQUIPMENT
+        status_parsed = json.loads(status_raw)
+        equipment_parsed = json.loads(equipment_raw)
         return SessionRow(
             session_id=row["session_id"],
             created_at=row["created_at"],
@@ -100,6 +135,11 @@ class SqliteStore:
             inventory=json.loads(row["inventory"]),
             location=row["location"],
             turn_count=row["turn_count"],
+            status_effects=status_parsed if isinstance(status_parsed, list) else [],
+            equipment=(
+                equipment_parsed if isinstance(equipment_parsed, dict)
+                else {"weapon": None, "armor": None, "accessory": None}
+            ),
         )
 
     def delete_session(self, session_id: str) -> None:

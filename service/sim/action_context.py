@@ -1,19 +1,16 @@
-"""Phase D step 3 — handler I/O types (stateless, session_id는 step 4)."""
+"""Phase D step 3/6b — handler I/O types."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from service.api.schemas.freeform_action import ExtractedEntities
+from service.sim.equipment import EquipmentSet
 
 
 @dataclass
 class ActionContext:
-    """핸들러 입력 — 현재 턴 상태 스냅샷.
-
-    Phase D step 4에서 session_id 기반 서버사이드 state holder로 교체.
-    현재는 request body에서 받은 값을 그대로 사용.
-    """
+    """핸들러 입력 — 현재 턴 상태 스냅샷."""
 
     current_hp: int
     max_hp: int
@@ -22,6 +19,8 @@ class ActionContext:
     encounters: list[dict[str, object]] = field(default_factory=list)
     user_input: str = ""
     extracted_entities: ExtractedEntities | None = None
+    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
+    equipment: EquipmentSet | None = None  # ★ 6b
 
 
 @dataclass
@@ -38,4 +37,6 @@ class ActionResult:
     encounter_resolved: bool = False
     success: bool = True
     fail_reason: str | None = None
-    encounters_update: list[dict[str, object]] | None = None  # ★ 6a: enemy hp 갱신
+    encounters_update: list[dict[str, object]] | None = None  # ★ 6a
+    status_update: list[dict[str, object]] | None = None  # ★ 6b
+    equipment_update: dict[str, object] | None = None  # ★ 6b slot → equipment dict

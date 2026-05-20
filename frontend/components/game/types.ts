@@ -75,9 +75,16 @@ export interface EncounterAction {
   key: string;
 }
 
+export interface StatusEffectDisplay {
+  type: string;
+  duration: number;
+  intensity: number;
+}
+
 export interface EncounterPanelData {
   targets: EncounterTarget[];
   actions: EncounterAction[];
+  status_effects?: StatusEffectDisplay[];
 }
 
 export type InventoryValueKind = "normal" | "amber" | "unidentified";

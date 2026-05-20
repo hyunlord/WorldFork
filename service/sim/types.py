@@ -68,6 +68,9 @@ class PlayerActionType(StrEnum):
     # ★ Phase 9.17-e — 불침번 + 분쟁 mutual defense (★ 6/7/10/27/111화 정합)
     # 6/7화 1인 선잠 위험 / 10화 맹세 / 27화 비요른 회상 / 111화 인원 효율
     REST_AND_NIGHT_WATCH = "rest_and_night_watch"
+    # ★ Phase D step 6b — 장비 착용 / 해제
+    EQUIP = "equip"
+    UNEQUIP = "unequip"
 
 
 @dataclass
@@ -227,6 +230,9 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     PlayerActionType.ENGAGE_BANDIT: 0.5,
     # ★ Phase 9.17-e — 불침번 6시간 (★ 본문 추측, REST 4h 본격 별도).
     PlayerActionType.REST_AND_NIGHT_WATCH: 6.0,
+    # ★ Phase D step 6b — 장비 착용/해제 (즉시).
+    PlayerActionType.EQUIP: 0.0,
+    PlayerActionType.UNEQUIP: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

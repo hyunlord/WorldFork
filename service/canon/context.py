@@ -1,16 +1,18 @@
-"""Phase D step 5/6a — EntityIndex + SpawnTable 전역 싱글톤.
+"""Phase D step 5/6a/6b — EntityIndex + SpawnTable + ItemRegistry 전역 싱글톤.
 
 app.py circular import 방지를 위해 별도 모듈로 분리.
-app.py lifespan 에서 set_entity_index() / set_spawn_table() 호출.
+app.py lifespan 에서 set_* 호출.
 """
 
 from __future__ import annotations
 
 from service.canon.entity_index import EntityIndex
+from service.canon.items import ItemRegistry
 from service.canon.spawn import SpawnTable
 
 _entity_index: EntityIndex | None = None
 _spawn_table: SpawnTable | None = None
+_item_registry: ItemRegistry | None = None
 
 
 def get_entity_index() -> EntityIndex | None:
@@ -39,3 +41,17 @@ def set_spawn_table(table: SpawnTable) -> None:
 def clear_spawn_table() -> None:
     global _spawn_table
     _spawn_table = None
+
+
+def get_item_registry() -> ItemRegistry | None:
+    return _item_registry
+
+
+def set_item_registry(registry: ItemRegistry) -> None:
+    global _item_registry
+    _item_registry = registry
+
+
+def clear_item_registry() -> None:
+    global _item_registry
+    _item_registry = None

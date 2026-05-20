@@ -1,6 +1,7 @@
-"""Phase D — 27B free-form fallback handler.
+"""Phase D — 27B free-form fallback handler + combat narrative.
 
 Phase D step 5: entity context inject (canon_facts keyword match).
+Phase D step 6b: compose_combat_narrative (sync, asyncio.to_thread 래핑 권장).
 intent classifier confidence < threshold 시 호출.
 async router에서 asyncio.to_thread로 wrap (sync).
 """
@@ -14,6 +15,7 @@ from core.llm.local_client import get_qwen36_27b_q3
 from service.api.schemas.freeform_action import ExtractedEntities, StateDelta
 from service.canon.context import get_entity_index
 from service.canon.entity_index import EntityRef
+from service.sim.combat import CombatTurnLog
 
 FREEFORM_SYSTEM_TEMPLATE = (
     "한국 web novel '게임 속 바바리안으로 살아남기' 정합 DM. "
@@ -139,3 +141,63 @@ def freeform_action(
     narrative = str(parsed["narrative"])
     delta = StateDelta.model_validate(parsed["state_delta"])
     return (narrative, delta)
+
+
+# ─── combat narrative ──────────────────────────────────────────────────────────
+
+_COMBAT_NARRATIVE_SYSTEM = (
+    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 DM. "
+    "전투 turn flow를 본문 어조 격식체(~다/~니다) narrative로 통합. "
+    "RULE: turn flow 자연스럽게 연결, 4-6 문장 분량."
+)
+
+_COMBAT_NARRATIVE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "narrative": {"type": "string", "minLength": 30, "maxLength": 1500},
+    },
+    "required": ["narrative"],
+    "additionalProperties": False,
+}
+
+
+def compose_combat_narrative(
+    player_log: CombatTurnLog,
+    enemy_logs: list[CombatTurnLog],
+    essence_drops: list[str],
+) -> str:
+    """27B 전투 narrative 생성 (sync). 실패 시 빈 문자열 반환."""
+    try:
+        client = get_qwen36_27b_q3()
+        flow_lines: list[str] = []
+        flow_lines.append(
+            f"비요른 ({player_log.action_name}) → "
+            f"{player_log.target_name} {player_log.damage_dealt} damage"
+        )
+        if player_log.enemy_resolved:
+            flow_lines.append(f"{player_log.target_name} 쓰러짐")
+        for log in enemy_logs:
+            if log.damage_received > 0:
+                line = f"{log.actor} ({log.action_name}) → 비요른 {log.damage_received} damage"
+            else:
+                line = f"{log.actor} ({log.action_name}) → {log.notes}"
+            if log.status_applied:
+                line += f" + {', '.join(log.status_applied)}"
+            flow_lines.append(line)
+        if essence_drops:
+            flow_lines.append(f"drop: {', '.join(essence_drops)}")
+
+        prompt = Prompt(
+            system=_COMBAT_NARRATIVE_SYSTEM,
+            user="전투 turn flow:\n" + "\n".join(flow_lines) + "\n\nnarrative 통합:",
+        )
+        response = client.generate_json(
+            prompt,
+            schema=_COMBAT_NARRATIVE_SCHEMA,
+            max_tokens=600,
+            temperature=0.7,
+        )
+        result = str(response.parsed.get("narrative", ""))
+        return result if len(result) >= 30 else ""
+    except Exception:
+        return ""

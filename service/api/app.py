@@ -23,11 +23,14 @@ from service.api.v2_session_router import router as v2_session_router
 from service.api.v2_state_router import router as v2_state_router
 from service.canon.context import (
     clear_entity_index,
+    clear_item_registry,
     clear_spawn_table,
     set_entity_index,
+    set_item_registry,
     set_spawn_table,
 )
 from service.canon.entity_index import EntityIndex
+from service.canon.items import ItemRegistry
 from service.canon.loader import load_canon_facts
 from service.canon.spawn import SpawnTable
 from service.sim.session_manager import get_session_manager
@@ -39,9 +42,11 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     facts = load_canon_facts()
     set_entity_index(EntityIndex(facts))
     set_spawn_table(SpawnTable(facts))
+    set_item_registry(ItemRegistry(facts))
     yield
     clear_entity_index()
     clear_spawn_table()
+    clear_item_registry()
 
 
 def _parse_cors_origins() -> list[str]:

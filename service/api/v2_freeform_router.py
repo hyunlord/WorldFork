@@ -20,6 +20,7 @@ from service.api.schemas.freeform_action import (
 )
 from service.sim.action_context import ActionContext
 from service.sim.action_handlers import dispatch_action
+from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
@@ -33,6 +34,7 @@ INTENT_THRESHOLD = 0.8
 def _build_context(req: FreeformActionRequest, state: SessionState | None) -> ActionContext:
     """세션 상태 우선, 없으면 inline request 값 사용."""
     if state is not None:
+        eq_set = equipment_set_from_dict(state.equipment) if state.equipment else None
         return ActionContext(
             current_hp=state.current_hp,
             max_hp=state.max_hp,
@@ -40,6 +42,8 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             location=state.location,
             encounters=list(state.encounters),
             user_input=req.user_input,
+            status_effects=list(state.status_effects),
+            equipment=eq_set,
         )
     return ActionContext(
         current_hp=req.current_hp,
