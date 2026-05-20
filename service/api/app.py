@@ -21,13 +21,19 @@ from service.api.game_routes import router as game_router
 from service.api.v2_freeform_router import router as v2_freeform_router
 from service.api.v2_session_router import router as v2_session_router
 from service.api.v2_state_router import router as v2_state_router
+from service.canon.context import clear_entity_index, set_entity_index
+from service.canon.entity_index import EntityIndex
+from service.canon.loader import load_canon_facts
 from service.sim.session_manager import get_session_manager
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     get_session_manager()  # startup: SQLite DB 초기화 (.local/worldfork.db)
+    facts = load_canon_facts()
+    set_entity_index(EntityIndex(facts))
     yield
+    clear_entity_index()
 
 
 def _parse_cors_origins() -> list[str]:

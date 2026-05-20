@@ -97,6 +97,7 @@ async def freeform_action_endpoint(
         ) from exc
 
     ctx = _build_context(req, session_state)
+    ctx.extracted_entities = intent.entities
 
     if (
         intent.matched_action is not None
@@ -149,6 +150,7 @@ async def freeform_action_endpoint(
             freeform_action,
             req.user_input,
             req.rationale,
+            intent.entities,
         )
     except Exception as exc:
         raise HTTPException(

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from service.api.schemas.freeform_action import ExtractedEntities
+
 
 @dataclass
 class ActionContext:
@@ -19,6 +21,7 @@ class ActionContext:
     location: str
     encounters: list[dict[str, object]] = field(default_factory=list)
     user_input: str = ""
+    extracted_entities: ExtractedEntities | None = None
 
 
 @dataclass

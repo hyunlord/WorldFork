@@ -1,10 +1,8 @@
-"""Phase D — 9B intent classifier (★ 자연어 → PlayerActionType match).
+"""Phase D — 9B intent classifier (자연어 → PlayerActionType + entity 추출).
 
-본 input 본 score 0.0-1.0 + matched_action (★ PlayerActionType value 또는
-None). threshold 0.8 이상 intent path, 미만 free-form fallback.
-
-★ LocalLLMClient.generate_json 는 sync. async router 본 asyncio.to_thread
-로 wrap 호출.
+Phase D step 5: entities (actor / location / item) 추출 추가.
+confidence < 0.8 → free-form fallback.
+async router에서 asyncio.to_thread 로 wrap 호출 (sync).
 """
 
 from __future__ import annotations
@@ -13,21 +11,20 @@ from typing import Any
 
 from core.llm.client import Prompt
 from core.llm.local_client import get_qwen35_9b_q3
-from service.api.schemas.freeform_action import IntentMatch
+from service.api.schemas.freeform_action import ExtractedEntities, IntentMatch
 from service.sim.types import PlayerActionType
 
-# 본 PlayerActionType 의 한국어 설명 (★ classifier prompt 본 사용).
 _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
     PlayerActionType.ACTIVATE_LIGHT: "횃불 / 정령 빛 활성화",
     PlayerActionType.MOVE: "sub_area 이동",
-    PlayerActionType.EXPLORE: "본 위치 탐색",
+    PlayerActionType.EXPLORE: "현 위치 탐색",
     PlayerActionType.ATTACK: "전투 / 적 공격",
     PlayerActionType.ABSORB_ESSENCE: "정수 흡수 (★ 핵심)",
     PlayerActionType.USE_ITEM: "inventory 아이템 사용",
     PlayerActionType.OFFER_TO_STONE: "비석 공물 (균열 진입 준비)",
     PlayerActionType.ENTER_RIFT: "균열 포탈 진입",
     PlayerActionType.EXIT_RIFT: "균열 탈출",
-    PlayerActionType.REST: "본 자리 휴식 / HP 회복 시도",
+    PlayerActionType.REST: "휴식 / HP 회복 시도",
     PlayerActionType.WAIT: "시간 흐름 (★ 행동 없음)",
     PlayerActionType.COMMUNICATE: "메시지 스톤 통신",
     PlayerActionType.FLEE: "전투 도주",
@@ -57,19 +54,19 @@ def build_action_list_text() -> str:
 
 
 INTENT_CLASSIFY_SYSTEM = (
-    "한국어 게임 자연어 input 본 best-match action 분류 expert. "
-    "본 입력 본 의도가 분명히 본 action 본 정합 시 confidence ≥ 0.85. "
-    "본 입력 본 자유 행동 (★ 본 list 의 어떤 action 도 아닌 자유 행동) 본 "
-    "matched_action=null + confidence < 0.5."
+    "한국어 게임 자연어 input의 best-match action 분류 + entity 추출 전문가. "
+    "입력 의도가 action과 분명히 매칭 시 confidence ≥ 0.85. "
+    "자유 행동(list의 어떤 action도 아님) 시 matched_action=null + confidence < 0.5. "
+    "entities: actor(캐릭터/NPC name), location(장소 name), item(아이템/정수 name) 추출."
 )
 
 INTENT_CLASSIFY_USER_TEMPLATE = """\
-본 PlayerActionType:
+PlayerActionType:
 {action_list}
 
-본 input: {user_input}
+input: {user_input}
 
-JSON 출력 (★ matched_action 본 본 list 의 value 또는 null):"""
+JSON 출력 (matched_action: list value 또는 null):"""
 
 INTENT_CLASSIFY_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -77,14 +74,24 @@ INTENT_CLASSIFY_SCHEMA: dict[str, Any] = {
         "matched_action": {"type": ["string", "null"], "maxLength": 80},
         "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
         "reason": {"type": "string", "maxLength": 200},
+        "entities": {
+            "type": "object",
+            "properties": {
+                "actor": {"type": ["string", "null"], "maxLength": 100},
+                "location": {"type": ["string", "null"], "maxLength": 100},
+                "item": {"type": ["string", "null"], "maxLength": 100},
+            },
+            "required": ["actor", "location", "item"],
+            "additionalProperties": False,
+        },
     },
-    "required": ["matched_action", "confidence", "reason"],
+    "required": ["matched_action", "confidence", "reason", "entities"],
     "additionalProperties": False,
 }
 
 
 def classify_intent(user_input: str) -> IntentMatch:
-    """9B 본 sync 호출 (★ async router 본 asyncio.to_thread)."""
+    """9B sync 호출 (async router에서 asyncio.to_thread wrap)."""
     client = get_qwen35_9b_q3()
     prompt = Prompt(
         system=INTENT_CLASSIFY_SYSTEM,
@@ -96,19 +103,27 @@ def classify_intent(user_input: str) -> IntentMatch:
     response = client.generate_json(
         prompt,
         schema=INTENT_CLASSIFY_SCHEMA,
-        max_tokens=300,
+        max_tokens=400,
         temperature=0.2,
     )
     parsed = response.parsed
     matched = parsed.get("matched_action")
-    # null / 본 PlayerActionType value 검증
     if matched is not None:
         try:
             PlayerActionType(matched)
         except ValueError:
-            matched = None  # LLM 본 invalid value 본 → free-form 으로 분류
+            matched = None
+
+    raw_entities = parsed.get("entities") or {}
+    entities = ExtractedEntities(
+        actor=raw_entities.get("actor") or None,
+        location=raw_entities.get("location") or None,
+        item=raw_entities.get("item") or None,
+    )
+
     return IntentMatch(
         matched_action=matched,
         confidence=float(parsed["confidence"]),
         reason=str(parsed.get("reason", ""))[:200],
+        entities=entities,
     )

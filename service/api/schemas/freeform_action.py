@@ -29,8 +29,16 @@ class FreeformActionRequest(BaseModel):
     encounters: list[dict[str, object]] = Field(default_factory=list)
 
 
+class ExtractedEntities(BaseModel):
+    """9B intent classifier가 추출한 entity (Phase D step 5)."""
+
+    actor: str | None = Field(default=None, max_length=100)
+    location: str | None = Field(default=None, max_length=100)
+    item: str | None = Field(default=None, max_length=100)
+
+
 class IntentMatch(BaseModel):
-    """9B intent classifier 본 결과."""
+    """9B intent classifier 결과."""
 
     matched_action: str | None = Field(
         default=None,
@@ -38,6 +46,7 @@ class IntentMatch(BaseModel):
     )
     confidence: float = Field(..., ge=0.0, le=1.0)
     reason: str = Field(..., max_length=200)
+    entities: ExtractedEntities = Field(default_factory=ExtractedEntities)
 
 
 class StateDelta(BaseModel):
