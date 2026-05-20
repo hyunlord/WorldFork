@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
+from typing import Any
 
 from service.canon.schema import (
     SOURCE_PRIORITY,
@@ -180,12 +181,16 @@ def _source_stats(facts: CanonFacts) -> dict[str, int]:
 
 
 def _cross_ref_stats(facts: CanonFacts) -> dict[str, int]:
-    """본 entity 본 source coverage."""
+    """본 entity 본 source coverage 본 명시 bucket."""
     stats = {
         "wiki_only": 0,
         "canon_only": 0,
+        "dc_only": 0,
         "wiki_and_canon": 0,
-        "neither": 0,
+        "wiki_and_dc": 0,
+        "canon_and_dc": 0,
+        "wiki_canon_dc": 0,
+        "other": 0,
     }
     for group in (
         facts.essences,
@@ -199,14 +204,23 @@ def _cross_ref_stats(facts: CanonFacts) -> dict[str, int]:
             sources = {c.source for c in citations}
             has_wiki = Source.WIKI in sources
             has_canon = Source.CANON in sources
-            if has_wiki and has_canon:
+            has_dc = Source.DC in sources
+            if has_wiki and has_canon and has_dc:
+                stats["wiki_canon_dc"] += 1
+            elif has_wiki and has_canon:
                 stats["wiki_and_canon"] += 1
+            elif has_canon and has_dc:
+                stats["canon_and_dc"] += 1
+            elif has_wiki and has_dc:
+                stats["wiki_and_dc"] += 1
             elif has_canon:
                 stats["canon_only"] += 1
             elif has_wiki:
                 stats["wiki_only"] += 1
+            elif has_dc:
+                stats["dc_only"] += 1
             else:
-                stats["neither"] += 1
+                stats["other"] += 1
     return stats
 
 
@@ -223,9 +237,20 @@ def main() -> int:
         default=Path(".local/canon/canon_facts_episodes_raw.json"),
     )
     parser.add_argument(
+        "--dc",
+        type=Path,
+        default=None,
+        help="optional DC raw extraction (★ canon_facts_dc_raw.json)",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path(".local/canon/canon_facts_v2.json"),
+    )
+    parser.add_argument(
+        "--version",
+        default="2.0.0",
+        help="output version string",
     )
     args = parser.parse_args()
 
@@ -242,6 +267,14 @@ def main() -> int:
     ep_facts = CanonFacts.model_validate_json(
         args.episodes.read_text(encoding="utf-8")
     )
+    dc_facts: CanonFacts | None = None
+    if args.dc is not None:
+        if not args.dc.exists():
+            print(f"❌ dc input not found: {args.dc}")
+            return 1
+        dc_facts = CanonFacts.model_validate_json(
+            args.dc.read_text(encoding="utf-8")
+        )
 
     print(
         f"wiki:  e={len(wiki_facts.essences)} c={len(wiki_facts.characters)} "
@@ -253,22 +286,26 @@ def main() -> int:
         f"l={len(ep_facts.locations)} r={len(ep_facts.races)} "
         f"m={len(ep_facts.mechanisms)}"
     )
+    if dc_facts is not None:
+        print(
+            f"dc:    e={len(dc_facts.essences)} c={len(dc_facts.characters)} "
+            f"l={len(dc_facts.locations)} r={len(dc_facts.races)} "
+            f"m={len(dc_facts.mechanisms)}"
+        )
+
+    def _concat(attr: str) -> list[Any]:
+        out = list(getattr(wiki_facts, attr)) + list(getattr(ep_facts, attr))
+        if dc_facts is not None:
+            out += list(getattr(dc_facts, attr))
+        return out
 
     merged = CanonFacts(
-        essences=_dedupe_essences(
-            wiki_facts.essences + ep_facts.essences
-        ),
-        characters=_dedupe_characters(
-            wiki_facts.characters + ep_facts.characters
-        ),
-        locations=_dedupe_locations(
-            wiki_facts.locations + ep_facts.locations
-        ),
-        races=_dedupe_races(wiki_facts.races + ep_facts.races),
-        mechanisms=_dedupe_mechanisms(
-            wiki_facts.mechanisms + ep_facts.mechanisms
-        ),
-        version="2.0.0",
+        essences=_dedupe_essences(_concat("essences")),
+        characters=_dedupe_characters(_concat("characters")),
+        locations=_dedupe_locations(_concat("locations")),
+        races=_dedupe_races(_concat("races")),
+        mechanisms=_dedupe_mechanisms(_concat("mechanisms")),
+        version=args.version,
         last_updated=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         review_status="draft",
     )
@@ -279,7 +316,8 @@ def main() -> int:
     args.output.write_text(merged.model_dump_json(indent=2), encoding="utf-8")
 
     print()
-    print("=== merged (v2) ===")
+    label = f"v{args.version.split('.')[0]}"
+    print(f"=== merged ({label}) ===")
     print(f"essences:   {len(merged.essences)}")
     print(f"characters: {len(merged.characters)}")
     print(f"locations:  {len(merged.locations)}")
