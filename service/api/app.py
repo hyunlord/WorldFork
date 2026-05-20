@@ -8,6 +8,8 @@
 """
 
 import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -19,6 +21,13 @@ from service.api.game_routes import router as game_router
 from service.api.v2_freeform_router import router as v2_freeform_router
 from service.api.v2_session_router import router as v2_session_router
 from service.api.v2_state_router import router as v2_state_router
+from service.sim.session_manager import get_session_manager
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    get_session_manager()  # startup: SQLite DB 초기화 (.local/worldfork.db)
+    yield
 
 
 def _parse_cors_origins() -> list[str]:
@@ -50,6 +59,7 @@ def create_app() -> FastAPI:
         title="WorldFork API",
         description="한국어 텍스트 어드벤처 게임 API",
         version="0.1.0",
+        lifespan=_lifespan,
     )
 
     # CORS (★ env var ALLOWED_ORIGINS 우선, default Next.js dev 포트)
