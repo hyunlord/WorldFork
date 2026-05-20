@@ -21,6 +21,14 @@ export interface FreeformStateDelta {
   affinity_changes: Record<string, number>;
 }
 
+export interface FreeformSessionSummary {
+  current_hp: number;
+  max_hp: number;
+  inventory: string[];
+  location: string;
+  turn_count: number;
+}
+
 export interface FreeformActionResponse {
   resolved_path: FreeformResolvedPath;
   matched_action: string | null;
@@ -28,11 +36,14 @@ export interface FreeformActionResponse {
   narrative: string;
   state_delta: FreeformStateDelta;
   fallback_reason: string | null;
+  session_id: string | null;
+  session_state: FreeformSessionSummary | null;
 }
 
 export interface FreeformActionRequest {
   user_input: string;
   rationale?: string;
+  session_id?: string;
 }
 
 export async function postFreeformAction(

@@ -12,14 +12,15 @@ from pydantic import BaseModel, Field
 
 
 class FreeformActionRequest(BaseModel):
-    """자연어 input + 현재 턴 context (stateless).
+    """자연어 input + 세션 ID (Phase D step 4).
 
-    Phase D step 4에서 session_id 기반 서버사이드 state holder로 교체.
-    현재는 프론트엔드가 context를 직접 전송.
+    session_id 존재 시 서버사이드 세션 상태 사용.
+    session_id 없을 시 inline context 기반 stateless 모드 (하위 호환).
     """
 
     user_input: str = Field(..., min_length=1, max_length=500)
     rationale: str | None = Field(default=None, max_length=500)
+    session_id: str | None = Field(default=None)
 
     current_hp: int = Field(default=100, ge=0)
     max_hp: int = Field(default=100, ge=1)
@@ -54,6 +55,16 @@ class StateDelta(BaseModel):
 ResolvedPath = Literal["intent", "fallback"]
 
 
+class SessionSummary(BaseModel):
+    """freeform_action 응답에 포함되는 세션 요약."""
+
+    current_hp: int
+    max_hp: int
+    inventory: list[str]
+    location: str
+    turn_count: int
+
+
 class FreeformActionResponse(BaseModel):
     """backend 응답."""
 
@@ -68,3 +79,5 @@ class FreeformActionResponse(BaseModel):
     action_success: bool = Field(default=True)
     fail_reason: str | None = Field(default=None, max_length=200)
     fallback_reason: str | None = Field(default=None, max_length=200)
+    session_id: str | None = Field(default=None)
+    session_state: SessionSummary | None = Field(default=None)

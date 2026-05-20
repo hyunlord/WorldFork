@@ -6,6 +6,10 @@ import {
   postFreeformAction,
   type FreeformActionResponse,
 } from "@/lib/api/freeform";
+import {
+  getStoredSessionId,
+  setStoredSessionId,
+} from "@/lib/session";
 
 export interface UseFreeformActionResult {
   loading: boolean;
@@ -19,12 +23,11 @@ export interface UseFreeformActionResult {
 }
 
 /**
- * Phase D — 자연어 input → /api/v2/freeform_action hook.
+ * Phase D step 4 — session_id 통합 자연어 input hook.
  *
- * - loading / error / lastResponse 본 state expose
- * - submit 본 사용자 input + optional rationale 본 호출
- * - 직전 in-flight request 본 AbortController 본 cancel (★ rapid submit 시
- *   stale response 방지)
+ * - localStorage에 저장된 session_id를 매 요청에 첨부
+ * - 응답의 session_id를 localStorage에 갱신
+ * - AbortController로 in-flight 중복 요청 취소
  */
 export function useFreeformAction(): UseFreeformActionResult {
   const [loading, setLoading] = useState(false);
@@ -45,11 +48,19 @@ export function useFreeformAction(): UseFreeformActionResult {
       setLoading(true);
       setError(null);
       try {
+        const sessionId = getStoredSessionId();
         const resp = await postFreeformAction(
-          { user_input: userInput, rationale },
+          {
+            user_input: userInput,
+            rationale,
+            ...(sessionId !== null ? { session_id: sessionId } : {}),
+          },
           { signal: controller.signal },
         );
         if (controller.signal.aborted) return null;
+        if (resp.session_id !== null) {
+          setStoredSessionId(resp.session_id);
+        }
         setLastResponse(resp);
         return resp;
       } catch (e) {
