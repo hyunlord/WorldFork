@@ -20,10 +20,11 @@ class SessionRow:
     inventory: list[str]
     location: str
     turn_count: int
-    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
-    equipment: dict[str, object] = field(  # ★ 6b
+    status_effects: list[dict[str, object]] = field(default_factory=list)
+    equipment: dict[str, object] = field(
         default_factory=lambda: {"weapon": None, "armor": None, "accessory": None}
     )
+    last_spawn_turn: int = 0
 
 
 @dataclass
@@ -71,6 +72,10 @@ class SqliteStore:
                 "ALTER TABLE sessions ADD COLUMN equipment TEXT NOT NULL DEFAULT"
                 f" '{_DEFAULT_EQUIPMENT}'",
             ),
+            (
+                "last_spawn_turn",
+                "ALTER TABLE sessions ADD COLUMN last_spawn_turn INTEGER NOT NULL DEFAULT -10",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -85,17 +90,19 @@ class SqliteStore:
         sql = """
         INSERT INTO sessions
             (session_id, created_at, last_active, current_hp, max_hp,
-             inventory, location, turn_count, status_effects, equipment)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             inventory, location, turn_count, status_effects, equipment,
+             last_spawn_turn)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
-            last_active    = excluded.last_active,
-            current_hp     = excluded.current_hp,
-            max_hp         = excluded.max_hp,
-            inventory      = excluded.inventory,
-            location       = excluded.location,
-            turn_count     = excluded.turn_count,
-            status_effects = excluded.status_effects,
-            equipment      = excluded.equipment
+            last_active      = excluded.last_active,
+            current_hp       = excluded.current_hp,
+            max_hp           = excluded.max_hp,
+            inventory        = excluded.inventory,
+            location         = excluded.location,
+            turn_count       = excluded.turn_count,
+            status_effects   = excluded.status_effects,
+            equipment        = excluded.equipment,
+            last_spawn_turn  = excluded.last_spawn_turn
         """
         with self._connect() as conn:
             conn.execute(
@@ -111,6 +118,7 @@ class SqliteStore:
                     row.turn_count,
                     json.dumps(row.status_effects, ensure_ascii=False),
                     json.dumps(row.equipment, ensure_ascii=False),
+                    row.last_spawn_turn,
                 ),
             )
 
@@ -122,10 +130,13 @@ class SqliteStore:
             row = cur.fetchone()
         if row is None:
             return None
-        status_raw = row["status_effects"] if "status_effects" in row.keys() else "[]"
-        equipment_raw = row["equipment"] if "equipment" in row.keys() else _DEFAULT_EQUIPMENT
+        keys = row.keys()
+        status_raw = row["status_effects"] if "status_effects" in keys else "[]"
+        equipment_raw = row["equipment"] if "equipment" in keys else _DEFAULT_EQUIPMENT
         status_parsed = json.loads(status_raw)
         equipment_parsed = json.loads(equipment_raw)
+        raw_spawn = row["last_spawn_turn"] if "last_spawn_turn" in keys else -10
+        last_spawn_turn = int(raw_spawn) if isinstance(raw_spawn, int) else -10
         return SessionRow(
             session_id=row["session_id"],
             created_at=row["created_at"],
@@ -140,6 +151,7 @@ class SqliteStore:
                 equipment_parsed if isinstance(equipment_parsed, dict)
                 else {"weapon": None, "armor": None, "accessory": None}
             ),
+            last_spawn_turn=last_spawn_turn,
         )
 
     def delete_session(self, session_id: str) -> None:

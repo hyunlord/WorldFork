@@ -25,10 +25,11 @@ class SessionState:
     turn_count: int
     created_at: float
     last_active: float
-    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
-    equipment: dict[str, object] = field(  # ★ 6b
+    status_effects: list[dict[str, object]] = field(default_factory=list)
+    equipment: dict[str, object] = field(
         default_factory=lambda: dict(DEFAULT_EQUIPMENT_DICT)
     )
+    last_spawn_turn: int = -10  # cooldown skip on first move
 
 
 def _new_id() -> str:
@@ -51,6 +52,7 @@ def _to_row(s: SessionState) -> SessionRow:
         turn_count=s.turn_count,
         status_effects=list(s.status_effects),
         equipment=dict(s.equipment),
+        last_spawn_turn=s.last_spawn_turn,
     )
 
 
@@ -67,6 +69,7 @@ def _from_row(r: SessionRow) -> SessionState:
         turn_count=r.turn_count,
         status_effects=list(r.status_effects),
         equipment=dict(r.equipment),
+        last_spawn_turn=r.last_spawn_turn,
     )
 
 
@@ -102,6 +105,7 @@ class SessionManager:
             last_active=now,
             status_effects=[],
             equipment=dict(DEFAULT_EQUIPMENT_DICT),
+            last_spawn_turn=-10,
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))

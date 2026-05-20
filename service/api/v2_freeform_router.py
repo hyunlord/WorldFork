@@ -18,17 +18,40 @@ from service.api.schemas.freeform_action import (
     SessionSummary,
     StateDelta,
 )
+from service.canon.context import get_canon_facts, get_spawn_table
 from service.sim.action_context import ActionContext
 from service.sim.action_handlers import dispatch_action
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
+from service.sim.spawn_trigger import determine_location_type, trigger_spawn
 from service.sim.types import PlayerActionType
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
 
 INTENT_THRESHOLD = 0.8
+
+
+def _post_apply_spawn(state: SessionState) -> None:
+    """action 적용 후 encounter auto spawn check — state 인플레이스 갱신."""
+    if state.encounters:
+        return
+    spawn_table = get_spawn_table()
+    if spawn_table is None:
+        return
+    facts = get_canon_facts()
+    loc_type = determine_location_type(state.location, facts)
+    new_encounters = trigger_spawn(
+        location_name=state.location,
+        location_type=loc_type,
+        turn_count=state.turn_count,
+        last_spawn_turn=state.last_spawn_turn,
+        spawn_table=spawn_table,
+    )
+    if new_encounters:
+        state.encounters = new_encounters
+        state.last_spawn_turn = state.turn_count
 
 
 def _build_context(req: FreeformActionRequest, state: SessionState | None) -> ActionContext:
@@ -128,6 +151,7 @@ async def freeform_action_endpoint(
                     user_input=req.user_input,
                     resolved_path=resolved_path,
                 )
+                _post_apply_spawn(session_state)
 
             return FreeformActionResponse(
                 resolved_path=resolved_path,
@@ -181,6 +205,7 @@ async def freeform_action_endpoint(
             user_input=req.user_input,
             resolved_path=resolved_path_fb,
         )
+        _post_apply_spawn(session_state)
 
     return FreeformActionResponse(
         resolved_path=resolved_path_fb,
