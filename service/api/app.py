@@ -42,7 +42,9 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     facts = load_canon_facts()
     set_entity_index(EntityIndex(facts))
     set_spawn_table(SpawnTable(facts))
-    set_item_registry(ItemRegistry(facts))
+    item_registry = ItemRegistry(facts)
+    set_item_registry(item_registry)
+    print(f"[startup] ItemRegistry loaded: {item_registry.size()} items")
     yield
     clear_entity_index()
     clear_spawn_table()
