@@ -1,10 +1,8 @@
 """Phase D — POST /api/v2/freeform_action endpoint.
 
-★ Frontend (Phase B commit 55896af) 의 InputBar 자연어 input 본 backend
-연결. intent path (★ score ≥ threshold) 또는 free-form fallback.
-
-본 commit 본 base — intent path 본 placeholder narrative (★ deterministic
-action handler 본 후속 commit). canon_facts 본 미의존.
+Phase D step 3: intent path → dispatch_action (deterministic handler).
+Phase D step 2: intent path placeholder narrative (이전 commit).
+fallback path: 27B free-form (변경 없음).
 """
 
 from __future__ import annotations
@@ -18,11 +16,10 @@ from service.api.schemas.freeform_action import (
     FreeformActionResponse,
     StateDelta,
 )
+from service.sim.action_context import ActionContext
+from service.sim.action_handlers import dispatch_action
 from service.sim.freeform_handler import freeform_action
-from service.sim.intent_classifier import (
-    _ACTION_DESCRIPTIONS,
-    classify_intent,
-)
+from service.sim.intent_classifier import classify_intent
 from service.sim.types import PlayerActionType
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
@@ -30,25 +27,16 @@ router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
 INTENT_THRESHOLD = 0.8
 
 
-def _action_description(action_value: str) -> str:
-    try:
-        action = PlayerActionType(action_value)
-    except ValueError:
-        return action_value
-    return _ACTION_DESCRIPTIONS.get(action, action_value)
-
-
 @router.post("/freeform_action", response_model=FreeformActionResponse)
 async def freeform_action_endpoint(
     req: FreeformActionRequest,
 ) -> FreeformActionResponse:
-    """자연어 input → intent 또는 free-form fallback.
+    """자연어 input → intent dispatch 또는 free-form fallback.
 
     Step 1: 9B classifier 호출
-    Step 2: confidence ≥ INTENT_THRESHOLD + matched_action 존재 시 intent
-            path (★ 본 commit 본 placeholder narrative, 후속 commit 본
-            deterministic action handler)
-    Step 3: 위 미충족 시 27B free-form fallback (★ narrative + state_delta)
+    Step 2: confidence ≥ INTENT_THRESHOLD + matched_action 존재 시
+            ActionContext 빌드 → dispatch_action → StateDelta 반환
+    Step 3: 위 미충족 시 27B free-form fallback
     """
     try:
         intent = await asyncio.to_thread(classify_intent, req.user_input)
@@ -62,18 +50,44 @@ async def freeform_action_endpoint(
         intent.matched_action is not None
         and intent.confidence >= INTENT_THRESHOLD
     ):
-        description = _action_description(intent.matched_action)
-        narrative = (
-            f"비요른은 {description}을 시도합니다.\n"
-            f"(★ Phase D base — deterministic handler 본 후속 commit)"
-        )
-        return FreeformActionResponse(
-            resolved_path="intent",
-            matched_action=intent.matched_action,
-            confidence=intent.confidence,
-            narrative=narrative,
-            state_delta=StateDelta(time_advance=1),
-        )
+        try:
+            action_type = PlayerActionType(intent.matched_action)
+        except ValueError:
+            pass
+        else:
+            ctx = ActionContext(
+                current_hp=req.current_hp,
+                max_hp=req.max_hp,
+                inventory=list(req.inventory),
+                location=req.location,
+                encounters=list(req.encounters),
+                user_input=req.user_input,
+            )
+            try:
+                result = await dispatch_action(action_type, ctx)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"action handler failed: {exc}",
+                ) from exc
+
+            return FreeformActionResponse(
+                resolved_path="intent",
+                matched_action=intent.matched_action,
+                confidence=intent.confidence,
+                narrative=result.narrative,
+                action_success=result.success,
+                fail_reason=result.fail_reason,
+                state_delta=StateDelta(
+                    hp_change=result.hp_change,
+                    inventory_add=result.inventory_add,
+                    inventory_remove=result.inventory_remove,
+                    location=result.location,
+                    time_advance=min(result.time_advance, 24),
+                    affinity_changes=result.affinity_changes,
+                    encounter_resolved=result.encounter_resolved,
+                ),
+            )
 
     try:
         narrative, state_delta = await asyncio.to_thread(

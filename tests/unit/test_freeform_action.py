@@ -216,7 +216,10 @@ class TestFreeformRouter:
         client = TestClient(_app())
         r = client.post(
             "/api/v2/freeform_action",
-            json={"user_input": "고블린을 공격"},
+            json={
+                "user_input": "고블린을 공격",
+                "encounters": [{"name": "고블린", "hostile": True}],
+            },
         )
         assert r.status_code == 200
         body = r.json()
