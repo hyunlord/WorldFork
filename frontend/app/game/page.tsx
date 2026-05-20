@@ -11,7 +11,10 @@ import { InventoryPanel } from "@/components/game/InventoryPanel";
 import { NarrativePanel } from "@/components/game/NarrativePanel";
 import { PartyPanel } from "@/components/game/PartyPanel";
 import { StatusBar } from "@/components/game/StatusBar";
-import type { StatusBarData } from "@/components/game/types";
+import type {
+  NarrativePanelData,
+  StatusBarData,
+} from "@/components/game/types";
 import {
   DEMO_CHARACTER,
   DEMO_DUNGEON,
@@ -21,19 +24,37 @@ import {
   DEMO_NARRATIVE,
   DEMO_PARTY,
 } from "@/lib/game/mockData";
+import { useFreeformAction } from "@/lib/hooks/useFreeformAction";
 import { useGameState } from "@/lib/hooks/useGameState";
 import { useKeyboard } from "@/lib/hooks/useKeyboard";
 import { usePostAction } from "@/lib/hooks/usePostAction";
 
 const MAX_HOURS = 174;
 
+function narrativeStringToData(
+  text: string,
+  turn: number,
+): NarrativePanelData {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    .map((p) => ({ spans: [{ kind: "plain" as const, text: p }] }));
+  return {
+    turn,
+    paragraphs: paragraphs.length > 0 ? paragraphs : DEMO_NARRATIVE.paragraphs,
+  };
+}
+
 export default function GamePage() {
   const { data } = useGameState();
   const { execute, executing } = usePostAction();
+  const freeform = useFreeformAction();
   const inputRef = useRef<InputBarHandle>(null);
 
   const [charOpen, setCharOpen] = useState(false);
   const [essenceOpen, setEssenceOpen] = useState(false);
+  const [turnCount, setTurnCount] = useState(DEMO_NARRATIVE.turn);
 
   const statusData = useMemo<StatusBarData>(() => {
     if (!data) {
@@ -69,10 +90,23 @@ export default function GamePage() {
 
   const handleSubmit = useCallback(
     async (text: string) => {
-      await execute({ action_type: "natural", rationale: text });
+      const resp = await freeform.submit(text);
+      if (resp) {
+        setTurnCount((t) => t + 1);
+      }
     },
-    [execute],
+    [freeform],
   );
+
+  const narrativeData = useMemo<NarrativePanelData>(() => {
+    if (freeform.lastResponse) {
+      return narrativeStringToData(
+        freeform.lastResponse.narrative,
+        turnCount,
+      );
+    }
+    return DEMO_NARRATIVE;
+  }, [freeform.lastResponse, turnCount]);
 
   const handleShortcut = useCallback((key: string) => {
     if (key === "c" || key === "p") setCharOpen(true);
@@ -109,7 +143,7 @@ export default function GamePage() {
         <DungeonView data={DEMO_DUNGEON} />
 
         <div className="grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep">
-          <NarrativePanel data={DEMO_NARRATIVE} />
+          <NarrativePanel data={narrativeData} />
           <EncounterPanel
             data={DEMO_ENCOUNTER}
             onAction={(id) => {
@@ -126,8 +160,14 @@ export default function GamePage() {
         ref={inputRef}
         onSubmit={handleSubmit}
         onShortcut={handleShortcut}
-        disabled={executing}
+        disabled={executing || freeform.loading}
       />
+
+      {freeform.error && (
+        <div className="pointer-events-none absolute bottom-[80px] left-1/2 -translate-x-1/2 border border-crimson bg-bg-deep/90 px-4 py-2 font-mono text-xs text-crimson">
+          {freeform.error}
+        </div>
+      )}
 
       <PartyPanel
         data={DEMO_PARTY}

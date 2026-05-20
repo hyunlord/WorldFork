@@ -91,6 +91,8 @@ are NOT external_pkg_added violations:
   * tailwindcss, @tailwindcss/postcss, postcss, autoprefixer
   * @types/node, @types/react, @types/react-dom (TypeScript dev essentials)
   * vitest, playwright, msw (Tier 2+ testing)
+  * @testing-library/react, jsdom (★ Phase D step 2 — vitest 의 React
+    hook test, frontend only, runtime 영향 X)
 ★ Do NOT report adding these packages as a violation.
 ★ Do NOT report transitive deps in package-lock.json (★ npm internal).
 
