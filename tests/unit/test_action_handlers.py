@@ -250,10 +250,11 @@ def test_communicate() -> None:
 
 
 def test_flee_with_encounter() -> None:
+    # handle_flee is now random-based — assert valid outcome, not always-success
     ctx = _ctx(encounters=[{"name": "오크", "hostile": True}])
     result = run(handle_flee(ctx))
-    assert result.success
-    assert result.encounter_resolved
+    assert result.time_advance > 0  # always advances time
+    assert result.fail_reason in (None, "flee_failed")  # valid outcomes
 
 
 def test_flee_no_combat() -> None:
