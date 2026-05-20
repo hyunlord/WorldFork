@@ -38,3 +38,4 @@ class ActionResult:
     encounter_resolved: bool = False
     success: bool = True
     fail_reason: str | None = None
+    encounters_update: list[dict[str, object]] | None = None  # ★ 6a: enemy hp 갱신

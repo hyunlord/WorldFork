@@ -130,6 +130,11 @@ class SessionManager:
             ]
         if result.location is not None:
             state.location = result.location
+        # ★ encounters update (in-memory only, non-persisted)
+        if result.encounters_update is not None:
+            state.encounters = list(result.encounters_update)
+        elif result.encounter_resolved:
+            state.encounters = []
         state.turn_count += 1
         state.last_active = _now()
 

@@ -32,12 +32,14 @@ class EntityIndex:
 
     def __init__(self, facts: CanonFacts) -> None:
         self._by_name: dict[str, EntityRef] = {}
+        self._raw_essences: dict[str, dict[str, object]] = {}
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
         for e in facts.essences:
             ref = EntityRef("essence", e.name, _summarize_essence(e))
             self._by_name[e.name] = ref
+            self._raw_essences[e.name] = e.model_dump()
 
         for c in facts.characters:
             ref = EntityRef("character", c.name, _summarize_character(c))
@@ -80,6 +82,10 @@ class EntityIndex:
             if len(result) >= limit:
                 break
         return result
+
+    def get_raw_essence(self, name: str) -> dict[str, object] | None:
+        """essence name → raw dict (abilities parse용)."""
+        return self._raw_essences.get(name)
 
     def size(self) -> int:
         return len(self._by_name)

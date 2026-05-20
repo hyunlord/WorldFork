@@ -1,4 +1,4 @@
-"""Phase D step 3 — 29 PlayerActionType deterministic handler.
+"""Phase D step 3/6a — 29 PlayerActionType deterministic handler.
 
 LLM 호출 없음 — template narrative + state mutate.
 27B narrative는 fallback path(freeform_handler)에서 담당.
@@ -6,8 +6,11 @@ LLM 호출 없음 — template narrative + state mutate.
 
 from __future__ import annotations
 
+import random
 from collections.abc import Awaitable, Callable
 
+from service.canon.context import get_entity_index
+from service.canon.effects import classify_skill, parse_essence_abilities
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_helpers import (
     extract_direction,
@@ -17,6 +20,7 @@ from service.sim.action_helpers import (
     get_first_enemy,
     get_first_npc,
 )
+from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
 from service.sim.types import PlayerActionType
 
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
@@ -130,22 +134,119 @@ async def handle_enter_dungeon(ctx: ActionContext) -> ActionResult:
     )
 
 
+# ─── 전투 helpers ───
+
+
+def _compute_player_attack(ctx: ActionContext) -> int:
+    """base attack + 인벤토리 정수 abilities + active skill bonus."""
+    base = 10
+    index = get_entity_index()
+    if index is None:
+        return base
+
+    bonus = 0
+    for item in ctx.inventory:
+        ref = index.lookup_by_name(item)
+        if ref is None or ref.entity_type != "essence":
+            continue
+        raw = index.get_raw_essence(item)
+        if raw is None:
+            continue
+        abilities_raw = raw.get("abilities", {})
+        if not isinstance(abilities_raw, dict):
+            continue
+        effects = parse_essence_abilities(abilities_raw)
+        bonus += effects.get("attack_bonus", 0)
+        bonus += effects.get("strength", 0)
+        skills_raw = raw.get("skills_granted")
+        if isinstance(skills_raw, list):
+            for skill in skills_raw:
+                if classify_skill(str(skill)) == "active":
+                    bonus += 2
+    return base + bonus
+
+
+def _compute_player_agility(ctx: ActionContext) -> int:
+    """base agility + 인벤토리 정수 agility stat."""
+    base = 5
+    index = get_entity_index()
+    if index is None:
+        return base
+
+    bonus = 0
+    for item in ctx.inventory:
+        ref = index.lookup_by_name(item)
+        if ref is None or ref.entity_type != "essence":
+            continue
+        raw = index.get_raw_essence(item)
+        if raw is None:
+            continue
+        abilities_raw = raw.get("abilities", {})
+        if not isinstance(abilities_raw, dict):
+            continue
+        effects = parse_essence_abilities(abilities_raw)
+        bonus += effects.get("agility", 0)
+    return base + bonus
+
+
+def _compute_damage(player_attack: int, enemy: Enemy, user_input: str) -> int:
+    """attack - defense, weakness 배율 적용."""
+    base = max(1, player_attack - enemy.defense)
+    multiplier = 1.0
+    for race in enemy.weakness_races:
+        if race in user_input:
+            multiplier = 1.5
+            break
+    return max(1, int(base * multiplier))
+
+
 # ─── 전투 ───
 
 
 async def handle_attack(ctx: ActionContext) -> ActionResult:
-    enemy = get_first_enemy(ctx.encounters)
-    if not enemy:
+    enemy_dict = get_first_enemy(ctx.encounters)
+    if not enemy_dict:
         return ActionResult(
             narrative="공격할 대상이 없습니다.",
             success=False,
             fail_reason="no_target",
             time_advance=0,
         )
-    name = get_entity_name(enemy, "적")
+
+    enemy = enemy_from_dict(enemy_dict)
+    player_attack = _compute_player_attack(ctx)
+    damage = _compute_damage(player_attack, enemy, ctx.user_input)
+    enemy.hp = max(0, enemy.hp - damage)
+    resolved = enemy.hp <= 0
+
+    inventory_add: list[str] = []
+    if resolved and enemy.essence_drop:
+        inventory_add.append(enemy.essence_drop)
+
+    if resolved:
+        narrative = (
+            f"비요른은 {enemy.name}에게 일격을 가합니다."
+            f" 쓰러지는 {enemy.name}에서 빛이 사그라듭니다."
+        )
+        if enemy.essence_drop:
+            narrative += f" {enemy.essence_drop}이(가) 바닥에 떨어집니다."
+    else:
+        narrative = (
+            f"비요른은 {enemy.name}을(를) 공격합니다. "
+            f"{damage} 피해를 줍니다. (남은 HP {enemy.hp}/{enemy.max_hp})"
+        )
+
+    new_encounters = list(ctx.encounters)
+    if resolved:
+        new_encounters.pop(0)
+    else:
+        new_encounters[0] = enemy_to_dict(enemy)
+
     return ActionResult(
-        narrative=f"비요른은 {name}에게 일격을 가합니다. 근육이 팽팽히 수축하며 힘이 실립니다.",
-        encounter_resolved=False,
+        narrative=narrative,
+        inventory_add=inventory_add,
+        encounter_resolved=resolved,
+        encounters_update=new_encounters if not resolved else None,
         time_advance=1,
     )
 
@@ -158,10 +259,27 @@ async def handle_flee(ctx: ActionContext) -> ActionResult:
             fail_reason="no_combat",
             time_advance=0,
         )
+
+    enemy_dict = get_first_enemy(ctx.encounters)
+    enemy = enemy_from_dict(enemy_dict) if enemy_dict else Enemy(
+        name="적", hp=30, max_hp=30, attack=8, defense=3
+    )
+
+    agility = _compute_player_agility(ctx)
+    success_rate = max(0.20, min(0.90, 0.40 + agility * 0.05 - enemy.attack * 0.02))
+    succeeded = random.random() < success_rate
+
+    if succeeded:
+        return ActionResult(
+            narrative=f"비요른은 {enemy.name}의 시선을 흘리며 빠르게 물러납니다.",
+            encounter_resolved=True,
+            time_advance=3,
+        )
     return ActionResult(
-        narrative="비요른은 적의 시선을 흘리며 빠르게 몸을 돌립니다. 발소리가 멀어집니다.",
-        encounter_resolved=True,
-        time_advance=1,
+        narrative=f"비요른은 도주를 시도하지만 {enemy.name}이(가) 앞을 가로막습니다.",
+        success=False,
+        fail_reason="flee_failed",
+        time_advance=2,
     )
 
 
