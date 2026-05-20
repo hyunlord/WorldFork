@@ -1,13 +1,13 @@
 """Browser E2E — 진짜 사람 클릭 흐름 자동 검증 (★ Tier 2 D11+).
 
 Mechanical E2E (curl) ≠ 사람 클릭 흐름.
-Next.js 빌드 JS가 진짜 실행 + onClick 진짜 발화 + fetch 진짜 발생 검증.
+Next.js 빌드 JS가 진짜 실행 + 링크 클릭 + fetch 진짜 발생 검증.
 
 playwright headless chromium:
-  1. http://<frontend-url> 접속 (networkidle)
-  2. '게임 시작' 버튼 대기 + 클릭
-  3. /game/start 요청 발생 + 응답 200
-  4. '게임이 시작되었습니다' 메시지 갱신
+  1. http://<frontend-url> 접속 (domcontentloaded)
+  2. '새 게임' 링크 대기 + 클릭 → /game 페이지 진입
+  3. 입력창 (placeholder text) 대기 — JS hydration 완료 확인
+  4. 텍스트 입력 + Enter → /api/v2/freeform_action 요청 발생 + 응답 200
   5. Console / Network 에러 (HMR 무시)
 
 사용:
@@ -68,53 +68,57 @@ async def run_check(
                 return False, failures
             print("  ✅ loaded")
 
-            print("[2/5] Waiting for '게임 시작' button...")
+            print("[2/5] Waiting for '새 게임' link...")
             try:
-                button = await page.wait_for_selector(
-                    "button:has-text('게임 시작')",
+                link = await page.wait_for_selector(
+                    "a:has-text('새 게임')",
                     timeout=10000,
                     state="visible",
                 )
-                if not button:
-                    failures.append("'게임 시작' 버튼 X")
+                if not link:
+                    failures.append("'새 게임' 링크 X")
                     return False, failures
-                print("  ✅ button visible")
+                print("  ✅ link visible")
+                await link.click()
             except Exception as e:
-                failures.append(f"버튼 대기 실패: {e}")
+                failures.append(f"'새 게임' 링크 대기 실패: {e}")
                 return False, failures
 
-            print("[3/5] Click '게임 시작' + waiting for /game/start request...")
+            print("[3/5] Waiting for game input (JS hydration)...")
+            try:
+                await page.wait_for_selector(
+                    "input",
+                    timeout=15000,
+                    state="visible",
+                )
+                print("  ✅ input ready")
+            except Exception as e:
+                failures.append(f"입력창 대기 실패: {e}")
+                return False, failures
+
+            print("[4/5] Type + Enter → /api/v2/freeform_action...")
             try:
                 async with page.expect_response(
-                    lambda r: "/game/start" in r.url,
-                    timeout=15000,
+                    lambda r: "/api/v2/freeform_action" in r.url,
+                    timeout=20000,
                 ) as response_info:
-                    await button.click()
+                    await page.keyboard.type("주변을 살펴본다")
+                    await page.keyboard.press("Enter")
 
                 resp = await response_info.value
-                print(f"  ✅ /game/start: {resp.status} {resp.url}")
+                print(f"  ✅ /api/v2/freeform_action: {resp.status}")
                 if resp.status != 200:
-                    failures.append(f"/game/start: HTTP {resp.status}")
+                    failures.append(f"/api/v2/freeform_action: HTTP {resp.status}")
             except Exception as e:
                 failures.append(
-                    f"/game/start 요청 X: {e} "
-                    "(★ onClick 발화 X 또는 fetch 차단)"
+                    f"/api/v2/freeform_action 요청 X: {e} "
+                    "(★ fetch 발화 X 또는 차단)"
                 )
                 if console_errors:
                     failures.append(f"Console 에러: {console_errors[:3]}")
                 if network_failures:
                     failures.append(f"Network 실패: {network_failures[:3]}")
                 return False, failures
-
-            print("[4/5] Page update — system message...")
-            try:
-                await page.wait_for_selector(
-                    "text=게임이 시작되었습니다",
-                    timeout=10000,
-                )
-                print("  ✅ system message visible")
-            except Exception as e:
-                failures.append(f"시스템 메시지 X: {e}")
 
             print("[5/5] Console / Network 에러...")
             real_errors = [
