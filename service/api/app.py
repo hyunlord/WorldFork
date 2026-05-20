@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from service.api.game_routes import router as game_router
+from service.api.v2_freeform_router import router as v2_freeform_router
 from service.api.v2_state_router import router as v2_state_router
 
 
@@ -63,6 +64,8 @@ def create_app() -> FastAPI:
     app.include_router(game_router, prefix="/game", tags=["game"])
     # ★ Phase 7a: Tier 2 state API (★ frontend 통합 enabler)
     app.include_router(v2_state_router)
+    # ★ Phase D: 자연어 인터프리터 (★ intent + free-form fallback)
+    app.include_router(v2_freeform_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
