@@ -256,11 +256,17 @@ def get_qwen36_27b_q2() -> LocalLLMClient:
 
 
 def get_qwen35_9b_q3() -> LocalLLMClient:
-    """Qwen3.5-9B Q3_K_XL — NPC dialogue ★, 38 tok/s / 5초 이하 (port 8083)."""
+    """Qwen3.5-9B Q3_K_XL — NPC dialogue ★, 38 tok/s / 5초 이하 (port 8083).
+
+    Phase A.3-c: llama-server 의 OpenAI-compat response_format json_schema
+    지원 (★ Phase C LLM filter 에서 검증) 본 활용하여 ``supports_json_schema``
+    활성. encounter generator / smoke 의 schema 강제 robustness 강화.
+    """
     return LocalLLMClient(
         model_key="qwen35-9b-q3",
         base_url="http://localhost:8083",
         model_name_in_request="qwen35-9b-q3",
+        supports_json_schema=True,
     )
 
 

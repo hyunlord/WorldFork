@@ -297,9 +297,10 @@ class TestFactoryFunctions:
         assert c._chat_template_kwargs == {"enable_thinking": False}
         assert c._supports_json_schema is True
 
-    def test_get_qwen35_9b_q3_no_schema_support(self) -> None:
+    def test_get_qwen35_9b_q3_supports_schema(self) -> None:
+        # Phase A.3-c: llama-server 본 response_format json_schema 지원.
         c = get_qwen35_9b_q3()
-        assert c._supports_json_schema is False
+        assert c._supports_json_schema is True
 
     def test_get_qwen36_27b_q2(self) -> None:
         c = get_qwen36_27b_q2()
