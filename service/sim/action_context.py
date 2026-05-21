@@ -29,6 +29,8 @@ class ActionContext:
     soul_power: int = 40           # 영혼력 (L1 10 + L2-4 각 10)
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
+    # ★ 7 — dungeon floor
+    floor_number: int = 0          # 0 = 마을, 1+ = 던전 층
 
     @property
     def essence_slots(self) -> list[EssenceSlot]:
@@ -63,3 +65,5 @@ class ActionResult:
     essence_slot_add: dict[str, object] | None = None
     essence_slot_remove: str | None = None
     defeated_monsters_add: list[str] = field(default_factory=list)
+    # ★ 7 — floor transition
+    floor_change: int | None = None  # None = no change, +1/-1 = floor transition

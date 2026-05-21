@@ -37,6 +37,8 @@ class SessionState:
     soul_power: int = 40
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
+    # ★ 7 — dungeon floor
+    floor_number: int = 0
 
 
 def _new_id() -> str:
@@ -66,6 +68,7 @@ def _to_row(s: SessionState) -> SessionRow:
         soul_power=s.soul_power,
         absorbed_essences=list(s.absorbed_essences),
         defeated_monster_types=list(s.defeated_monster_types),
+        floor_number=s.floor_number,
     )
 
 
@@ -89,6 +92,7 @@ def _from_row(r: SessionRow) -> SessionState:
         soul_power=r.soul_power,
         absorbed_essences=list(r.absorbed_essences),
         defeated_monster_types=list(r.defeated_monster_types),
+        floor_number=r.floor_number,
     )
 
 
@@ -131,6 +135,7 @@ class SessionManager:
             soul_power=40,
             absorbed_essences=[],
             defeated_monster_types=[],
+            floor_number=0,
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -202,6 +207,8 @@ class SessionManager:
                 s for s in state.absorbed_essences
                 if s.get("essence_name") != result.essence_slot_remove
             ]
+        if result.floor_change is not None:
+            state.floor_number = max(0, state.floor_number + result.floor_change)
         state.turn_count += 1
         state.last_active = _now()
 

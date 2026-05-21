@@ -59,7 +59,8 @@ INTENT_CLASSIFY_SYSTEM = (
     "한국어 게임 자연어 input의 best-match action 분류 + entity 추출 전문가. "
     "입력 의도가 action과 분명히 매칭 시 confidence ≥ 0.85. "
     "자유 행동(list의 어떤 action도 아님) 시 matched_action=null + confidence < 0.5. "
-    "entities: actor(캐릭터/NPC name), location(장소 name), item(아이템/정수 name) 추출."
+    "entities: actor(캐릭터/NPC name), location(장소 name), item(아이템/정수 name), "
+    "direction(이동 방향 — north/south/east/west 중 하나 또는 null) 추출."
 )
 
 INTENT_CLASSIFY_USER_TEMPLATE = """\
@@ -82,8 +83,12 @@ INTENT_CLASSIFY_SCHEMA: dict[str, Any] = {
                 "actor": {"type": ["string", "null"], "maxLength": 100},
                 "location": {"type": ["string", "null"], "maxLength": 100},
                 "item": {"type": ["string", "null"], "maxLength": 100},
+                "direction": {
+                    "type": ["string", "null"],
+                    "enum": ["north", "south", "east", "west", None],
+                },
             },
-            "required": ["actor", "location", "item"],
+            "required": ["actor", "location", "item", "direction"],
             "additionalProperties": False,
         },
     },
@@ -117,10 +122,15 @@ def classify_intent(user_input: str) -> IntentMatch:
             matched = None
 
     raw_entities = parsed.get("entities") or {}
+    raw_dir = raw_entities.get("direction") or None
+    direction: str | None = (
+        raw_dir if raw_dir in ("north", "south", "east", "west") else None
+    )
     entities = ExtractedEntities(
         actor=raw_entities.get("actor") or None,
         location=raw_entities.get("location") or None,
         item=raw_entities.get("item") or None,
+        direction=direction,
     )
 
     return IntentMatch(

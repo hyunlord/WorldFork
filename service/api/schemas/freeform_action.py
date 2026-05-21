@@ -35,6 +35,7 @@ class ExtractedEntities(BaseModel):
     actor: str | None = Field(default=None, max_length=100)
     location: str | None = Field(default=None, max_length=100)
     item: str | None = Field(default=None, max_length=100)
+    direction: str | None = Field(default=None)  # north/south/east/west or None
 
 
 class IntentMatch(BaseModel):
@@ -62,6 +63,7 @@ class StateDelta(BaseModel):
     xp_gain: int = Field(default=0)
     level_up: bool = Field(default=False)
     new_level: int | None = Field(default=None)
+    floor_number: int | None = Field(default=None)
 
 
 ResolvedPath = Literal["intent", "fallback"]

@@ -99,11 +99,11 @@ def test_activate_light_no_torch() -> None:
 
 
 def test_move_north() -> None:
-    ctx = _ctx(user_input="북쪽으로 이동한다")
+    ctx = _ctx(user_input="북쪽으로 이동한다", location="1층 중심부", floor_number=1)
     result = run(handle_move(ctx))
     assert result.success
     assert result.location is not None
-    assert "북" in result.location
+    assert "북쪽" in result.location
     assert result.time_advance == 1
 
 
@@ -267,15 +267,17 @@ def test_flee_no_combat() -> None:
 
 
 def test_enter_next_floor() -> None:
-    result = run(handle_enter_next_floor(_ctx()))
+    result = run(handle_enter_next_floor(_ctx(floor_number=1, location="1층 입구")))
     assert result.success
-    assert result.location == "다음 층"
+    assert result.location == "2층 입구"
+    assert result.floor_change == 1
 
 
 def test_exit_to_prev_floor() -> None:
-    result = run(handle_exit_to_prev_floor(_ctx()))
+    result = run(handle_exit_to_prev_floor(_ctx(floor_number=1, location="1층 입구")))
     assert result.success
-    assert result.location == "이전 층"
+    assert result.location == "마을"
+    assert result.floor_change == -1
 
 
 def test_enter_dungeon() -> None:

@@ -73,6 +73,7 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             soul_power=state.soul_power,
             absorbed_essences=list(state.absorbed_essences),
             defeated_monster_types=list(state.defeated_monster_types),
+            floor_number=state.floor_number,
         )
     return ActionContext(
         current_hp=req.current_hp,
@@ -177,6 +178,9 @@ async def freeform_action_endpoint(
                     xp_gain=result.xp_gain,
                     level_up=result.level_up,
                     new_level=result.new_level,
+                    floor_number=(
+                        session_state.floor_number if session_state else None
+                    ),
                 ),
                 session_id=session_state.session_id if session_state else None,
                 session_state=_session_summary(session_state) if session_state else None,

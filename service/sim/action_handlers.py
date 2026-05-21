@@ -28,6 +28,7 @@ from service.sim.combat import (
     execute_player_attack,
     find_target_index,
 )
+from service.sim.dungeon_zones import Direction, get_adjacent_zone, get_zone_info
 from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
 from service.sim.equipment import equipment_to_dict
 from service.sim.player_state import slot_to_dict
@@ -82,20 +83,84 @@ async def handle_library_search(ctx: ActionContext) -> ActionResult:
 
 # ─── 이동 ───
 
+_KOR_TO_4WAY: dict[str, Direction] = {
+    "북": "north", "남": "south", "동": "east", "서": "west",
+}
+
+_DIRECTION_KOR: dict[Direction, str] = {
+    "north": "북쪽", "south": "남쪽", "east": "동쪽", "west": "서쪽",
+}
+
+
+def _extract_direction_4way(
+    text: str, entities_direction: str | None
+) -> Direction | None:
+    """entities 우선, fallback → extract_direction → 4방향 변환."""
+    if entities_direction in ("north", "south", "east", "west"):
+        return entities_direction  # type: ignore[return-value]
+    kor = extract_direction(text)
+    if kor is None:
+        return None
+    return _KOR_TO_4WAY.get(kor)
+
+
+def _lighting_narrative(zone_name: str, floor: int) -> str:
+    """zone lighting 기반 어둠 묘사 suffix."""
+    info = get_zone_info(zone_name, floor)
+    if info is None:
+        return ""
+    if info.lighting == "very_dark":
+        return " 빛이 사라졌습니다. 한 발 앞도 보이지 않습니다."
+    if info.lighting == "dark":
+        return " 어둠이 짙어졌습니다. 발밑을 주의해야 합니다."
+    if info.lighting == "bright":
+        return " 수정 빛이 은은하게 길을 비춥니다."
+    return ""
+
 
 async def handle_move(ctx: ActionContext) -> ActionResult:
-    direction = extract_direction(ctx.user_input)
-    if not direction:
+    entities_dir = (
+        ctx.extracted_entities.direction if ctx.extracted_entities else None
+    )
+    direction = _extract_direction_4way(ctx.user_input, entities_dir)
+    if direction is None:
         return ActionResult(
             narrative="어느 방향으로 이동할지 명확하지 않습니다.",
             success=False,
             fail_reason="no_direction",
             time_advance=0,
         )
-    new_location = f"{ctx.location} ({direction})"
+
+    dir_kor = _DIRECTION_KOR[direction]
+
+    if ctx.floor_number == 0:
+        return ActionResult(
+            narrative=f"비요른은 {dir_kor}으로 발걸음을 옮깁니다.",
+            time_advance=1,
+        )
+
+    next_zone = get_adjacent_zone(ctx.location, direction, ctx.floor_number)
+    if next_zone is None:
+        return ActionResult(
+            narrative=f"{dir_kor}으로는 더 나아갈 수 없습니다.",
+            success=False,
+            fail_reason="no_adjacent_zone",
+            time_advance=0,
+        )
+
+    lighting_note = _lighting_narrative(next_zone, ctx.floor_number)
+    zone_info = get_zone_info(next_zone, ctx.floor_number)
+    hint = zone_info.description_hint if zone_info else ""
+
+    narrative = f"비요른은 {dir_kor}으로 나아가 {next_zone}에 들어섭니다."
+    if hint:
+        narrative += f" {hint}"
+    if lighting_note:
+        narrative += lighting_note
+
     return ActionResult(
-        narrative=f"비요른은 {direction}쪽으로 발걸음을 옮깁니다.",
-        location=new_location,
+        narrative=narrative,
+        location=next_zone,
         time_advance=1,
     )
 
@@ -124,20 +189,45 @@ async def handle_exit_rift(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_enter_next_floor(ctx: ActionContext) -> ActionResult:
+    next_floor = ctx.floor_number + 1
+    if next_floor > 10:
+        return ActionResult(
+            narrative="더 깊은 층으로 가는 길은 보이지 않습니다.",
+            success=False,
+            fail_reason="max_floor",
+            time_advance=0,
+        )
     return ActionResult(
         narrative=(
             "비요른은 층계를 내려가 다음 층으로 발을 딛습니다."
             " 더 짙은 어둠이 앞을 막아섭니다."
         ),
-        location="다음 층",
+        location=f"{next_floor}층 입구",
+        floor_change=1,
         time_advance=1,
     )
 
 
 async def handle_exit_to_prev_floor(ctx: ActionContext) -> ActionResult:
+    if ctx.floor_number <= 0:
+        return ActionResult(
+            narrative="이미 마을에 있습니다.",
+            success=False,
+            fail_reason="already_outside",
+            time_advance=0,
+        )
+    prev_floor = ctx.floor_number - 1
+    if prev_floor == 0:
+        return ActionResult(
+            narrative="비요른은 발걸음을 돌려 마을로 복귀합니다. 햇살이 눈을 찌릅니다.",
+            location="마을",
+            floor_change=-1,
+            time_advance=1,
+        )
     return ActionResult(
         narrative="비요른은 발걸음을 돌려 이전 층으로 복귀합니다.",
-        location="이전 층",
+        location=f"{prev_floor}층 입구",
+        floor_change=-1,
         time_advance=1,
     )
 
