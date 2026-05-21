@@ -1,4 +1,4 @@
-"""Phase D step 3/6a/6b — 31 PlayerActionType deterministic handler.
+"""Phase D step 3/6a/6b — 33 PlayerActionType deterministic handler.
 
 LLM 호출 없음 — template narrative + state mutate.
 27B narrative는 fallback path(freeform_handler)에서 담당.
