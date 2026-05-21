@@ -68,6 +68,24 @@ def test_evict_stale_zero_when_all_fresh() -> None:
     asyncio.run(run())
 
 
+def test_create_session_auto_evicts_stale() -> None:
+    """create_session 호출 시 stale cache 자동 제거."""
+    async def run() -> None:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            mgr = _make_mgr(f.name)
+        s1 = await mgr.create_session()
+        sid1 = s1.session_id
+
+        mgr._last_seen[sid1] = datetime.utcnow() - timedelta(hours=2)
+        assert sid1 in mgr._cache
+
+        # 새 session 생성 — 내부에서 evict_stale 자동 호출
+        await mgr.create_session()
+        assert sid1 not in mgr._cache
+
+    asyncio.run(run())
+
+
 def test_end_session_clears_last_seen() -> None:
     async def run() -> None:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:

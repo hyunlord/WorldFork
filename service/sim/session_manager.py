@@ -137,6 +137,7 @@ class SessionManager:
         inventory: list[str] | None = None,
         location: str = "1층 입구",
     ) -> SessionState:
+        await self.evict_stale()
         now = _now()
         state = SessionState(
             session_id=_new_id(),
