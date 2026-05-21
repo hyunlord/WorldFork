@@ -500,14 +500,110 @@ def _generate_injury_from_damage(
     )
 
 
+def _execute_attack_rift(
+    attacker: Character,
+    target_monster_name: str,
+    party: list[Character],
+    world: WorldState,
+    attack_element: str | None,
+    location: Location,
+) -> TurnResult:
+    """★ audit-2 — rift 내부 전투 (RiftSubAreaDef.monsters 정합 lookup)."""
+    rift_def = FLOOR1_RIFT_DEFS.get(location.rift_id or "")
+    if rift_def is None:
+        return TurnResult(
+            success=False,
+            action_type="attack",
+            message=f"균열 정의 없음 (rift_id={location.rift_id}).",
+        )
+
+    chamber = next(
+        (sa for sa in rift_def.sub_areas if sa.id == location.rift_sub_area),
+        None,
+    )
+    if chamber is None:
+        return TurnResult(
+            success=False,
+            action_type="attack",
+            message=f"챔버 정의 없음 (rift_sub_area={location.rift_sub_area}).",
+        )
+
+    # mid_boss 분기 (★ 시체골렘 등 MID_BOSS chamber 한정)
+    if (
+        chamber.mid_boss_name == target_monster_name
+        and chamber.mid_boss_grade is not None
+    ):
+        grade_value = chamber.mid_boss_grade
+    elif target_monster_name in chamber.monsters:
+        grade_value = 9  # 1층 균열 일반 몬스터 기본 등급
+    else:
+        return TurnResult(
+            success=False,
+            action_type="attack",
+            message=f"{target_monster_name} 이 챔버({chamber.name}) 몬스터 X.",
+        )
+
+    attacker_dmg = attacker.strength + attacker.physical
+    if attacker_dmg < 30:
+        received = max(0, 10 - attacker.bone_strength // 2)
+        attacker.hp = max(0, attacker.hp - received)
+        side: list[str] = [f"{attacker.name} HP {attacker.hp}/{attacker.hp_max}"]
+        injury = _generate_injury_from_damage(received)
+        if injury is not None:
+            attacker.injuries.append(injury)
+            side.append(
+                f"injury_inflicted={attacker.name}:"
+                f"{injury.body_part}_{injury.severity}"
+            )
+        return TurnResult(
+            success=False,
+            action_type="attack",
+            message=(
+                f"{attacker.name} → {target_monster_name} 공격 "
+                f"(데미지 {attacker_dmg}). 처치 X. 받은 데미지 {received}."
+            ),
+            side_effects=side,
+        )
+
+    advance_time(party, world, elapsed_hours=0.5)
+
+    exp_awarded, leveled_up = _award_kill_exp(
+        attacker, target_monster_name, grade_value, world
+    )
+
+    side = [f"드롭: {grade_value}등급 마석", "시간 0.5h 경과"]
+    msg_tail = ""
+    if exp_awarded > 0:
+        side.append(f"exp_gained={attacker.name}:{exp_awarded}")
+        msg_tail = f" 경험치 +{exp_awarded}."
+    if leveled_up:
+        side.append(f"level_up={attacker.name}:{attacker.level}")
+        side.append(f"soul_power_gain={attacker.name}:+{SOUL_POWER_GAIN_PER_LEVEL}")
+        msg_tail += (
+            f" ⭐ 레벨 업! → Lv {attacker.level} "
+            f"(영혼력 +{SOUL_POWER_GAIN_PER_LEVEL})."
+        )
+
+    return TurnResult(
+        success=True,
+        action_type="attack",
+        message=(
+            f"{attacker.name}이(가) {target_monster_name} 처치 "
+            f"({grade_value}등급).{msg_tail}"
+        ),
+        side_effects=side,
+    )
+
+
 def execute_attack(
     attacker: Character,
     target_monster_name: str,
     party: list[Character],
     world: WorldState,
     attack_element: str | None = None,
+    current_location: Location | None = None,
 ) -> TurnResult:
-    """전투 — 단순 공식 (★ 본 commit 본격, LLM 평가 X).
+    """전투 — 단순 공식 (LLM 평가 X).
 
     공식:
     - 공격 = strength + physical
@@ -515,14 +611,29 @@ def execute_attack(
     - 공격 < 30이면 처치 X + 받는 데미지 = max(0, 10 - bone_strength//2)
 
     Phase 8 A3:
-    - world.active_boss_encounter 본격 시 보스 분기 (target string 무관 —
+    - world.active_boss_encounter 있을 시 보스 분기 (target string 무관 —
       보스 chamber 도달 후 모든 ATTACK은 보스 대상).
     - attack_element == boss.weakness_element → 2배 데미지.
+
+    audit-2:
+    - current_location.realm == RIFT 시 _execute_attack_rift 분기.
+      RiftSubAreaDef.monsters 정합 lookup (데드맨/병사 데드맨 등).
     """
     # ★ Phase 8 A3 — 보스 encounter 우선 분기
     if world.active_boss_encounter is not None:
         return _execute_attack_boss(
             attacker, world.active_boss_encounter, party, world, attack_element
+        )
+
+    # ★ audit-2 — rift 내부 전투 분기
+    if (
+        current_location is not None
+        and current_location.realm == Realm.RIFT
+        and current_location.rift_id
+        and current_location.rift_sub_area
+    ):
+        return _execute_attack_rift(
+            attacker, target_monster_name, party, world, attack_element, current_location
         )
 
     f1 = get_floor1_definition()

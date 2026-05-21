@@ -289,7 +289,7 @@ def _execute_action(
             attack_element_val if isinstance(attack_element_val, str) else None
         )
         r = execute_attack(
-            actor, action.target, party_list, world, attack_element
+            actor, action.target, party_list, world, attack_element, location
         )
         return r.success, r.message, r.side_effects
 
