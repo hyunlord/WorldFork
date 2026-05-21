@@ -181,6 +181,7 @@ async def freeform_action_endpoint(
                     floor_number=(
                         session_state.floor_number if session_state else None
                     ),
+                    floor_change=result.floor_change,
                 ),
                 session_id=session_state.session_id if session_state else None,
                 session_state=_session_summary(session_state) if session_state else None,
