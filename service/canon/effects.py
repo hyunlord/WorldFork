@@ -1,8 +1,10 @@
-"""Phase D step 6a — canon abilities text parse + skill 분류."""
+"""Phase D step 6a/6d — canon abilities text parse + skill 분류 + EssenceSlot 변환."""
 
 from __future__ import annotations
 
 import re
+
+from service.sim.player_state import EssenceSlot
 
 # ── stat keyword mapping ──────────────────────────────────────────────────────
 # canon abilities text 키워드 → stat 이름
@@ -116,6 +118,46 @@ def classify_skill(skill_name: str) -> str:
 
 
 # ── internal ──────────────────────────────────────────────────────────────────
+
+
+def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
+    """canon essence dict → EssenceSlot (ep_0337/0556 정합).
+
+    abilities text → stat bonus (positive).
+    side_effects text → stat delta (may be negative).
+    skills_granted → skills list.
+    """
+    abilities_raw = essence_data.get("abilities", {})
+    stat_bundle: dict[str, int] = {}
+    if isinstance(abilities_raw, dict):
+        stat_bundle = parse_essence_abilities(abilities_raw)
+    elif isinstance(abilities_raw, str):
+        stat_bundle = parse_ability_text(abilities_raw)
+
+    side_effects_raw = essence_data.get("side_effects")
+    if isinstance(side_effects_raw, list):
+        for entry in side_effects_raw:
+            if not isinstance(entry, str):
+                continue
+            side_stats = parse_ability_text(entry)
+            for stat, delta in side_stats.items():
+                stat_bundle[stat] = stat_bundle.get(stat, 0) + delta
+
+    skills_raw = essence_data.get("skills_granted")
+    skills: list[str] = []
+    if isinstance(skills_raw, list):
+        skills = [str(s) for s in skills_raw if isinstance(s, str)]
+
+    grade_raw = essence_data.get("grade")
+    slot_grade = int(grade_raw) if isinstance(grade_raw, int) else None
+
+    name_raw = essence_data.get("name", "")
+    return EssenceSlot(
+        essence_name=str(name_raw),
+        stat_bundle=stat_bundle,
+        skills=skills,
+        grade=slot_grade,
+    )
 
 
 def _keyword_to_stat(keyword: str) -> str | None:

@@ -25,6 +25,13 @@ class SessionRow:
         default_factory=lambda: {"weapon": None, "armor": None, "accessory": None}
     )
     last_spawn_turn: int = 0
+    # ★ 6d — player progression
+    player_level: int = 4
+    player_xp: int = 0
+    max_essences: int = 4
+    soul_power: int = 40
+    absorbed_essences: list[dict[str, object]] = field(default_factory=list)
+    defeated_monster_types: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -76,6 +83,30 @@ class SqliteStore:
                 "last_spawn_turn",
                 "ALTER TABLE sessions ADD COLUMN last_spawn_turn INTEGER NOT NULL DEFAULT -10",
             ),
+            (
+                "player_level",
+                "ALTER TABLE sessions ADD COLUMN player_level INTEGER NOT NULL DEFAULT 4",
+            ),
+            (
+                "player_xp",
+                "ALTER TABLE sessions ADD COLUMN player_xp INTEGER NOT NULL DEFAULT 0",
+            ),
+            (
+                "max_essences",
+                "ALTER TABLE sessions ADD COLUMN max_essences INTEGER NOT NULL DEFAULT 4",
+            ),
+            (
+                "soul_power",
+                "ALTER TABLE sessions ADD COLUMN soul_power INTEGER NOT NULL DEFAULT 40",
+            ),
+            (
+                "absorbed_essences",
+                "ALTER TABLE sessions ADD COLUMN absorbed_essences TEXT NOT NULL DEFAULT '[]'",
+            ),
+            (
+                "defeated_monster_types",
+                "ALTER TABLE sessions ADD COLUMN defeated_monster_types TEXT NOT NULL DEFAULT '[]'",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -91,18 +122,25 @@ class SqliteStore:
         INSERT INTO sessions
             (session_id, created_at, last_active, current_hp, max_hp,
              inventory, location, turn_count, status_effects, equipment,
-             last_spawn_turn)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             last_spawn_turn, player_level, player_xp, max_essences, soul_power,
+             absorbed_essences, defeated_monster_types)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
-            last_active      = excluded.last_active,
-            current_hp       = excluded.current_hp,
-            max_hp           = excluded.max_hp,
-            inventory        = excluded.inventory,
-            location         = excluded.location,
-            turn_count       = excluded.turn_count,
-            status_effects   = excluded.status_effects,
-            equipment        = excluded.equipment,
-            last_spawn_turn  = excluded.last_spawn_turn
+            last_active             = excluded.last_active,
+            current_hp              = excluded.current_hp,
+            max_hp                  = excluded.max_hp,
+            inventory               = excluded.inventory,
+            location                = excluded.location,
+            turn_count              = excluded.turn_count,
+            status_effects          = excluded.status_effects,
+            equipment               = excluded.equipment,
+            last_spawn_turn         = excluded.last_spawn_turn,
+            player_level            = excluded.player_level,
+            player_xp               = excluded.player_xp,
+            max_essences            = excluded.max_essences,
+            soul_power              = excluded.soul_power,
+            absorbed_essences       = excluded.absorbed_essences,
+            defeated_monster_types  = excluded.defeated_monster_types
         """
         with self._connect() as conn:
             conn.execute(
@@ -119,6 +157,12 @@ class SqliteStore:
                     json.dumps(row.status_effects, ensure_ascii=False),
                     json.dumps(row.equipment, ensure_ascii=False),
                     row.last_spawn_turn,
+                    row.player_level,
+                    row.player_xp,
+                    row.max_essences,
+                    row.soul_power,
+                    json.dumps(row.absorbed_essences, ensure_ascii=False),
+                    json.dumps(row.defeated_monster_types, ensure_ascii=False),
                 ),
             )
 
@@ -137,6 +181,16 @@ class SqliteStore:
         equipment_parsed = json.loads(equipment_raw)
         raw_spawn = row["last_spawn_turn"] if "last_spawn_turn" in keys else -10
         last_spawn_turn = int(raw_spawn) if isinstance(raw_spawn, int) else -10
+
+        absorbed_raw = row["absorbed_essences"] if "absorbed_essences" in keys else "[]"
+        absorbed_parsed = json.loads(absorbed_raw)
+        defeated_raw = row["defeated_monster_types"] if "defeated_monster_types" in keys else "[]"
+        defeated_parsed = json.loads(defeated_raw)
+
+        def _int_col(name: str, default: int) -> int:
+            val = row[name] if name in keys else default
+            return int(val) if isinstance(val, int) else default
+
         return SessionRow(
             session_id=row["session_id"],
             created_at=row["created_at"],
@@ -152,6 +206,14 @@ class SqliteStore:
                 else {"weapon": None, "armor": None, "accessory": None}
             ),
             last_spawn_turn=last_spawn_turn,
+            player_level=_int_col("player_level", 4),
+            player_xp=_int_col("player_xp", 0),
+            max_essences=_int_col("max_essences", 4),
+            soul_power=_int_col("soul_power", 40),
+            absorbed_essences=absorbed_parsed if isinstance(absorbed_parsed, list) else [],
+            defeated_monster_types=(
+                defeated_parsed if isinstance(defeated_parsed, list) else []
+            ),
         )
 
     def delete_session(self, session_id: str) -> None:

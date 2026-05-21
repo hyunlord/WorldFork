@@ -11,7 +11,7 @@ import random
 from collections.abc import Awaitable, Callable
 
 from service.canon.context import get_entity_index, get_item_registry
-from service.canon.effects import classify_skill, parse_essence_abilities
+from service.canon.effects import classify_skill, essence_to_slot, parse_essence_abilities
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_helpers import (
     extract_direction,
@@ -30,8 +30,14 @@ from service.sim.combat import (
 )
 from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
 from service.sim.equipment import equipment_to_dict
+from service.sim.player_state import slot_to_dict
 from service.sim.status import deserialize_status, serialize_status
 from service.sim.types import PlayerActionType
+from service.sim.xp_curve import (
+    compute_level_for_xp,
+    compute_xp_grant,
+    soul_power_gain_on_level_up,
+)
 
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
 
@@ -301,7 +307,34 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
 
     all_resolved = len(enemies) == 0
 
-    # Step 4: narrative — 27B 시도 후 template fallback
+    # Step 4: XP grant (★ 6d — ep_0022 first kill only)
+    xp_gain = 0
+    defeated_add: list[str] = []
+    if player_log.enemy_resolved:
+        original_target = enemy_from_dict(ctx.encounters[target_idx])
+        monster_type = original_target.race or original_target.name
+        is_first = monster_type not in ctx.defeated_monster_types
+        modifiers: list[str] = []
+        if "수호자" in original_target.name:
+            modifiers.append("guardian")
+        if "변이" in original_target.name or "상위" in original_target.name:
+            modifiers.append("variant")
+        if "계층군주" in original_target.name:
+            modifiers.append("stratum_boss")
+        xp_gain = compute_xp_grant(original_target.grade, is_first, modifiers)
+        if is_first:
+            defeated_add.append(monster_type)
+
+    # Step 5: level up check
+    level_up = False
+    new_level: int | None = None
+    if xp_gain > 0:
+        computed = compute_level_for_xp(ctx.player_xp + xp_gain)
+        if computed > ctx.player_level:
+            level_up = True
+            new_level = computed
+
+    # Step 6: narrative — 27B 시도 후 template fallback
     narrative = _build_attack_narrative(player_log, enemy_logs, essence_drops, all_resolved)
     try:
         from service.sim.freeform_handler import compose_combat_narrative
@@ -313,12 +346,21 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     except Exception:
         pass
 
+    if xp_gain > 0:
+        narrative += f"\n\n경험치 +{xp_gain}을 획득합니다."
+    if level_up and new_level is not None:
+        sp_gain = soul_power_gain_on_level_up(new_level)
+        narrative += (
+            f"\n\n「캐릭터의 레벨이 {new_level}로 상승했습니다.」"
+            f"\n「영혼력이 +{sp_gain} 상승합니다.」"
+            f"\n「최대 흡수 가능 정수가 +1 증가합니다.」"
+        )
+
     new_encounters = [enemy_to_dict(e) for e in enemies]
     new_status_dicts: list[dict[str, object]] = [serialize_status(s) for s in new_status]
 
     inventory_add = list(essence_drops)
     if equipment_drops:
-        # 장비 드롭 → inventory 이름만 추가 (실제 착용은 EQUIP action)
         for eq_dict in equipment_drops:
             name_val = eq_dict.get("name")
             if isinstance(name_val, str):
@@ -332,6 +374,10 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         encounters_update=new_encounters if not all_resolved else None,
         status_update=new_status_dicts,
         time_advance=1,
+        xp_gain=xp_gain,
+        level_up=level_up,
+        new_level=new_level,
+        defeated_monsters_add=defeated_add,
     )
 
 
@@ -461,21 +507,129 @@ async def handle_engage_bandit(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
-    essence = next((i for i in ctx.inventory if "정수" in i), None)
-    if not essence:
+    # 흡수 대상 결정 — entity 추출 우선, 없으면 inventory 첫 번째 정수
+    essence_name: str | None = None
+    if ctx.extracted_entities and ctx.extracted_entities.item:
+        candidate = ctx.extracted_entities.item
+        if candidate in ctx.inventory:
+            essence_name = candidate
+    if essence_name is None:
+        essence_name = next((i for i in ctx.inventory if "정수" in i), None)
+
+    if not essence_name or essence_name not in ctx.inventory:
         return ActionResult(
             narrative="흡수할 정수가 없습니다.",
             success=False,
             fail_reason="no_essence",
             time_advance=0,
         )
+
+    # level limit check (ep_0022: max_essences = player_level)
+    if len(ctx.absorbed_essences) >= ctx.max_essences:
+        return ActionResult(
+            narrative=(
+                f"최대 흡수 가능 정수 수({ctx.max_essences})에 도달했습니다."
+                " 새 정수를 흡수하려면 기존 정수 하나를 지워야 합니다."
+            ),
+            success=False,
+            fail_reason="essence_limit_reached",
+            time_advance=0,
+        )
+
+    # canon lookup → EssenceSlot
+    slot_dict: dict[str, object] | None = None
+    msg_lines: list[str] = [
+        f"비요른은 {essence_name}을 손에 쥡니다."
+        " 차가운 빛이 피부 아래로 스며들며 새 힘이 깃듭니다.",
+        f"「{essence_name}이(가) 스며듭니다.」",
+    ]
+    index = get_entity_index()
+    if index is not None:
+        raw = index.get_raw_essence(essence_name)
+        if raw is not None and isinstance(raw, dict):
+            slot = essence_to_slot(raw)
+            slot_dict = slot_to_dict(slot)
+            for stat, delta in slot.stat_bundle.items():
+                sign = "+" if delta >= 0 else ""
+                action = "상승" if delta >= 0 else "하락"
+                msg_lines.append(f"「{stat}이(가) {sign}{delta} {action}합니다.」")
+
+    if slot_dict is None:
+        from service.sim.player_state import EssenceSlot
+        slot_dict = slot_to_dict(EssenceSlot(essence_name=essence_name))
+
     return ActionResult(
-        narrative=(
-            f"비요른은 {essence}을 손에 쥡니다."
-            " 차가운 빛이 피부 아래로 스며들며 새 힘이 깃듭니다."
-        ),
-        inventory_remove=[essence],
+        narrative="\n".join(msg_lines),
+        inventory_remove=[essence_name],
         time_advance=1,
+        essence_slot_add=slot_dict,
+    )
+
+
+async def handle_remove_essence(ctx: ActionContext) -> ActionResult:
+    """정수 제거 — EssenceSlot stat 역적용 (ep_0337 정합)."""
+    essence_name: str | None = (
+        ctx.extracted_entities.item
+        if ctx.extracted_entities and ctx.extracted_entities.item
+        else None
+    )
+    if not essence_name:
+        return ActionResult(
+            narrative="어떤 정수를 제거할지 명확하지 않습니다.",
+            success=False,
+            fail_reason="no_essence",
+            time_advance=0,
+        )
+
+    slot = next(
+        (s for s in ctx.essence_slots if s.essence_name == essence_name), None
+    )
+    if slot is None:
+        return ActionResult(
+            narrative=f"{essence_name}을(를) 흡수한 적이 없습니다.",
+            success=False,
+            fail_reason="not_absorbed",
+            time_advance=0,
+        )
+
+    msg_lines = [f"「{essence_name}이(가) 제거되었습니다.」"]
+    for stat, delta in slot.stat_bundle.items():
+        sign = "-" if delta >= 0 else "+"
+        abs_val = abs(delta)
+        action = "하락" if delta >= 0 else "상승"
+        msg_lines.append(f"「{stat}이(가) {sign}{abs_val} {action}합니다.」")
+
+    return ActionResult(
+        narrative="\n".join(msg_lines),
+        time_advance=0,
+        essence_slot_remove=essence_name,
+    )
+
+
+async def handle_examine_stats(ctx: ActionContext) -> ActionResult:
+    """본인 능력치 / 레벨 / XP 확인."""
+    total = ctx.total_stats
+    lines = [
+        "── 비요른의 현재 상태 ──",
+        f"레벨: {ctx.player_level}  (XP: {ctx.player_xp})",
+        f"HP: {ctx.current_hp}/{ctx.max_hp}",
+        f"영혼력: {ctx.soul_power}",
+        f"흡수 정수: {len(ctx.absorbed_essences)}/{ctx.max_essences}",
+    ]
+    if ctx.absorbed_essences:
+        lines.append("\n흡수한 정수:")
+        for slot in ctx.essence_slots:
+            lines.append(f"  - {slot.essence_name}")
+    if total:
+        lines.append("\n능력치 합산:")
+        for stat, val in sorted(total.items(), key=lambda x: -abs(x[1])):
+            sign = "+" if val >= 0 else ""
+            lines.append(f"  {stat}: {sign}{val}")
+    if ctx.defeated_monster_types:
+        lines.append(f"\n처치 완료 종: {len(ctx.defeated_monster_types)}종")
+    return ActionResult(
+        narrative="\n".join(lines),
+        time_advance=0,
     )
 
 
@@ -742,9 +896,11 @@ ACTION_HANDLERS: dict[PlayerActionType, _Handler] = {
     PlayerActionType.REST_AND_NIGHT_WATCH: handle_rest_and_night_watch,
     PlayerActionType.EQUIP: handle_equip,
     PlayerActionType.UNEQUIP: handle_unequip,
+    PlayerActionType.REMOVE_ESSENCE: handle_remove_essence,
+    PlayerActionType.EXAMINE_STATS: handle_examine_stats,
 }
 
-assert len(ACTION_HANDLERS) == 31, f"handler count mismatch: {len(ACTION_HANDLERS)}"
+assert len(ACTION_HANDLERS) == 33, f"handler count mismatch: {len(ACTION_HANDLERS)}"
 
 
 async def dispatch_action(

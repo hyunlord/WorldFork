@@ -44,6 +44,8 @@ _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
     PlayerActionType.DISBAND_NIGHT_COMPANION: "야영 동료 해체",
     PlayerActionType.ENGAGE_BANDIT: "약탈자 교전",
     PlayerActionType.REST_AND_NIGHT_WATCH: "야영 + 야간 경계",
+    PlayerActionType.REMOVE_ESSENCE: "흡수한 정수 슬롯 제거 (비우기)",
+    PlayerActionType.EXAMINE_STATS: "본인 능력치 / 레벨 / XP 확인",
 }
 
 

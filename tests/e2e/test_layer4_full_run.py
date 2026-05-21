@@ -70,11 +70,11 @@ pytestmark = [
 ]
 
 
-def test_action_type_canonical_13() -> None:
-    """13 PlayerActionType 본격 정합 (★ no LLM 본격)."""
+def test_action_type_canonical_count() -> None:
+    """PlayerActionType 33 정합 (★ phase-d-6d: REMOVE_ESSENCE + EXAMINE_STATS 추가)."""
     all_action_types = list(PlayerActionType)
-    assert len(all_action_types) == 13, (
-        f"PlayerActionType 13 X: {len(all_action_types)}"
+    assert len(all_action_types) == 33, (
+        f"PlayerActionType count mismatch: {len(all_action_types)}"
     )
 
 

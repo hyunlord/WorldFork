@@ -71,6 +71,9 @@ class PlayerActionType(StrEnum):
     # ★ Phase D step 6b — 장비 착용 / 해제
     EQUIP = "equip"
     UNEQUIP = "unequip"
+    # ★ Phase D step 6d — 정수 제거 / 스탯 확인
+    REMOVE_ESSENCE = "remove_essence"
+    EXAMINE_STATS = "examine_stats"
 
 
 @dataclass
@@ -233,6 +236,9 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     # ★ Phase D step 6b — 장비 착용/해제 (즉시).
     PlayerActionType.EQUIP: 0.0,
     PlayerActionType.UNEQUIP: 0.0,
+    # ★ Phase D step 6d — 정수 제거 / 스탯 확인.
+    PlayerActionType.REMOVE_ESSENCE: 0.0,
+    PlayerActionType.EXAMINE_STATS: 0.0,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

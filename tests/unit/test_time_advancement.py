@@ -77,6 +77,8 @@ def test_action_hours_delta_all_actions_mapped() -> None:
         PlayerActionType.SHOP_BUY,
         PlayerActionType.EQUIP,
         PlayerActionType.UNEQUIP,
+        PlayerActionType.REMOVE_ESSENCE,
+        PlayerActionType.EXAMINE_STATS,
     }
     for at in PlayerActionType:
         assert at in ACTION_HOURS_DELTA, f"{at} 본격 누락"

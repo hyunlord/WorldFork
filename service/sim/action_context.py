@@ -1,4 +1,4 @@
-"""Phase D step 3/6b — handler I/O types."""
+"""Phase D step 3/6b/6d — handler I/O types."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from service.api.schemas.freeform_action import ExtractedEntities
 from service.sim.equipment import EquipmentSet
+from service.sim.player_state import EssenceSlot, compute_total_stats, slot_from_dict
 
 
 @dataclass
@@ -19,8 +20,23 @@ class ActionContext:
     encounters: list[dict[str, object]] = field(default_factory=list)
     user_input: str = ""
     extracted_entities: ExtractedEntities | None = None
-    status_effects: list[dict[str, object]] = field(default_factory=list)  # ★ 6b
-    equipment: EquipmentSet | None = None  # ★ 6b
+    status_effects: list[dict[str, object]] = field(default_factory=list)
+    equipment: EquipmentSet | None = None
+    # ★ 6d — player progression
+    player_level: int = 4          # 비요른 시작 레벨 (본문 정합)
+    player_xp: int = 0
+    max_essences: int = 4          # = player_level
+    soul_power: int = 40           # 영혼력 (L1 10 + L2-4 각 10)
+    absorbed_essences: list[dict[str, object]] = field(default_factory=list)
+    defeated_monster_types: list[str] = field(default_factory=list)
+
+    @property
+    def essence_slots(self) -> list[EssenceSlot]:
+        return [slot_from_dict(d) for d in self.absorbed_essences]
+
+    @property
+    def total_stats(self) -> dict[str, int]:
+        return compute_total_stats(self.essence_slots)
 
 
 @dataclass
@@ -37,6 +53,13 @@ class ActionResult:
     encounter_resolved: bool = False
     success: bool = True
     fail_reason: str | None = None
-    encounters_update: list[dict[str, object]] | None = None  # ★ 6a
-    status_update: list[dict[str, object]] | None = None  # ★ 6b
-    equipment_update: dict[str, object] | None = None  # ★ 6b slot → equipment dict
+    encounters_update: list[dict[str, object]] | None = None
+    status_update: list[dict[str, object]] | None = None
+    equipment_update: dict[str, object] | None = None
+    # ★ 6d — progression delta
+    xp_gain: int = 0
+    level_up: bool = False
+    new_level: int | None = None
+    essence_slot_add: dict[str, object] | None = None
+    essence_slot_remove: str | None = None
+    defeated_monsters_add: list[str] = field(default_factory=list)

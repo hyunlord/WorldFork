@@ -67,6 +67,12 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             user_input=req.user_input,
             status_effects=list(state.status_effects),
             equipment=eq_set,
+            player_level=state.player_level,
+            player_xp=state.player_xp,
+            max_essences=state.max_essences,
+            soul_power=state.soul_power,
+            absorbed_essences=list(state.absorbed_essences),
+            defeated_monster_types=list(state.defeated_monster_types),
         )
     return ActionContext(
         current_hp=req.current_hp,

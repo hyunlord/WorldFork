@@ -29,7 +29,14 @@ class SessionState:
     equipment: dict[str, object] = field(
         default_factory=lambda: dict(DEFAULT_EQUIPMENT_DICT)
     )
-    last_spawn_turn: int = -10  # cooldown skip on first move
+    last_spawn_turn: int = -10
+    # ★ 6d — player progression
+    player_level: int = 4
+    player_xp: int = 0
+    max_essences: int = 4
+    soul_power: int = 40
+    absorbed_essences: list[dict[str, object]] = field(default_factory=list)
+    defeated_monster_types: list[str] = field(default_factory=list)
 
 
 def _new_id() -> str:
@@ -53,6 +60,12 @@ def _to_row(s: SessionState) -> SessionRow:
         status_effects=list(s.status_effects),
         equipment=dict(s.equipment),
         last_spawn_turn=s.last_spawn_turn,
+        player_level=s.player_level,
+        player_xp=s.player_xp,
+        max_essences=s.max_essences,
+        soul_power=s.soul_power,
+        absorbed_essences=list(s.absorbed_essences),
+        defeated_monster_types=list(s.defeated_monster_types),
     )
 
 
@@ -65,11 +78,17 @@ def _from_row(r: SessionRow) -> SessionState:
         max_hp=r.max_hp,
         inventory=list(r.inventory),
         location=r.location,
-        encounters=[],  # encounters는 turn마다 재구성 — DB 비저장
+        encounters=[],
         turn_count=r.turn_count,
         status_effects=list(r.status_effects),
         equipment=dict(r.equipment),
         last_spawn_turn=r.last_spawn_turn,
+        player_level=r.player_level,
+        player_xp=r.player_xp,
+        max_essences=r.max_essences,
+        soul_power=r.soul_power,
+        absorbed_essences=list(r.absorbed_essences),
+        defeated_monster_types=list(r.defeated_monster_types),
     )
 
 
@@ -106,6 +125,12 @@ class SessionManager:
             status_effects=[],
             equipment=dict(DEFAULT_EQUIPMENT_DICT),
             last_spawn_turn=-10,
+            player_level=4,
+            player_xp=0,
+            max_essences=4,
+            soul_power=40,
+            absorbed_essences=[],
+            defeated_monster_types=[],
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -150,13 +175,33 @@ class SessionManager:
             state.encounters = list(result.encounters_update)
         elif result.encounter_resolved:
             state.encounters = []
-        # status + equipment update (★ 6b)
         if result.status_update is not None:
             state.status_effects = list(result.status_update)
         if result.equipment_update is not None:
             eq = dict(state.equipment)
             eq.update(result.equipment_update)
             state.equipment = eq
+        # ★ 6d — XP / level / essence
+        if result.xp_gain > 0:
+            from service.sim.xp_curve import compute_level_for_xp, soul_power_gain_on_level_up
+            state.player_xp += result.xp_gain
+            computed = compute_level_for_xp(state.player_xp)
+            if computed > state.player_level:
+                sp_gain = soul_power_gain_on_level_up(computed)
+                state.soul_power += sp_gain
+                state.player_level = computed
+                state.max_essences = computed
+        if result.defeated_monsters_add:
+            for m in result.defeated_monsters_add:
+                if m not in state.defeated_monster_types:
+                    state.defeated_monster_types.append(m)
+        if result.essence_slot_add is not None:
+            state.absorbed_essences.append(dict(result.essence_slot_add))
+        if result.essence_slot_remove is not None:
+            state.absorbed_essences = [
+                s for s in state.absorbed_essences
+                if s.get("essence_name") != result.essence_slot_remove
+            ]
         state.turn_count += 1
         state.last_active = _now()
 
