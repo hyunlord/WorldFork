@@ -50,13 +50,13 @@ async def handle_activate_light(ctx: ActionContext) -> ActionResult:
     has_torch = any("횃불" in i or "torch" in i.lower() for i in ctx.inventory)
     if not has_torch:
         return ActionResult(
-            narrative="비요른은 주머니를 더듬었으나 횃불을 찾지 못했습니다.",
+            narrative="주머니를 더듬었지만 횃불을 찾지 못했다.",
             success=False,
             fail_reason="no_torch",
             time_advance=0,
         )
     return ActionResult(
-        narrative="비요른은 부싯돌을 두드려 횃불에 불을 붙입니다. 어둠이 물러납니다.",
+        narrative="부싯돌을 두드려 횃불에 불을 붙였다. 어둠이 물러났다.",
         time_advance=0,
     )
 
@@ -64,8 +64,8 @@ async def handle_activate_light(ctx: ActionContext) -> ActionResult:
 async def handle_explore(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative=(
-            f"비요른은 {ctx.location}을 천천히 살핍니다."
-            " 익숙해진 눈이 어둠 속에서 세세한 것들을 포착합니다."
+            f"나는 {ctx.location}을 천천히 살폈다."
+            " 익숙해진 눈이 어둠 속에서 세세한 것들을 포착했다."
         ),
         time_advance=2,
     )
@@ -74,8 +74,8 @@ async def handle_explore(ctx: ActionContext) -> ActionResult:
 async def handle_library_search(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative=(
-            "비요른은 도서관 서가를 따라 걸으며 낯선 문자들을 훑어봅니다."
-            " 파르시티에브 관련 기록이 눈에 들어옵니다."
+            "나는 도서관 서가를 따라 걸으며 낯선 문자들을 훑어봤다."
+            " 파르시티에브 관련 기록이 눈에 들어왔다."
         ),
         time_advance=2,
     )
@@ -110,11 +110,11 @@ def _lighting_narrative(zone_name: str, floor: int) -> str:
     if info is None:
         return ""
     if info.lighting == "very_dark":
-        return " 빛이 사라졌습니다. 한 발 앞도 보이지 않습니다."
+        return " 빛이 사라졌다. 한 발 앞도 보이지 않는다."
     if info.lighting == "dark":
-        return " 어둠이 짙어졌습니다. 발밑을 주의해야 합니다."
+        return " 어둠이 짙어졌다. 발밑을 주의해야 한다."
     if info.lighting == "bright":
-        return " 수정 빛이 은은하게 길을 비춥니다."
+        return " 수정 빛이 은은하게 길을 비췄다."
     return ""
 
 
@@ -125,7 +125,7 @@ async def handle_move(ctx: ActionContext) -> ActionResult:
     direction = _extract_direction_4way(ctx.user_input, entities_dir)
     if direction is None:
         return ActionResult(
-            narrative="어느 방향으로 이동할지 명확하지 않습니다.",
+            narrative="어느 방향으로 향할지 정해지지 않았다.",
             success=False,
             fail_reason="no_direction",
             time_advance=0,
@@ -135,14 +135,14 @@ async def handle_move(ctx: ActionContext) -> ActionResult:
 
     if ctx.floor_number == 0:
         return ActionResult(
-            narrative=f"비요른은 {dir_kor}으로 발걸음을 옮깁니다.",
+            narrative=f"나는 {dir_kor}으로 발걸음을 옮겼다.",
             time_advance=1,
         )
 
     next_zone = get_adjacent_zone(ctx.location, direction, ctx.floor_number)
     if next_zone is None:
         return ActionResult(
-            narrative=f"{dir_kor}으로는 더 나아갈 수 없습니다.",
+            narrative=f"{dir_kor}으로는 더 나아갈 수 없다.",
             success=False,
             fail_reason="no_adjacent_zone",
             time_advance=0,
@@ -152,7 +152,7 @@ async def handle_move(ctx: ActionContext) -> ActionResult:
     zone_info = get_zone_info(next_zone, ctx.floor_number)
     hint = zone_info.description_hint if zone_info else ""
 
-    narrative = f"비요른은 {dir_kor}으로 나아가 {next_zone}에 들어섭니다."
+    narrative = f"나는 {dir_kor}으로 나아가 {next_zone}에 들어섰다."
     if hint:
         narrative += f" {hint}"
     if lighting_note:
@@ -168,8 +168,8 @@ async def handle_move(ctx: ActionContext) -> ActionResult:
 async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative=(
-            "비요른은 숨을 한 번 들이켜고 균열 속으로 몸을 밀어 넣습니다."
-            " 공기가 뒤틀리며 시야가 바뀝니다."
+            "숨을 한 번 들이켜고 균열 속으로 몸을 밀어 넣었다."
+            " 공기가 뒤틀리며 시야가 바뀌었다."
         ),
         location=f"{ctx.location} (균열 내부)",
         time_advance=1,
@@ -178,7 +178,7 @@ async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
 
 async def handle_exit_rift(ctx: ActionContext) -> ActionResult:
     return ActionResult(
-        narrative="비요른은 균열 경계를 되짚어 빠져나옵니다. 바깥의 냉기가 이마에 와 닿습니다.",
+        narrative="균열 경계를 되짚어 빠져나왔다. 바깥의 냉기가 이마에 와 닿았다.",
         location=(
             ctx.location.replace(" (균열 내부)", "")
             if "(균열 내부)" in ctx.location
@@ -192,15 +192,15 @@ async def handle_enter_next_floor(ctx: ActionContext) -> ActionResult:
     next_floor = ctx.floor_number + 1
     if next_floor > 10:
         return ActionResult(
-            narrative="더 깊은 층으로 가는 길은 보이지 않습니다.",
+            narrative="더 깊은 층으로 가는 길은 보이지 않는다.",
             success=False,
             fail_reason="max_floor",
             time_advance=0,
         )
     return ActionResult(
         narrative=(
-            "비요른은 층계를 내려가 다음 층으로 발을 딛습니다."
-            " 더 짙은 어둠이 앞을 막아섭니다."
+            "나는 층계를 내려가 다음 층으로 발을 딛었다."
+            " 더 짙은 어둠이 앞을 막아섰다."
         ),
         location=f"{next_floor}층 입구",
         floor_change=1,
@@ -211,7 +211,7 @@ async def handle_enter_next_floor(ctx: ActionContext) -> ActionResult:
 async def handle_exit_to_prev_floor(ctx: ActionContext) -> ActionResult:
     if ctx.floor_number <= 0:
         return ActionResult(
-            narrative="이미 마을에 있습니다.",
+            narrative="이미 마을에 있다.",
             success=False,
             fail_reason="already_outside",
             time_advance=0,
@@ -219,14 +219,14 @@ async def handle_exit_to_prev_floor(ctx: ActionContext) -> ActionResult:
     prev_floor = ctx.floor_number - 1
     if prev_floor == 0:
         return ActionResult(
-            narrative="비요른은 발걸음을 돌려 마을로 복귀합니다. 햇살이 눈을 찌릅니다.",
+            narrative="나는 발걸음을 돌려 마을로 복귀했다. 햇살이 눈을 찔렀다.",
             location="마을",
             floor_change=-1,
             hours_in_dungeon_reset=True,
             time_advance=1,
         )
     return ActionResult(
-        narrative="비요른은 발걸음을 돌려 이전 층으로 복귀합니다.",
+        narrative="나는 발걸음을 돌려 이전 층으로 복귀했다.",
         location=f"{prev_floor}층 입구",
         floor_change=-1,
         time_advance=1,
@@ -235,7 +235,7 @@ async def handle_exit_to_prev_floor(ctx: ActionContext) -> ActionResult:
 
 async def handle_enter_dungeon(ctx: ActionContext) -> ActionResult:
     return ActionResult(
-        narrative="자정이 지났습니다. 비요른은 던전 1층 입구 앞에 섰습니다. 새 달의 시작입니다.",
+        narrative="자정이 지났다. 나는 던전 1층 입구 앞에 섰다. 새 달의 시작이다.",
         location="던전 1층",
         floor_change=1,
         hours_in_dungeon_reset=True,
@@ -332,24 +332,24 @@ def _build_attack_narrative(
 
     if player_log.enemy_resolved:
         parts.append(
-            f"비요른은 {player_log.target_name}에게 일격을 가합니다."
-            f" 쓰러지는 {player_log.target_name}에서 빛이 사그라듭니다."
+            f"나는 {player_log.target_name}에게 일격을 가했다."
+            f" 쓰러지는 {player_log.target_name}에서 빛이 사그라들었다."
         )
         for drop in essence_drops:
-            parts.append(f" {drop}이(가) 바닥에 떨어집니다.")
+            parts.append(f" {drop}이(가) 바닥에 떨어졌다.")
     else:
         parts.append(
-            f"비요른은 {player_log.target_name}을(를) 공격합니다."
-            f" {player_log.damage_dealt} 피해를 줍니다."
+            f"나는 {player_log.target_name}을(를) 공격했다."
+            f" {player_log.damage_dealt} 피해를 줬다."
         )
 
     for log in enemy_logs:
         if log.notes and "hp +" in log.notes:
-            parts.append(f" {log.actor}이(가) 상처를 회복합니다.")
+            parts.append(f" {log.actor}이(가) 상처를 회복했다.")
         elif log.damage_received > 0:
             parts.append(
-                f" {log.actor}이(가) {log.action_name}으로 반격합니다."
-                f" 비요른이 {log.damage_received} 피해를 받습니다."
+                f" {log.actor}이(가) {log.action_name}으로 반격했다."
+                f" 나는 {log.damage_received} 피해를 받았다."
             )
             if log.status_applied:
                 parts.append(f" ({', '.join(log.status_applied)} 적용)")
@@ -364,7 +364,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     """multi-enemy turn loop 전투."""
     if not ctx.encounters:
         return ActionResult(
-            narrative="공격할 대상이 없습니다.",
+            narrative="공격할 대상이 없다.",
             success=False,
             fail_reason="no_target",
             time_advance=0,
@@ -440,7 +440,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         pass
 
     if xp_gain > 0:
-        narrative += f"\n\n경험치 +{xp_gain}을 획득합니다."
+        narrative += f"\n\n「경험치 +{xp_gain}을 획득합니다.」"
     if level_up and new_level is not None:
         sp_gain = soul_power_gain_on_level_up(new_level)
         narrative += (
@@ -477,7 +477,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
 async def handle_flee(ctx: ActionContext) -> ActionResult:
     if not ctx.encounters:
         return ActionResult(
-            narrative="도주할 상황이 아닙니다.",
+            narrative="도주할 상황이 아니다.",
             success=False,
             fail_reason="no_combat",
             time_advance=0,
@@ -494,12 +494,12 @@ async def handle_flee(ctx: ActionContext) -> ActionResult:
 
     if succeeded:
         return ActionResult(
-            narrative=f"비요른은 {enemy.name}의 시선을 흘리며 빠르게 물러납니다.",
+            narrative=f"나는 {enemy.name}의 시선을 흘리며 빠르게 물러났다.",
             encounter_resolved=True,
             time_advance=3,
         )
     return ActionResult(
-        narrative=f"비요른은 도주를 시도하지만 {enemy.name}이(가) 앞을 가로막습니다.",
+        narrative=f"도주를 시도했지만 {enemy.name}이(가) 앞을 가로막았다.",
         success=False,
         fail_reason="flee_failed",
         time_advance=2,
@@ -511,7 +511,7 @@ async def handle_equip(ctx: ActionContext) -> ActionResult:
     registry = get_item_registry()
     if registry is None:
         return ActionResult(
-            narrative="장비 정보를 확인할 수 없습니다.",
+            narrative="장비 정보를 확인할 수 없다.",
             success=False,
             fail_reason="no_registry",
             time_advance=0,
@@ -519,7 +519,7 @@ async def handle_equip(ctx: ActionContext) -> ActionResult:
     item_name = _find_equippable(ctx.user_input, ctx.inventory, registry)
     if item_name is None or item_name not in ctx.inventory:
         return ActionResult(
-            narrative="착용할 장비를 찾을 수 없습니다.",
+            narrative="착용할 장비를 찾을 수 없다.",
             success=False,
             fail_reason="no_item",
             time_advance=0,
@@ -527,13 +527,13 @@ async def handle_equip(ctx: ActionContext) -> ActionResult:
     eq = registry.lookup(item_name)
     if eq is None:
         return ActionResult(
-            narrative=f"{item_name}은(는) 장비가 아닙니다.",
+            narrative=f"{item_name}은(는) 장비가 아니다.",
             success=False,
             fail_reason="not_equipment",
             time_advance=0,
         )
     return ActionResult(
-        narrative=f"비요른은 {item_name}을(를) 착용합니다.",
+        narrative=f"나는 {item_name}을(를) 착용했다.",
         inventory_remove=[item_name],
         equipment_update={eq.slot.value: equipment_to_dict(eq)},
         time_advance=1,
@@ -544,7 +544,7 @@ async def handle_unequip(ctx: ActionContext) -> ActionResult:
     """장비 slot에서 아이템 해제 → inventory 복귀."""
     if ctx.equipment is None:
         return ActionResult(
-            narrative="착용 중인 장비가 없습니다.",
+            narrative="착용 중인 장비가 없다.",
             success=False,
             fail_reason="no_equipment",
             time_advance=0,
@@ -554,13 +554,13 @@ async def handle_unequip(ctx: ActionContext) -> ActionResult:
         piece = getattr(ctx.equipment, slot_name)
         if piece is not None and (piece.name in ctx.user_input or slot_name in ctx.user_input):
             return ActionResult(
-                narrative=f"비요른은 {piece.name}을(를) 벗습니다.",
+                narrative=f"나는 {piece.name}을(를) 벗었다.",
                 inventory_add=[piece.name],
                 equipment_update={slot_name: None},
                 time_advance=1,
             )
     return ActionResult(
-        narrative="해제할 장비를 찾을 수 없습니다.",
+        narrative="해제할 장비를 찾을 수 없다.",
         success=False,
         fail_reason="no_match",
         time_advance=0,
@@ -590,7 +590,7 @@ async def handle_engage_bandit(ctx: ActionContext) -> ActionResult:
     enemy = get_first_enemy(ctx.encounters)
     name = get_entity_name(enemy, "약탈자") if enemy else "약탈자"
     return ActionResult(
-        narrative=f"비요른은 {name}와 정면으로 맞섭니다. 약탈자의 눈에 잠깐 당혹감이 스칩니다.",
+        narrative=f"나는 {name}와 정면으로 맞섰다. 약탈자의 눈에 잠깐 당혹감이 스쳤다.",
         encounter_resolved=False,
         time_advance=1,
     )
@@ -611,7 +611,7 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
 
     if not essence_name or essence_name not in ctx.inventory:
         return ActionResult(
-            narrative="흡수할 정수가 없습니다.",
+            narrative="흡수할 정수가 없다.",
             success=False,
             fail_reason="no_essence",
             time_advance=0,
@@ -621,8 +621,8 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
     if len(ctx.absorbed_essences) >= ctx.max_essences:
         return ActionResult(
             narrative=(
-                f"최대 흡수 가능 정수 수({ctx.max_essences})에 도달했습니다."
-                " 새 정수를 흡수하려면 기존 정수 하나를 지워야 합니다."
+                f"최대 흡수 가능 정수 수({ctx.max_essences})에 도달했다."
+                " 새 정수를 흡수하려면 기존 정수 하나를 지워야 한다."
             ),
             success=False,
             fail_reason="essence_limit_reached",
@@ -632,8 +632,8 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
     # canon lookup → EssenceSlot
     slot_dict: dict[str, object] | None = None
     msg_lines: list[str] = [
-        f"비요른은 {essence_name}을 손에 쥡니다."
-        " 차가운 빛이 피부 아래로 스며들며 새 힘이 깃듭니다.",
+        f"나는 {essence_name}을 손에 쥐었다."
+        " 차가운 빛이 피부 아래로 스며들며 새 힘이 깃들었다.",
         f"「{essence_name}이(가) 스며듭니다.」",
     ]
     index = get_entity_index()
@@ -668,7 +668,7 @@ async def handle_remove_essence(ctx: ActionContext) -> ActionResult:
     )
     if not essence_name:
         return ActionResult(
-            narrative="어떤 정수를 제거할지 명확하지 않습니다.",
+            narrative="어떤 정수를 제거할지 명확하지 않다.",
             success=False,
             fail_reason="no_essence",
             time_advance=0,
@@ -679,7 +679,7 @@ async def handle_remove_essence(ctx: ActionContext) -> ActionResult:
     )
     if slot is None:
         return ActionResult(
-            narrative=f"{essence_name}을(를) 흡수한 적이 없습니다.",
+            narrative=f"{essence_name}을(를) 흡수한 적이 없다.",
             success=False,
             fail_reason="not_absorbed",
             time_advance=0,
@@ -703,7 +703,7 @@ async def handle_examine_stats(ctx: ActionContext) -> ActionResult:
     """본인 능력치 / 레벨 / XP 확인."""
     total = ctx.total_stats
     lines = [
-        "── 비요른의 현재 상태 ──",
+        "── 나의 현재 상태 ──",
         f"레벨: {ctx.player_level}  (XP: {ctx.player_xp})",
         f"HP: {ctx.current_hp}/{ctx.max_hp}",
         f"영혼력: {ctx.soul_power}",
@@ -730,14 +730,14 @@ async def handle_use_item(ctx: ActionContext) -> ActionResult:
     item = extract_item_from_inventory(ctx.user_input, ctx.inventory)
     if not item:
         return ActionResult(
-            narrative="사용할 아이템을 찾을 수 없습니다.",
+            narrative="사용할 아이템을 찾을 수 없다.",
             success=False,
             fail_reason="no_item",
             time_advance=0,
         )
     if item not in ctx.inventory:
         return ActionResult(
-            narrative=f"{item}을 가지고 있지 않습니다.",
+            narrative=f"{item}을 가지고 있지 않다.",
             success=False,
             fail_reason="not_in_inventory",
             time_advance=0,
@@ -745,15 +745,15 @@ async def handle_use_item(ctx: ActionContext) -> ActionResult:
     if "물약" in item:
         return ActionResult(
             narrative=(
-                f"비요른은 {item}의 마개를 뽑아 단숨에 들이켭니다."
-                " 체온이 돌아오는 것이 느껴집니다."
+                f"나는 {item}의 마개를 뽑아 단숨에 들이켰다."
+                " 체온이 돌아오는 것이 느껴졌다."
             ),
             inventory_remove=[item],
             hp_change=30,
             time_advance=1,
         )
     return ActionResult(
-        narrative=f"비요른은 {item}을 사용합니다.",
+        narrative=f"나는 {item}을 사용했다.",
         inventory_remove=[item],
         time_advance=1,
     )
@@ -763,13 +763,13 @@ async def handle_offer_to_stone(ctx: ActionContext) -> ActionResult:
     mage_stone = next((i for i in ctx.inventory if "마석" in i), None)
     if not mage_stone:
         return ActionResult(
-            narrative="비석에 바칠 마석이 없습니다.",
+            narrative="비석에 바칠 마석이 없다.",
             success=False,
             fail_reason="no_mage_stone",
             time_advance=0,
         )
     return ActionResult(
-        narrative=f"비요른은 {mage_stone}을 비석 앞에 놓습니다. 돌 표면이 희미하게 빛납니다.",
+        narrative=f"나는 {mage_stone}을 비석 앞에 놓았다. 돌 표면이 희미하게 빛났다.",
         inventory_remove=[mage_stone],
         time_advance=1,
     )
@@ -781,7 +781,7 @@ async def handle_offer_to_stone(ctx: ActionContext) -> ActionResult:
 async def handle_rest(ctx: ActionContext) -> ActionResult:
     recovery = min(20, ctx.max_hp - ctx.current_hp)
     return ActionResult(
-        narrative="비요른은 벽에 등을 기댑니다. 짧은 침묵 속에 호흡이 고른 리듬을 찾아갑니다.",
+        narrative="나는 벽에 등을 기댔다. 짧은 침묵 속에 호흡이 고른 리듬을 찾아갔다.",
         hp_change=recovery,
         time_advance=4,
     )
@@ -789,7 +789,7 @@ async def handle_rest(ctx: ActionContext) -> ActionResult:
 
 async def handle_wait(ctx: ActionContext) -> ActionResult:
     return ActionResult(
-        narrative="비요른은 움직이지 않습니다. 시간이 흐릅니다.",
+        narrative="나는 움직이지 않았다. 시간이 흘렀다.",
         time_advance=1,
     )
 
@@ -798,8 +798,8 @@ async def handle_wait_in_village(ctx: ActionContext) -> ActionResult:
     recovery = ctx.max_hp - ctx.current_hp
     return ActionResult(
         narrative=(
-            "비요른은 마을에서 하루를 보냅니다."
-            " 잠을 자고 식사를 하니 몸이 한결 가벼워집니다."
+            "나는 마을에서 하루를 보냈다."
+            " 잠을 자고 식사를 했더니 몸이 한결 가벼워졌다."
         ),
         hp_change=recovery,
         time_advance=24,
@@ -809,7 +809,7 @@ async def handle_wait_in_village(ctx: ActionContext) -> ActionResult:
 async def handle_rest_and_night_watch(ctx: ActionContext) -> ActionResult:
     if ctx.encounters:
         return ActionResult(
-            narrative="주변에 적대적인 기척이 있어 야영할 수 없습니다.",
+            narrative="주변에 적대적인 기척이 있어 야영할 수 없었다.",
             success=False,
             fail_reason="hostile_nearby",
             time_advance=0,
@@ -817,8 +817,8 @@ async def handle_rest_and_night_watch(ctx: ActionContext) -> ActionResult:
     recovery = min(40, ctx.max_hp - ctx.current_hp)
     return ActionResult(
         narrative=(
-            "비요른은 불침번을 세우며 야영지에 자리를 폅니다."
-            " 교대로 눈을 붙이고 날이 밝기를 기다립니다."
+            "나는 불침번을 세우며 야영지에 자리를 폈다."
+            " 교대로 눈을 붙이고 날이 밝기를 기다렸다."
         ),
         hp_change=recovery,
         time_advance=8,
@@ -831,8 +831,8 @@ async def handle_rest_and_night_watch(ctx: ActionContext) -> ActionResult:
 async def handle_communicate(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative=(
-            "비요른은 메시지 스톤을 꺼내 손에 쥡니다."
-            " 돌의 온기가 전해지며 목소리가 실립니다."
+            "나는 메시지 스톤을 꺼내 손에 쥐었다."
+            " 돌의 온기가 전해지며 목소리가 실렸다."
         ),
         time_advance=0,
     )
@@ -842,14 +842,14 @@ async def handle_dialogue(ctx: ActionContext) -> ActionResult:
     npc = get_first_npc(ctx.encounters)
     if not npc:
         return ActionResult(
-            narrative="대화할 상대가 없습니다.",
+            narrative="대화할 상대가 없다.",
             success=False,
             fail_reason="no_npc",
             time_advance=0,
         )
     name = get_entity_name(npc, "NPC")
     return ActionResult(
-        narrative=f"비요른은 {name}에게 다가가 말을 건넵니다. 짧은 대화가 오고 갑니다.",
+        narrative=f"나는 {name}에게 다가가 말을 건넸다. 짧은 대화가 오고 갔다.",
         affinity_changes={name: 1},
         time_advance=1,
     )
@@ -859,14 +859,14 @@ async def handle_reject_dialogue(ctx: ActionContext) -> ActionResult:
     npc = get_first_npc(ctx.encounters)
     if not npc:
         return ActionResult(
-            narrative="거절할 대상이 없습니다.",
+            narrative="거절할 대상이 없다.",
             success=False,
             fail_reason="no_npc",
             time_advance=0,
         )
     name = get_entity_name(npc, "NPC")
     return ActionResult(
-        narrative=f"비요른은 {name}의 말을 잘라냅니다. 짤막한 침묵이 흐릅니다.",
+        narrative=f"나는 {name}의 말을 잘라냈다. 짤막한 침묵이 흘렀다.",
         affinity_changes={name: -1},
         time_advance=0,
     )
@@ -876,14 +876,14 @@ async def handle_form_night_companion(ctx: ActionContext) -> ActionResult:
     npc = get_first_npc(ctx.encounters)
     name = get_entity_name(npc, "동행") if npc else "동행"
     return ActionResult(
-        narrative=f"비요른은 {name}과 임시 협력 관계를 맺습니다. 말이 없어도 의미가 통합니다.",
+        narrative=f"나는 {name}과 임시 협력 관계를 맺었다. 말이 없어도 의미가 통했다.",
         time_advance=0,
     )
 
 
 async def handle_disband_night_companion(ctx: ActionContext) -> ActionResult:
     return ActionResult(
-        narrative="비요른은 협력 관계를 끝맺습니다. 각자의 길로 향합니다.",
+        narrative="협력 관계를 끝맺었다. 각자의 길로 향했다.",
         time_advance=0,
     )
 
@@ -895,13 +895,13 @@ async def handle_shop_sell(ctx: ActionContext) -> ActionResult:
     item = extract_item_from_inventory(ctx.user_input, ctx.inventory)
     if not item or item not in ctx.inventory:
         return ActionResult(
-            narrative="판매할 아이템을 찾을 수 없습니다.",
+            narrative="판매할 아이템을 찾을 수 없다.",
             success=False,
             fail_reason="no_item",
             time_advance=0,
         )
     return ActionResult(
-        narrative=f"비요른은 상인에게 {item}을 내밉니다. 동전이 손바닥에 떨어집니다.",
+        narrative=f"나는 상인에게 {item}을 내밀었다. 동전이 손바닥에 떨어졌다.",
         inventory_remove=[item],
         time_advance=1,
     )
@@ -911,13 +911,13 @@ async def handle_shop_buy(ctx: ActionContext) -> ActionResult:
     item = extract_item_from_input(ctx.user_input)
     if not item:
         return ActionResult(
-            narrative="구매할 아이템을 찾을 수 없습니다.",
+            narrative="구매할 아이템을 찾을 수 없다.",
             success=False,
             fail_reason="no_item",
             time_advance=0,
         )
     return ActionResult(
-        narrative=f"비요른은 상인에게 동전을 건네고 {item}을 손에 넣습니다.",
+        narrative=f"나는 상인에게 동전을 건네고 {item}을 손에 넣었다.",
         inventory_add=[item],
         time_advance=1,
     )
@@ -925,7 +925,7 @@ async def handle_shop_buy(ctx: ActionContext) -> ActionResult:
 
 async def handle_exchange_mage_stones(ctx: ActionContext) -> ActionResult:
     return ActionResult(
-        narrative="비요른은 환전소 창구 앞에 섭니다. 마석과 스톤의 환율을 확인합니다.",
+        narrative="나는 환전소 창구 앞에 섰다. 마석과 스톤의 환율을 확인했다.",
         time_advance=1,
     )
 
@@ -937,8 +937,8 @@ async def handle_heal_at_temple(ctx: ActionContext) -> ActionResult:
     recovery = ctx.max_hp - ctx.current_hp
     return ActionResult(
         narrative=(
-            "비요른은 삼신교 신전 앞에 무릎을 꿇습니다."
-            " 사제의 손이 상처 위에 닿자 열기가 가라앉습니다."
+            "나는 삼신교 신전 앞에 무릎을 꿇었다."
+            " 사제의 손이 상처 위에 닿자 열기가 가라앉았다."
         ),
         hp_change=recovery,
         time_advance=2,
@@ -948,8 +948,8 @@ async def handle_heal_at_temple(ctx: ActionContext) -> ActionResult:
 async def handle_recruit_from_guild(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative=(
-            "비요른은 길드 게시판 앞에서 신참자 목록을 훑어봅니다."
-            " 빈자리를 채울 인원을 고릅니다."
+            "나는 길드 게시판 앞에서 신참자 목록을 훑어봤다."
+            " 빈자리를 채울 인원을 골랐다."
         ),
         time_advance=2,
     )
@@ -1004,7 +1004,7 @@ async def dispatch_action(
     handler = ACTION_HANDLERS.get(action_type)
     if not handler:
         return ActionResult(
-            narrative=f"{action_type.value} 행동은 아직 구현되지 않았습니다.",
+            narrative=f"{action_type.value} 행동은 아직 구현되지 않았다.",
             success=False,
             fail_reason="not_implemented",
             time_advance=0,

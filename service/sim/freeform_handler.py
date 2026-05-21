@@ -18,8 +18,9 @@ from service.canon.entity_index import EntityRef
 from service.sim.combat import CombatTurnLog
 
 FREEFORM_SYSTEM_TEMPLATE = (
-    "한국 web novel '게임 속 바바리안으로 살아남기' 정합 DM. "
-    "자유 행동을 본문 어조 narrative(격식체 ~다/~니다)로 생성. "
+    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 생성. "
+    "서사 규칙: 1인칭 시점('나는'/'내가' 사용), 문어체 어미(~다/~었다, ~니다/~습니다 금지), "
+    "시스템 메시지만 「...」 안에 합쇼체 허용, 화자 prefix 금지. "
     "{canon_context}"
     "state_delta는 minimal."
 )
@@ -146,9 +147,10 @@ def freeform_action(
 # ─── combat narrative ──────────────────────────────────────────────────────────
 
 _COMBAT_NARRATIVE_SYSTEM = (
-    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 DM. "
-    "전투 turn flow를 본문 어조 격식체(~다/~니다) narrative로 통합. "
-    "RULE: turn flow 자연스럽게 연결, 4-6 문장 분량."
+    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 통합. "
+    "서사 규칙: 1인칭('나는'/'내가'), 문어체 어미(~다/~었다, ~니다 금지), "
+    "시스템 메시지만 「...」 안에 합쇼체 허용. "
+    "전투 turn flow를 자연스럽게 연결, 4-6 문장 분량."
 )
 
 _COMBAT_NARRATIVE_SCHEMA: dict[str, Any] = {
