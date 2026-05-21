@@ -923,10 +923,50 @@ async def handle_shop_buy(ctx: ActionContext) -> ActionResult:
     )
 
 
+def _extract_grade_from_item_name(item_name: str) -> int | None:
+    """'N등급 마석' 형태에서 등급 N을 추출한다."""
+    import re
+    m = re.match(r"(\d+)등급", item_name)
+    if m:
+        grade = int(m.group(1))
+        if 1 <= grade <= 9:
+            return grade
+    return None
+
+
 async def handle_exchange_mage_stones(ctx: ActionContext) -> ActionResult:
+    """마석 → 스톤 환전 (본문 정합 ep_0016).
+
+    마석주머니를 저울 위에 올리면 자동 판정 후 스톤 지급.
+    """
+    from service.canon.exchange import compute_stone_for_mage_stone
+
+    total_stone = 0
+    removed: list[str] = []
+    for item in ctx.inventory:
+        if "마석" in item:
+            grade = _extract_grade_from_item_name(item)
+            if grade is not None:
+                total_stone += compute_stone_for_mage_stone(grade)
+                removed.append(item)
+
+    if not removed:
+        return ActionResult(
+            narrative="나는 마석주머니를 들었지만 환전할 마석이 없었다.",
+            success=False,
+            fail_reason="no_mage_stone",
+            time_advance=0,
+        )
+
     return ActionResult(
-        narrative="나는 환전소 창구 앞에 섰다. 마석과 스톤의 환율을 확인했다.",
-        time_advance=1,
+        narrative=(
+            "나는 마석주머니를 저울 위에 올렸다. "
+            "공무원이 바코드 찍듯 신속하게 판정을 마쳤다.\n\n"
+            f"「{total_stone:,}스톤입니다.」"
+        ),
+        inventory_remove=removed,
+        stone_change=total_stone,
+        time_advance=10,
     )
 
 

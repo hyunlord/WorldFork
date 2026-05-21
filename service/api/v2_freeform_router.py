@@ -88,6 +88,16 @@ def _post_apply_dungeon_clock(
     return None
 
 
+def _build_tip_message(new_balance: int, prev_balance: int) -> str | None:
+    """잔액 변동 시 「TIP」 시스템 메시지 (본문 정합 ep_0018)."""
+    if new_balance == prev_balance:
+        return None
+    return (
+        f"「TIP: 현재 캐릭터의 총 소지금은 {new_balance:,}스톤입니다."
+        " 이를 사용해 캐릭터의 종합 전투 지수를 올려 보세요!」"
+    )
+
+
 def _post_apply_spawn(state: SessionState) -> None:
     """action 적용 후 encounter auto spawn check — state 인플레이스 갱신."""
     if state.encounters:
@@ -209,6 +219,7 @@ async def freeform_action_endpoint(
             final_narrative = result.narrative
             if session_state is not None:
                 prev_hours = session_state.hours_in_dungeon
+                prev_stone = session_state.stone_balance
                 session_state = await mgr.apply_result(
                     session_state.session_id,
                     result,
@@ -217,8 +228,15 @@ async def freeform_action_endpoint(
                 )
                 _post_apply_spawn(session_state)
                 clock_msg = _post_apply_dungeon_clock(session_state, prev_hours)
+                tip_msg = _build_tip_message(session_state.stone_balance, prev_stone)
+                needs_save = False
                 if clock_msg:
                     final_narrative = f"{final_narrative}\n\n{clock_msg}"
+                    needs_save = True
+                if tip_msg:
+                    final_narrative = f"{final_narrative}\n\n{tip_msg}"
+                    needs_save = True
+                if needs_save:
                     await mgr.save_state(session_state)
 
             return FreeformActionResponse(
@@ -243,6 +261,7 @@ async def freeform_action_endpoint(
                         session_state.floor_number if session_state else None
                     ),
                     floor_change=result.floor_change,
+                    stone_change=result.stone_change,
                 ),
                 session_id=session_state.session_id if session_state else None,
                 session_state=_session_summary(session_state) if session_state else None,
@@ -267,6 +286,7 @@ async def freeform_action_endpoint(
         from service.sim.action_context import ActionResult
 
         prev_hours_fb = session_state.hours_in_dungeon
+        prev_stone_fb = session_state.stone_balance
         pseudo_result = ActionResult(
             narrative=narrative,
             hp_change=state_delta.hp_change,
@@ -275,6 +295,7 @@ async def freeform_action_endpoint(
             location=state_delta.location,
             time_advance=state_delta.time_advance,
             affinity_changes=dict(state_delta.affinity_changes),
+            stone_change=state_delta.stone_change,
         )
         session_state = await mgr.apply_result(
             session_state.session_id,
@@ -284,8 +305,15 @@ async def freeform_action_endpoint(
         )
         _post_apply_spawn(session_state)
         clock_msg_fb = _post_apply_dungeon_clock(session_state, prev_hours_fb)
+        tip_msg_fb = _build_tip_message(session_state.stone_balance, prev_stone_fb)
+        needs_save_fb = False
         if clock_msg_fb:
             final_narrative_fb = f"{narrative}\n\n{clock_msg_fb}"
+            needs_save_fb = True
+        if tip_msg_fb:
+            final_narrative_fb = f"{final_narrative_fb}\n\n{tip_msg_fb}"
+            needs_save_fb = True
+        if needs_save_fb:
             await mgr.save_state(session_state)
 
     return FreeformActionResponse(

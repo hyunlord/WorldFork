@@ -65,6 +65,7 @@ class StateDelta(BaseModel):
     new_level: int | None = Field(default=None)
     floor_number: int | None = Field(default=None)
     floor_change: int | None = Field(default=None)
+    stone_change: int = Field(default=0)
 
 
 ResolvedPath = Literal["intent", "fallback"]

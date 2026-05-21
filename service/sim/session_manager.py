@@ -41,6 +41,8 @@ class SessionState:
     floor_number: int = 0
     # ★ 168h — dungeon clock
     hours_in_dungeon: float = 0.0
+    # ★ audit-c1 — 스톤 잔액
+    stone_balance: int = 0
 
 
 def _new_id() -> str:
@@ -72,6 +74,7 @@ def _to_row(s: SessionState) -> SessionRow:
         defeated_monster_types=list(s.defeated_monster_types),
         floor_number=s.floor_number,
         hours_in_dungeon=s.hours_in_dungeon,
+        stone_balance=s.stone_balance,
     )
 
 
@@ -97,6 +100,7 @@ def _from_row(r: SessionRow) -> SessionState:
         defeated_monster_types=list(r.defeated_monster_types),
         floor_number=r.floor_number,
         hours_in_dungeon=r.hours_in_dungeon,
+        stone_balance=r.stone_balance,
     )
 
 
@@ -141,6 +145,7 @@ class SessionManager:
             defeated_monster_types=[],
             floor_number=0,
             hours_in_dungeon=0.0,
+            stone_balance=0,
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -219,6 +224,9 @@ class SessionManager:
             state.hours_in_dungeon += float(result.time_advance)
         if result.floor_change is not None:
             state.floor_number = max(0, state.floor_number + result.floor_change)
+        # ★ audit-c1 — stone_balance 누적
+        if result.stone_change != 0:
+            state.stone_balance += result.stone_change
         state.turn_count += 1
         state.last_active = _now()
 

@@ -69,3 +69,5 @@ class ActionResult:
     floor_change: int | None = None  # None = no change, +1/-1 = floor transition
     # ★ 168h — dungeon clock reset (진입/탈출 시 0으로 초기화)
     hours_in_dungeon_reset: bool = False
+    # ★ audit-c1 — 거래/환전 시 스톤 증감 (+획득 / -지출)
+    stone_change: int = 0

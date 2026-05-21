@@ -290,9 +290,16 @@ def test_enter_dungeon() -> None:
 
 
 def test_exchange_mage_stones() -> None:
-    result = run(handle_exchange_mage_stones(_ctx()))
-    assert result.success
-    assert result.time_advance == 1
+    # 마석 없으면 fail — Audit C1 본문 정합
+    result_empty = run(handle_exchange_mage_stones(_ctx()))
+    assert result_empty.success is False
+    # 9등급 마석 → 20스톤
+    ctx_with = _ctx()
+    ctx_with.inventory = ["9등급 마석"]
+    result = run(handle_exchange_mage_stones(ctx_with))
+    assert result.success is True
+    assert result.stone_change == 20
+    assert result.time_advance == 10
 
 
 # ─── WAIT_IN_VILLAGE ───

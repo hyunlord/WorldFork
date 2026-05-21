@@ -36,6 +36,8 @@ class SessionRow:
     floor_number: int = 0
     # ★ 168h — dungeon clock
     hours_in_dungeon: float = 0.0
+    # ★ audit-c1 — 스톤 잔액
+    stone_balance: int = 0
 
 
 @dataclass
@@ -119,6 +121,10 @@ class SqliteStore:
                 "hours_in_dungeon",
                 "ALTER TABLE sessions ADD COLUMN hours_in_dungeon REAL NOT NULL DEFAULT 0.0",
             ),
+            (
+                "stone_balance",
+                "ALTER TABLE sessions ADD COLUMN stone_balance INTEGER NOT NULL DEFAULT 0",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -135,8 +141,9 @@ class SqliteStore:
             (session_id, created_at, last_active, current_hp, max_hp,
              inventory, location, turn_count, status_effects, equipment,
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
-             absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon,
+             stone_balance)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -154,7 +161,8 @@ class SqliteStore:
             absorbed_essences       = excluded.absorbed_essences,
             defeated_monster_types  = excluded.defeated_monster_types,
             floor_number            = excluded.floor_number,
-            hours_in_dungeon        = excluded.hours_in_dungeon
+            hours_in_dungeon        = excluded.hours_in_dungeon,
+            stone_balance           = excluded.stone_balance
         """
         with self._connect() as conn:
             conn.execute(
@@ -179,6 +187,7 @@ class SqliteStore:
                     json.dumps(row.defeated_monster_types, ensure_ascii=False),
                     row.floor_number,
                     row.hours_in_dungeon,
+                    row.stone_balance,
                 ),
             )
 
@@ -235,6 +244,7 @@ class SqliteStore:
             ),
             floor_number=_int_col("floor_number", 0),
             hours_in_dungeon=hours_in_dungeon,
+            stone_balance=_int_col("stone_balance", 0),
         )
 
     def delete_session(self, session_id: str) -> None:
