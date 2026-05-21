@@ -59,6 +59,9 @@ class StateDelta(BaseModel):
     time_advance: int = Field(default=1, ge=0, le=24)
     affinity_changes: dict[str, int] = Field(default_factory=dict)
     encounter_resolved: bool = Field(default=False)
+    xp_gain: int = Field(default=0)
+    level_up: bool = Field(default=False)
+    new_level: int | None = Field(default=None)
 
 
 ResolvedPath = Literal["intent", "fallback"]
