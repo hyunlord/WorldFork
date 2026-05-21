@@ -34,6 +34,8 @@ class SessionRow:
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
     floor_number: int = 0
+    # ★ 168h — dungeon clock
+    hours_in_dungeon: float = 0.0
 
 
 @dataclass
@@ -113,6 +115,10 @@ class SqliteStore:
                 "floor_number",
                 "ALTER TABLE sessions ADD COLUMN floor_number INTEGER NOT NULL DEFAULT 0",
             ),
+            (
+                "hours_in_dungeon",
+                "ALTER TABLE sessions ADD COLUMN hours_in_dungeon REAL NOT NULL DEFAULT 0.0",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -129,8 +135,8 @@ class SqliteStore:
             (session_id, created_at, last_active, current_hp, max_hp,
              inventory, location, turn_count, status_effects, equipment,
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
-             absorbed_essences, defeated_monster_types, floor_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -147,7 +153,8 @@ class SqliteStore:
             soul_power              = excluded.soul_power,
             absorbed_essences       = excluded.absorbed_essences,
             defeated_monster_types  = excluded.defeated_monster_types,
-            floor_number            = excluded.floor_number
+            floor_number            = excluded.floor_number,
+            hours_in_dungeon        = excluded.hours_in_dungeon
         """
         with self._connect() as conn:
             conn.execute(
@@ -171,6 +178,7 @@ class SqliteStore:
                     json.dumps(row.absorbed_essences, ensure_ascii=False),
                     json.dumps(row.defeated_monster_types, ensure_ascii=False),
                     row.floor_number,
+                    row.hours_in_dungeon,
                 ),
             )
 
@@ -199,6 +207,9 @@ class SqliteStore:
             val = row[name] if name in keys else default
             return int(val) if isinstance(val, int) else default
 
+        raw_hours = row["hours_in_dungeon"] if "hours_in_dungeon" in keys else 0.0
+        hours_in_dungeon = float(raw_hours) if isinstance(raw_hours, (int, float)) else 0.0
+
         return SessionRow(
             session_id=row["session_id"],
             created_at=row["created_at"],
@@ -223,6 +234,7 @@ class SqliteStore:
                 defeated_parsed if isinstance(defeated_parsed, list) else []
             ),
             floor_number=_int_col("floor_number", 0),
+            hours_in_dungeon=hours_in_dungeon,
         )
 
     def delete_session(self, session_id: str) -> None:

@@ -39,6 +39,8 @@ class SessionState:
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
     floor_number: int = 0
+    # ★ 168h — dungeon clock
+    hours_in_dungeon: float = 0.0
 
 
 def _new_id() -> str:
@@ -69,6 +71,7 @@ def _to_row(s: SessionState) -> SessionRow:
         absorbed_essences=list(s.absorbed_essences),
         defeated_monster_types=list(s.defeated_monster_types),
         floor_number=s.floor_number,
+        hours_in_dungeon=s.hours_in_dungeon,
     )
 
 
@@ -93,6 +96,7 @@ def _from_row(r: SessionRow) -> SessionState:
         absorbed_essences=list(r.absorbed_essences),
         defeated_monster_types=list(r.defeated_monster_types),
         floor_number=r.floor_number,
+        hours_in_dungeon=r.hours_in_dungeon,
     )
 
 
@@ -136,6 +140,7 @@ class SessionManager:
             absorbed_essences=[],
             defeated_monster_types=[],
             floor_number=0,
+            hours_in_dungeon=0.0,
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -207,6 +212,11 @@ class SessionManager:
                 s for s in state.absorbed_essences
                 if s.get("essence_name") != result.essence_slot_remove
             ]
+        # ★ 168h — hours_in_dungeon 누적 (floor_change 적용 전 현재 층 기준)
+        if result.hours_in_dungeon_reset:
+            state.hours_in_dungeon = 0.0
+        elif state.floor_number >= 1:
+            state.hours_in_dungeon += float(result.time_advance)
         if result.floor_change is not None:
             state.floor_number = max(0, state.floor_number + result.floor_change)
         state.turn_count += 1
@@ -235,6 +245,11 @@ class SessionManager:
         )
         await asyncio.to_thread(self._store.save_turn, turn)
         return state
+
+    async def save_state(self, state: SessionState) -> None:
+        """state를 cache + DB에 저장 (apply_result 없이 직접 갱신)."""
+        self._cache[state.session_id] = state
+        await asyncio.to_thread(self._store.save_session, _to_row(state))
 
     async def end_session(self, session_id: str) -> None:
         self._cache.pop(session_id, None)

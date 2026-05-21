@@ -67,3 +67,5 @@ class ActionResult:
     defeated_monsters_add: list[str] = field(default_factory=list)
     # ★ 7 — floor transition
     floor_change: int | None = None  # None = no change, +1/-1 = floor transition
+    # ★ 168h — dungeon clock reset (진입/탈출 시 0으로 초기화)
+    hours_in_dungeon_reset: bool = False

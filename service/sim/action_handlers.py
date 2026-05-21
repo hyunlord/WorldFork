@@ -222,6 +222,7 @@ async def handle_exit_to_prev_floor(ctx: ActionContext) -> ActionResult:
             narrative="비요른은 발걸음을 돌려 마을로 복귀합니다. 햇살이 눈을 찌릅니다.",
             location="마을",
             floor_change=-1,
+            hours_in_dungeon_reset=True,
             time_advance=1,
         )
     return ActionResult(
@@ -236,6 +237,8 @@ async def handle_enter_dungeon(ctx: ActionContext) -> ActionResult:
     return ActionResult(
         narrative="자정이 지났습니다. 비요른은 던전 1층 입구 앞에 섰습니다. 새 달의 시작입니다.",
         location="던전 1층",
+        floor_change=1,
+        hours_in_dungeon_reset=True,
         time_advance=1,
     )
 

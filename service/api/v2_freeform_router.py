@@ -21,6 +21,7 @@ from service.api.schemas.freeform_action import (
 from service.canon.context import get_canon_facts, get_spawn_table
 from service.sim.action_context import ActionContext
 from service.sim.action_handlers import dispatch_action
+from service.sim.dungeon_clock import check_warning, should_force_return
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.intent_classifier import classify_intent
@@ -31,6 +32,60 @@ from service.sim.types import PlayerActionType
 router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
 
 INTENT_THRESHOLD = 0.8
+
+
+def _force_return_narrative() -> str:
+    """강제 귀환 연출 — ep_0016 본문 정합."""
+    return (
+        "「층계 폐쇄까지 1분 남았습니다.」\n\n"
+        "빛이 눈앞을 뒤덮고, 그보다 옅은 빛이 얹어지며 시야가 돌아온다. "
+        "비요른은 라프도니아 차원광장에 서 있다.\n\n"
+        "「미궁이 폐쇄되었습니다.」\n"
+        "「캐릭터가 라프도니아로 이동합니다.」"
+    )
+
+
+def _force_return_to_city(state: SessionState) -> None:
+    """168h 도달 시 강제 귀환 — state 인플레이스 변경.
+
+    - inventory / level / xp / absorbed_essences 유지 (ep_0016 정합)
+    - status_effects 해제 (본인 답 — 마을 안전)
+    - encounters / hours_in_dungeon 초기화
+    - floor_number → 0, location → 차원광장
+    """
+    state.floor_number = 0
+    state.location = "라프도니아 · 차원광장"
+    state.encounters = []
+    state.status_effects = []
+    state.hours_in_dungeon = 0.0
+    state.last_spawn_turn = -10
+
+
+def _post_apply_dungeon_clock(
+    state: SessionState,
+    prev_hours: float,
+) -> str | None:
+    """dungeon clock 체크 — 강제 귀환 또는 경고 메시지 반환.
+
+    강제 귀환 시 state를 인플레이스 변경하고 narrative를 반환.
+    경고만 있으면 경고 메시지 반환.
+    이상 없으면 None 반환.
+    """
+    floor = state.floor_number
+    if floor < 1:
+        return None
+
+    new_hours = state.hours_in_dungeon
+
+    if should_force_return(floor, new_hours):
+        _force_return_to_city(state)
+        return _force_return_narrative()
+
+    warning = check_warning(floor, prev_hours, new_hours)
+    if warning:
+        return warning.message
+
+    return None
 
 
 def _post_apply_spawn(state: SessionState) -> None:
@@ -151,7 +206,9 @@ async def freeform_action_endpoint(
                 ) from exc
 
             resolved_path: Literal["intent", "fallback"] = "intent"
+            final_narrative = result.narrative
             if session_state is not None:
+                prev_hours = session_state.hours_in_dungeon
                 session_state = await mgr.apply_result(
                     session_state.session_id,
                     result,
@@ -159,12 +216,16 @@ async def freeform_action_endpoint(
                     resolved_path=resolved_path,
                 )
                 _post_apply_spawn(session_state)
+                clock_msg = _post_apply_dungeon_clock(session_state, prev_hours)
+                if clock_msg:
+                    final_narrative = f"{final_narrative}\n\n{clock_msg}"
+                    await mgr.save_state(session_state)
 
             return FreeformActionResponse(
                 resolved_path=resolved_path,
                 matched_action=intent.matched_action,
                 confidence=intent.confidence,
-                narrative=result.narrative,
+                narrative=final_narrative,
                 action_success=result.success,
                 fail_reason=result.fail_reason,
                 state_delta=StateDelta(
@@ -201,9 +262,11 @@ async def freeform_action_endpoint(
         ) from exc
 
     resolved_path_fb: Literal["intent", "fallback"] = "fallback"
+    final_narrative_fb = narrative
     if session_state is not None:
         from service.sim.action_context import ActionResult
 
+        prev_hours_fb = session_state.hours_in_dungeon
         pseudo_result = ActionResult(
             narrative=narrative,
             hp_change=state_delta.hp_change,
@@ -220,11 +283,15 @@ async def freeform_action_endpoint(
             resolved_path=resolved_path_fb,
         )
         _post_apply_spawn(session_state)
+        clock_msg_fb = _post_apply_dungeon_clock(session_state, prev_hours_fb)
+        if clock_msg_fb:
+            final_narrative_fb = f"{narrative}\n\n{clock_msg_fb}"
+            await mgr.save_state(session_state)
 
     return FreeformActionResponse(
         resolved_path=resolved_path_fb,
         confidence=intent.confidence,
-        narrative=narrative,
+        narrative=final_narrative_fb,
         state_delta=state_delta,
         fallback_reason=intent.reason,
         session_id=session_state.session_id if session_state else None,
