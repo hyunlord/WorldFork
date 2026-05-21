@@ -6,10 +6,13 @@ import asyncio
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from service.persistence.sqlite_store import SessionRow, SqliteStore, TurnRow
 from service.sim.action_context import ActionResult
 from service.sim.equipment import DEFAULT_EQUIPMENT_DICT
+
+ACTIVE_TIMEOUT = timedelta(hours=1)
 
 
 @dataclass
@@ -123,6 +126,7 @@ class SessionManager:
     def __init__(self, store: SqliteStore) -> None:
         self._store = store
         self._cache: dict[str, SessionState] = {}
+        self._last_seen: dict[str, datetime] = {}
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -161,17 +165,20 @@ class SessionManager:
             rift_is_variant=False,
         )
         self._cache[state.session_id] = state
+        self._last_seen[state.session_id] = datetime.utcnow()
         await asyncio.to_thread(self._store.save_session, _to_row(state))
         return state
 
     async def get_session(self, session_id: str) -> SessionState | None:
         if session_id in self._cache:
+            self._last_seen[session_id] = datetime.utcnow()
             return self._cache[session_id]
         row = await asyncio.to_thread(self._store.load_session, session_id)
         if row is None:
             return None
         state = _from_row(row)
         self._cache[session_id] = state
+        self._last_seen[session_id] = datetime.utcnow()
         return state
 
     async def apply_result(
@@ -288,7 +295,23 @@ class SessionManager:
 
     async def end_session(self, session_id: str) -> None:
         self._cache.pop(session_id, None)
+        self._last_seen.pop(session_id, None)
         await asyncio.to_thread(self._store.delete_session, session_id)
+
+    async def evict_stale(self) -> int:
+        """ACTIVE_TIMEOUT 초과 in-memory cache entries 제거.
+
+        SQLite는 유지 — 다음 access 시 reload.
+        """
+        now = datetime.utcnow()
+        stale = [
+            sid for sid, ts in self._last_seen.items()
+            if now - ts > ACTIVE_TIMEOUT
+        ]
+        for sid in stale:
+            self._cache.pop(sid, None)
+            self._last_seen.pop(sid, None)
+        return len(stale)
 
     async def get_or_create(
         self,

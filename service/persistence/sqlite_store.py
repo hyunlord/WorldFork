@@ -24,7 +24,7 @@ class SessionRow:
     equipment: dict[str, object] = field(
         default_factory=lambda: {"weapon": None, "armor": None, "accessory": None}
     )
-    last_spawn_turn: int = 0
+    last_spawn_turn: int = -10
     # ★ 6d — player progression
     player_level: int = 4
     player_xp: int = 0
