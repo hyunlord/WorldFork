@@ -282,13 +282,52 @@ def _handle_encounter_side_effects(
             )
 
 
+def _maybe_spawn_rift_encounters(holder: _V2StateHolder) -> None:
+    """균열 내부 mechanical spawn — LLM 불필요, RiftSubAreaDef.monsters 사용."""
+    if holder.active_encounters:
+        return
+    from service.canon.context import get_spawn_table
+    from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS
+    from service.sim.spawn_trigger import trigger_spawn
+
+    spawn_table = get_spawn_table()
+    if spawn_table is None:
+        return
+
+    new_encounters = trigger_spawn(
+        location_name=holder.location.rift_id or "",
+        location_type="rift",
+        turn_count=holder.turn,
+        last_spawn_turn=0,
+        spawn_table=spawn_table,
+        rift_sub_area=holder.location.rift_sub_area,
+        rift_defs=FLOOR1_RIFT_DEFS,
+    )
+    for enc_dict in new_encounters:
+        holder.active_encounters.append(
+            Encounter(
+                type=EncounterType.MONSTER,
+                name=str(enc_dict.get("name", "몬스터")),
+                location=holder.location.rift_sub_area or "",
+                description="",
+                details={},
+                spawned_at_turn=holder.turn,
+                ttl_turns=ENCOUNTER_TTL.get(EncounterType.MONSTER, 5),
+            )
+        )
+
+
 def _maybe_spawn_encounters(holder: _V2StateHolder) -> None:
     """매 turn SimGMAgent.generate_encounters 호출 (★ 던전 한정).
 
-    던전 외 (CITY / WILDERNESS 등) 본격 본격 본격 X — narrative 본격 본격.
-    LLM 실패 시 silent fallback (★ mechanical 본격 계속 진행 보장).
+    던전 외 (CITY / WILDERNESS 등) X — narrative 한정.
+    균열 내부: mechanical spawn (_maybe_spawn_rift_encounters).
+    LLM 실패 시 silent fallback (★ mechanical 계속 진행 보장).
     """
     if holder.location.realm != Realm.DUNGEON:
+        return
+    if holder.location.rift_id:
+        _maybe_spawn_rift_encounters(holder)
         return
     try:
         gm_ctx = _refresh_context(

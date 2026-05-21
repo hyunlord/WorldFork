@@ -156,6 +156,19 @@ def extract_race_habitat(description: str | None) -> list[str]:
     return list(habitats)
 
 
+def _monster_name_to_enemy(name: str, grade: int | None = None) -> Enemy:
+    """monster name → Enemy (grade 명시 없으면 name에서 추정)."""
+    g = _infer_grade(name, grade)
+    base_hp = 20 + g * 10
+    return Enemy(
+        name=name,
+        hp=base_hp, max_hp=base_hp,
+        attack=5 + g * 3,
+        defense=2 + g,
+        grade=g,
+    )
+
+
 class SpawnTable:
     """canon location → enemy template mapping."""
 
@@ -227,6 +240,32 @@ class SpawnTable:
                     return self._pick(enemies, n)
 
         return self._pick(self._default, n)
+
+    def spawn_for_rift_sub_area(
+        self,
+        sub_def: object,
+        n: int = 1,
+    ) -> list[Enemy]:
+        """RiftSubAreaDef.monsters 기반 spawn.
+
+        MID_BOSS 챕터: mid_boss_name 단독 반환 (sub_def.monsters 풀 무시).
+        BOSS/ENTRANCE/CORRIDOR: monsters 튜플에서 n개 선택.
+        monsters 비어 있으면 fallback.
+        """
+        from service.game.state_v2 import RiftChamberType, RiftSubAreaDef
+        assert isinstance(sub_def, RiftSubAreaDef)
+
+        if (
+            sub_def.chamber_type == RiftChamberType.MID_BOSS
+            and sub_def.mid_boss_name
+        ):
+            return [_monster_name_to_enemy(sub_def.mid_boss_name, sub_def.mid_boss_grade)]
+
+        if not sub_def.monsters:
+            return self._pick(self._default, n)
+
+        pool = [_monster_name_to_enemy(m) for m in sub_def.monsters]
+        return self._pick(pool, n)
 
     def _pick(self, pool: list[Enemy], n: int) -> list[Enemy]:
         if len(pool) <= n:

@@ -107,12 +107,18 @@ def _post_apply_spawn(state: SessionState) -> None:
         return
     facts = get_canon_facts()
     loc_type = determine_location_type(state.location, facts)
+    rift_defs = None
+    if state.rift_sub_area:
+        from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS
+        rift_defs = FLOOR1_RIFT_DEFS
     new_encounters = trigger_spawn(
         location_name=state.location,
         location_type=loc_type,
         turn_count=state.turn_count,
         last_spawn_turn=state.last_spawn_turn,
         spawn_table=spawn_table,
+        rift_sub_area=state.rift_sub_area,
+        rift_defs=rift_defs,
     )
     if new_encounters:
         state.encounters = new_encounters
