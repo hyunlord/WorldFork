@@ -43,6 +43,10 @@ class SessionState:
     hours_in_dungeon: float = 0.0
     # ★ audit-c1 — 스톤 잔액
     stone_balance: int = 0
+    # ★ audit-3 — rift state
+    rift_id: str | None = None
+    rift_sub_area: str | None = None
+    rift_is_variant: bool = False
 
 
 def _new_id() -> str:
@@ -75,6 +79,9 @@ def _to_row(s: SessionState) -> SessionRow:
         floor_number=s.floor_number,
         hours_in_dungeon=s.hours_in_dungeon,
         stone_balance=s.stone_balance,
+        rift_id=s.rift_id,
+        rift_sub_area=s.rift_sub_area,
+        rift_is_variant=s.rift_is_variant,
     )
 
 
@@ -101,6 +108,9 @@ def _from_row(r: SessionRow) -> SessionState:
         floor_number=r.floor_number,
         hours_in_dungeon=r.hours_in_dungeon,
         stone_balance=r.stone_balance,
+        rift_id=r.rift_id,
+        rift_sub_area=r.rift_sub_area,
+        rift_is_variant=r.rift_is_variant,
     )
 
 
@@ -146,6 +156,9 @@ class SessionManager:
             floor_number=0,
             hours_in_dungeon=0.0,
             stone_balance=0,
+            rift_id=None,
+            rift_sub_area=None,
+            rift_is_variant=False,
         )
         self._cache[state.session_id] = state
         await asyncio.to_thread(self._store.save_session, _to_row(state))
@@ -227,6 +240,20 @@ class SessionManager:
         # ★ audit-c1 — stone_balance 누적
         if result.stone_change != 0:
             state.stone_balance += result.stone_change
+        # ★ audit-3 — rift transition
+        if result.rift_transition is not None:
+            rt = result.rift_transition
+            action = rt.get("action")
+            if action == "enter":
+                state.rift_id = str(rt["rift_id"]) if rt.get("rift_id") else None
+                state.rift_sub_area = str(rt["rift_sub_area"]) if rt.get("rift_sub_area") else None
+                state.rift_is_variant = bool(rt.get("is_variant", False))
+            elif action == "move_to_chamber":
+                state.rift_sub_area = str(rt["rift_sub_area"]) if rt.get("rift_sub_area") else None
+            elif action == "exit":
+                state.rift_id = None
+                state.rift_sub_area = None
+                state.rift_is_variant = False
         state.turn_count += 1
         state.last_active = _now()
 

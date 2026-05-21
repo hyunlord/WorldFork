@@ -165,7 +165,37 @@ async def handle_move(ctx: ActionContext) -> ActionResult:
     )
 
 
+_LOCATION_TO_RIFT_ID: dict[str, str] = {
+    "핏빛성채": "bloody_castle",
+    "빙하굴": "glacier_cave",
+    "녹색 탄광": "green_mine",
+    "강철의 묘": "iron_tomb",
+}
+
+_RIFT_FIRST_SUB_AREA: dict[str, str] = {
+    "bloody_castle": "bc_ch1",
+    "glacier_cave": "gc_ch1",
+    "green_mine": "gm_ch1",
+    "iron_tomb": "it_ch1",
+}
+
+
+def _resolve_rift_id(location: str) -> str | None:
+    for keyword, rift_id in _LOCATION_TO_RIFT_ID.items():
+        if keyword in location:
+            return rift_id
+    return None
+
+
 async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
+    from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
+
+    rift_id = _resolve_rift_id(ctx.location)
+    is_variant = False
+    if rift_id is not None and rift_id in FLOOR1_RIFT_DEFS:
+        is_variant = decide_variant(FLOOR1_RIFT_DEFS[rift_id])
+    starting_sub_area = _RIFT_FIRST_SUB_AREA.get(rift_id or "", None) if rift_id else None
+
     return ActionResult(
         narrative=(
             "숨을 한 번 들이켜고 균열 속으로 몸을 밀어 넣었다."
@@ -173,6 +203,12 @@ async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
         ),
         location=f"{ctx.location} (균열 내부)",
         time_advance=1,
+        rift_transition={
+            "action": "enter",
+            "rift_id": rift_id,
+            "rift_sub_area": starting_sub_area,
+            "is_variant": is_variant,
+        },
     )
 
 
@@ -185,6 +221,7 @@ async def handle_exit_rift(ctx: ActionContext) -> ActionResult:
             else ctx.location
         ),
         time_advance=1,
+        rift_transition={"action": "exit"},
     )
 
 

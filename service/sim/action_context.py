@@ -31,6 +31,10 @@ class ActionContext:
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
     floor_number: int = 0          # 0 = 마을, 1+ = 던전 층
+    # ★ audit-3 — rift state
+    rift_id: str | None = None        # 현재 진입한 균열 id (None = 균열 밖)
+    rift_sub_area: str | None = None  # 현재 chamber id
+    rift_is_variant: bool = False     # 변종 균열 여부
 
     @property
     def essence_slots(self) -> list[EssenceSlot]:
@@ -71,3 +75,8 @@ class ActionResult:
     hours_in_dungeon_reset: bool = False
     # ★ audit-c1 — 거래/환전 시 스톤 증감 (+획득 / -지출)
     stone_change: int = 0
+    # ★ audit-3 — rift transition
+    rift_transition: dict[str, object] | None = None
+    # enter:  {"action": "enter", "rift_id": str, "rift_sub_area": str, "is_variant": bool}
+    # move:   {"action": "move_to_chamber", "rift_sub_area": str}
+    # exit:   {"action": "exit"}

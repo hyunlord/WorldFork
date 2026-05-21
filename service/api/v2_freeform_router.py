@@ -139,6 +139,9 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             absorbed_essences=list(state.absorbed_essences),
             defeated_monster_types=list(state.defeated_monster_types),
             floor_number=state.floor_number,
+            rift_id=state.rift_id,
+            rift_sub_area=state.rift_sub_area,
+            rift_is_variant=state.rift_is_variant,
         )
     return ActionContext(
         current_hp=req.current_hp,

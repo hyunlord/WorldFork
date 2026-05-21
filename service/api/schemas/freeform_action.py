@@ -66,6 +66,9 @@ class StateDelta(BaseModel):
     floor_number: int | None = Field(default=None)
     floor_change: int | None = Field(default=None)
     stone_change: int = Field(default=0)
+    rift_id: str | None = Field(default=None)
+    rift_sub_area: str | None = Field(default=None)
+    rift_is_variant: bool | None = Field(default=None)
 
 
 ResolvedPath = Literal["intent", "fallback"]

@@ -38,6 +38,10 @@ class SessionRow:
     hours_in_dungeon: float = 0.0
     # ★ audit-c1 — 스톤 잔액
     stone_balance: int = 0
+    # ★ audit-3 — rift state
+    rift_id: str | None = None
+    rift_sub_area: str | None = None
+    rift_is_variant: bool = False
 
 
 @dataclass
@@ -125,6 +129,18 @@ class SqliteStore:
                 "stone_balance",
                 "ALTER TABLE sessions ADD COLUMN stone_balance INTEGER NOT NULL DEFAULT 0",
             ),
+            (
+                "rift_id",
+                "ALTER TABLE sessions ADD COLUMN rift_id TEXT",
+            ),
+            (
+                "rift_sub_area",
+                "ALTER TABLE sessions ADD COLUMN rift_sub_area TEXT",
+            ),
+            (
+                "rift_is_variant",
+                "ALTER TABLE sessions ADD COLUMN rift_is_variant INTEGER NOT NULL DEFAULT 0",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -142,8 +158,8 @@ class SqliteStore:
              inventory, location, turn_count, status_effects, equipment,
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
              absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon,
-             stone_balance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             stone_balance, rift_id, rift_sub_area, rift_is_variant)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -162,7 +178,10 @@ class SqliteStore:
             defeated_monster_types  = excluded.defeated_monster_types,
             floor_number            = excluded.floor_number,
             hours_in_dungeon        = excluded.hours_in_dungeon,
-            stone_balance           = excluded.stone_balance
+            stone_balance           = excluded.stone_balance,
+            rift_id                 = excluded.rift_id,
+            rift_sub_area           = excluded.rift_sub_area,
+            rift_is_variant         = excluded.rift_is_variant
         """
         with self._connect() as conn:
             conn.execute(
@@ -188,6 +207,9 @@ class SqliteStore:
                     row.floor_number,
                     row.hours_in_dungeon,
                     row.stone_balance,
+                    row.rift_id,
+                    row.rift_sub_area,
+                    1 if row.rift_is_variant else 0,
                 ),
             )
 
@@ -219,6 +241,10 @@ class SqliteStore:
         raw_hours = row["hours_in_dungeon"] if "hours_in_dungeon" in keys else 0.0
         hours_in_dungeon = float(raw_hours) if isinstance(raw_hours, (int, float)) else 0.0
 
+        raw_rift_id = row["rift_id"] if "rift_id" in keys else None
+        raw_rift_sub = row["rift_sub_area"] if "rift_sub_area" in keys else None
+        raw_variant = row["rift_is_variant"] if "rift_is_variant" in keys else 0
+
         return SessionRow(
             session_id=row["session_id"],
             created_at=row["created_at"],
@@ -245,6 +271,9 @@ class SqliteStore:
             floor_number=_int_col("floor_number", 0),
             hours_in_dungeon=hours_in_dungeon,
             stone_balance=_int_col("stone_balance", 0),
+            rift_id=str(raw_rift_id) if raw_rift_id is not None else None,
+            rift_sub_area=str(raw_rift_sub) if raw_rift_sub is not None else None,
+            rift_is_variant=bool(raw_variant),
         )
 
     def delete_session(self, session_id: str) -> None:
