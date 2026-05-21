@@ -383,10 +383,19 @@ def move_to_sub_area(
                 is_variant=current_location.rift_is_variant,
             )
             world.active_boss_encounter = boss
-            variant_label = " (변종)" if boss.is_variant else ""
             side.append(f"boss_spawned={boss.boss_id}")
+            from service.canon.boss_narrative import (
+                RIFT_NAMES,
+                determine_boss_tier,
+                format_system_message,
+            )
+            _tier = determine_boss_tier(
+                boss.boss_name, boss.is_variant, rift_def.rift_id
+            )
+            _rift_name = RIFT_NAMES.get(rift_def.rift_id, rift_def.name)
+            _sys_msg = format_system_message(_tier, _rift_name, boss.boss_name)
             extra_msg = (
-                f" ⚔ {boss.boss_name}{variant_label} 등장 "
+                f" {_sys_msg} {boss.boss_name} "
                 f"(HP {boss.hp}/{boss.hp_max}, {boss.boss_grade}등급)."
             )
         else:

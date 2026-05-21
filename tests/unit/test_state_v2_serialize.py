@@ -213,4 +213,4 @@ def test_player_action_type_count_29() -> None:
     """
     from service.sim.types import PlayerActionType
 
-    assert len(list(PlayerActionType)) == 33
+    assert len(list(PlayerActionType)) == 34

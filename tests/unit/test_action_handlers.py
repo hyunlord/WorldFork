@@ -68,7 +68,7 @@ def run(coro: Coroutine[Any, Any, ActionResult]) -> ActionResult:
 
 
 def test_handler_count() -> None:
-    assert len(ACTION_HANDLERS) == 33
+    assert len(ACTION_HANDLERS) == 34
 
 
 def test_all_player_action_types_covered() -> None:

@@ -74,6 +74,8 @@ class PlayerActionType(StrEnum):
     # ★ Phase D step 6d — 정수 제거 / 스탯 확인
     REMOVE_ESSENCE = "remove_essence"
     EXAMINE_STATS = "examine_stats"
+    # ★ audit-3-3 — 균열 내 챔버 이동 (27B tier-aware narrative)
+    MOVE_CHAMBER = "move_chamber"
 
 
 @dataclass
@@ -239,6 +241,8 @@ ACTION_HOURS_DELTA: dict[PlayerActionType, float] = {
     # ★ Phase D step 6d — 정수 제거 / 스탯 확인.
     PlayerActionType.REMOVE_ESSENCE: 0.0,
     PlayerActionType.EXAMINE_STATS: 0.0,
+    # ★ audit-3-3 — 균열 내 챔버 이동 (★ MOVE 정합 0.5h).
+    PlayerActionType.MOVE_CHAMBER: 0.5,
     # 중간
     PlayerActionType.EXPLORE: 1.0,           # 정탐
     PlayerActionType.OFFER_TO_STONE: 1.0,    # ★ 374화 비석 공물

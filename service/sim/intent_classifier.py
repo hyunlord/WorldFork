@@ -48,6 +48,7 @@ _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
     PlayerActionType.UNEQUIP: "장비 해제 (착용 중인 장비 분리)",
     PlayerActionType.REMOVE_ESSENCE: "흡수한 정수 슬롯 제거 (비우기)",
     PlayerActionType.EXAMINE_STATS: "본인 능력치 / 레벨 / XP 확인",
+    PlayerActionType.MOVE_CHAMBER: "균열 내 챔버 이동 (★ 다음 구역 / 보스룸 진입)",
 }
 
 

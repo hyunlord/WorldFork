@@ -189,6 +189,7 @@ def _resolve_rift_id(location: str) -> str | None:
 
 async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
     from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS, decide_variant
+    from service.sim.boss_narrative_gm import compose_chamber_entry_narrative_sync
 
     rift_id = _resolve_rift_id(ctx.location)
     is_variant = False
@@ -196,11 +197,31 @@ async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
         is_variant = decide_variant(FLOOR1_RIFT_DEFS[rift_id])
     starting_sub_area = _RIFT_FIRST_SUB_AREA.get(rift_id or "", None) if rift_id else None
 
-    return ActionResult(
-        narrative=(
+    # 27B chamber entry narrative (silent fallback on error)
+    try:
+        sub_area_name = ""
+        if rift_id and starting_sub_area:
+            rift_def = FLOOR1_RIFT_DEFS.get(rift_id)
+            if rift_def:
+                for sa in rift_def.sub_areas:
+                    if sa.id == starting_sub_area:
+                        sub_area_name = sa.name
+                        break
+        narrative = await asyncio.to_thread(
+            compose_chamber_entry_narrative_sync,
+            rift_id or "",
+            starting_sub_area or "",
+            sub_area_name,
+            is_variant,
+        )
+    except Exception:
+        narrative = (
             "숨을 한 번 들이켜고 균열 속으로 몸을 밀어 넣었다."
             " 공기가 뒤틀리며 시야가 바뀌었다."
-        ),
+        )
+
+    return ActionResult(
+        narrative=narrative,
         location=f"{ctx.location} (균열 내부)",
         time_advance=1,
         rift_transition={
@@ -209,6 +230,101 @@ async def handle_enter_rift(ctx: ActionContext) -> ActionResult:
             "rift_sub_area": starting_sub_area,
             "is_variant": is_variant,
         },
+    )
+
+
+async def handle_move_chamber(ctx: ActionContext) -> ActionResult:
+    """균열 내 챔버 이동 — 27B narrative + 보스 등장 시 tier 분기."""
+    from service.canon.boss_narrative import (
+        RIFT_NAMES,
+        BossNarrativeContext,
+        build_visual_clues,
+        determine_boss_tier,
+    )
+    from service.game.floors.floor1_rifts import FLOOR1_RIFT_DEFS
+    from service.sim.boss_narrative_gm import (
+        compose_boss_encounter_narrative_sync,
+        compose_chamber_entry_narrative_sync,
+    )
+
+    rift_id = ctx.rift_id
+    if not rift_id or rift_id not in FLOOR1_RIFT_DEFS:
+        return ActionResult(
+            narrative="균열 안에 있지 않거나 챔버 정보를 알 수 없다.",
+            success=False,
+            fail_reason="no_rift_context",
+            time_advance=0,
+        )
+
+    rift_def = FLOOR1_RIFT_DEFS[rift_id]
+    rift_name = RIFT_NAMES.get(rift_id, rift_id)
+
+    # 보스룸 키워드 → boss_chamber_id 직행
+    boss_keywords = ("보스룸", "보스방", "수호자", "마지막")
+    if any(kw in (ctx.user_input or "") for kw in boss_keywords):
+        target_sub_area: str | None = rift_def.boss_chamber_id
+    else:
+        # 현재 챔버의 순서상 다음 챔버 (sub_areas 순서 기반)
+        target_sub_area = None
+        sa_ids = [sa.id for sa in rift_def.sub_areas]
+        current = ctx.rift_sub_area
+        if current and current in sa_ids:
+            idx = sa_ids.index(current)
+            if idx + 1 < len(sa_ids):
+                target_sub_area = sa_ids[idx + 1]
+        if target_sub_area is None:
+            target_sub_area = rift_def.boss_chamber_id
+
+    target_sub_def = next(
+        (sa for sa in rift_def.sub_areas if sa.id == target_sub_area), None
+    )
+    is_boss_chamber = target_sub_area == rift_def.boss_chamber_id
+
+    try:
+        if is_boss_chamber:
+            boss_name = (
+                rift_def.variant_boss_name
+                if ctx.rift_is_variant and rift_def.variant_boss_name
+                else rift_def.normal_boss_name
+            )
+            boss_grade = (
+                rift_def.variant_boss_grade
+                if ctx.rift_is_variant
+                else rift_def.normal_boss_grade
+            )
+            tier = determine_boss_tier(boss_name, ctx.rift_is_variant, rift_id)
+            boss_ctx = BossNarrativeContext(
+                rift_id=rift_id,
+                rift_name=rift_name,
+                sub_area_id=target_sub_area or "",
+                boss_name=boss_name,
+                boss_grade=boss_grade,
+                tier=tier,
+                is_variant_rift=ctx.rift_is_variant,
+                visual_clues=build_visual_clues(rift_id, ctx.rift_is_variant),
+            )
+            narrative = await asyncio.to_thread(
+                compose_boss_encounter_narrative_sync, boss_ctx
+            )
+        else:
+            sub_area_name = target_sub_def.name if target_sub_def else (target_sub_area or "")
+            narrative = await asyncio.to_thread(
+                compose_chamber_entry_narrative_sync,
+                rift_id,
+                target_sub_area or "",
+                sub_area_name,
+                ctx.rift_is_variant,
+            )
+    except Exception:
+        narrative = f"{rift_name} 안을 이동했다."
+
+    return ActionResult(
+        narrative=narrative,
+        time_advance=1,
+        rift_transition={
+            "action": "move_to_chamber",
+            "rift_sub_area": target_sub_area,
+        } if target_sub_area else None,
     )
 
 
@@ -1068,9 +1184,10 @@ ACTION_HANDLERS: dict[PlayerActionType, _Handler] = {
     PlayerActionType.UNEQUIP: handle_unequip,
     PlayerActionType.REMOVE_ESSENCE: handle_remove_essence,
     PlayerActionType.EXAMINE_STATS: handle_examine_stats,
+    PlayerActionType.MOVE_CHAMBER: handle_move_chamber,
 }
 
-assert len(ACTION_HANDLERS) == 33, f"handler count mismatch: {len(ACTION_HANDLERS)}"
+assert len(ACTION_HANDLERS) == 34, f"handler count mismatch: {len(ACTION_HANDLERS)}"
 
 
 async def dispatch_action(
