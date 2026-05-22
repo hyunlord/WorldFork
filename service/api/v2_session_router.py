@@ -28,13 +28,38 @@ class SessionStartResponse(BaseModel):
 
 class SessionStateResponse(BaseModel):
     session_id: str
-    current_hp: int
-    max_hp: int
-    inventory: list[str]
-    location: str
-    turn_count: int
     created_at: float
     last_active: float
+    # 기본 stat
+    current_hp: int
+    max_hp: int
+    # inventory + location
+    inventory: list[str]
+    location: str
+    # turn
+    turn_count: int
+    last_spawn_turn: int
+    # status / equipment
+    status_effects: list[dict[str, object]]
+    equipment: dict[str, object]
+    # 캐릭터 진행
+    player_level: int
+    player_xp: int
+    max_essences: int
+    soul_power: int
+    absorbed_essences: list[dict[str, object]]
+    defeated_monster_types: list[str]
+    # dungeon floor / clock
+    floor_number: int
+    hours_in_dungeon: float
+    # 마석 잔액
+    stone_balance: int
+    # rift 상태
+    rift_id: str | None
+    rift_sub_area: str | None
+    rift_is_variant: bool
+    # encounters (in-memory only)
+    encounters: list[dict[str, object]]
 
 
 def _to_start_resp(s: SessionState) -> SessionStartResponse:
@@ -51,13 +76,29 @@ def _to_start_resp(s: SessionState) -> SessionStartResponse:
 def _to_state_resp(s: SessionState) -> SessionStateResponse:
     return SessionStateResponse(
         session_id=s.session_id,
-        current_hp=s.current_hp,
-        max_hp=s.max_hp,
-        inventory=s.inventory,
-        location=s.location,
-        turn_count=s.turn_count,
         created_at=s.created_at,
         last_active=s.last_active,
+        current_hp=s.current_hp,
+        max_hp=s.max_hp,
+        inventory=list(s.inventory),
+        location=s.location,
+        turn_count=s.turn_count,
+        last_spawn_turn=s.last_spawn_turn,
+        status_effects=list(s.status_effects),
+        equipment=dict(s.equipment),
+        player_level=s.player_level,
+        player_xp=s.player_xp,
+        max_essences=s.max_essences,
+        soul_power=s.soul_power,
+        absorbed_essences=list(s.absorbed_essences),
+        defeated_monster_types=list(s.defeated_monster_types),
+        floor_number=s.floor_number,
+        hours_in_dungeon=s.hours_in_dungeon,
+        stone_balance=s.stone_balance,
+        rift_id=s.rift_id,
+        rift_sub_area=s.rift_sub_area,
+        rift_is_variant=s.rift_is_variant,
+        encounters=list(s.encounters),
     )
 
 

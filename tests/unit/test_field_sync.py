@@ -110,3 +110,44 @@ def test_save_load_roundtrip_all_fields() -> None:
         assert r.last_spawn_turn == 42
 
     asyncio.run(run())
+
+
+def test_response_exposes_all_session_state_fields() -> None:
+    """SessionState의 모든 field가 SessionStateResponse에 노출 (Fix 5)."""
+    import dataclasses
+
+    from service.api.v2_session_router import SessionStateResponse
+    from service.sim.session_manager import SessionState
+
+    state_fields = {f.name for f in dataclasses.fields(SessionState)}
+    resp_fields = set(SessionStateResponse.model_fields.keys())
+    missing = state_fields - resp_fields
+    assert not missing, (
+        f"SessionState fields missing in SessionStateResponse: {missing}. "
+        "Add to SessionStateResponse + _to_state_resp()."
+    )
+
+
+def test_schema_sql_matches_session_row_fields() -> None:
+    """schema.sql columns가 SessionRow fields를 모두 포함 (Fix 4)."""
+    import sqlite3
+    import tempfile
+    from dataclasses import fields as dc_fields
+
+    from service.persistence.sqlite_store import SessionRow
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        conn = sqlite3.connect(f.name)
+        with open("service/persistence/schema.sql") as sf:
+            conn.executescript(sf.read())
+        cur = conn.cursor()
+        cur.execute("PRAGMA table_info(sessions)")
+        db_cols = {row[1] for row in cur.fetchall()}
+        conn.close()
+
+    row_fields = {f.name for f in dc_fields(SessionRow)}
+    missing = row_fields - db_cols
+    assert not missing, (
+        f"SessionRow fields missing in schema.sql: {missing}. "
+        "Add to CREATE TABLE in schema.sql."
+    )
