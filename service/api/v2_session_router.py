@@ -62,6 +62,8 @@ class SessionStateResponse(BaseModel):
     portal_first_opened: bool
     # encounters (in-memory only)
     encounters: list[dict[str, object]]
+    # 게임 내 경과 시간 (minute 단위)
+    time_elapsed: int
 
 
 def _to_start_resp(s: SessionState) -> SessionStartResponse:
@@ -102,6 +104,7 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         rift_is_variant=s.rift_is_variant,
         portal_first_opened=s.portal_first_opened,
         encounters=list(s.encounters),
+        time_elapsed=s.time_elapsed,
     )
 
 

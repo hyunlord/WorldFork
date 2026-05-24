@@ -21,7 +21,7 @@ from service.api.schemas.freeform_action import (
 from service.canon.context import get_canon_facts, get_spawn_table
 from service.sim.action_context import ActionContext
 from service.sim.action_handlers import dispatch_action
-from service.sim.dungeon_clock import check_warning, should_force_return
+from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.intent_classifier import classify_intent
@@ -35,11 +35,11 @@ INTENT_THRESHOLD = 0.8
 
 
 def _force_return_narrative() -> str:
-    """강제 귀환 연출 — ep_0016 본문 정합."""
+    """강제 귀환 연출 — ep_0016 + ep_0036 본문 정합."""
     return (
         "「층계 폐쇄까지 1분 남았습니다.」\n\n"
         "빛이 눈앞을 뒤덮고, 그보다 옅은 빛이 얹어지며 시야가 돌아온다. "
-        "나는 라프도니아 차원광장에 서 있다.\n\n"
+        "나는 멍하니 하늘을 올려다보았다. 라프도니아 차원광장이다.\n\n"
         "「미궁이 폐쇄되었습니다.」\n"
         "「캐릭터가 라프도니아로 이동합니다.」"
     )
@@ -49,9 +49,10 @@ def _force_return_to_city(state: SessionState) -> None:
     """168h 도달 시 강제 귀환 — state 인플레이스 변경.
 
     - inventory / level / xp / absorbed_essences 유지 (ep_0016 정합)
-    - status_effects 해제 (본인 답 — 마을 안전)
+    - status_effects 해제 (마을 안전)
     - encounters / hours_in_dungeon 초기화
     - floor_number → 0, location → 차원광장
+    - time_elapsed += 1440min (24h) — wiki 010 "다음날 정오"
     """
     state.floor_number = 0
     state.location = "라프도니아 · 차원광장"
@@ -59,6 +60,7 @@ def _force_return_to_city(state: SessionState) -> None:
     state.status_effects = []
     state.hours_in_dungeon = 0.0
     state.last_spawn_turn = -10
+    state.time_elapsed += int(RETURN_TIME_ADVANCE_HOURS * 60)
 
 
 def _post_apply_dungeon_clock(

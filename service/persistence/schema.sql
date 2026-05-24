@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     rift_is_variant  INTEGER NOT NULL DEFAULT 0,
 
     -- 최초 포탈 개방 여부 (ep_0022)
-    portal_first_opened INTEGER NOT NULL DEFAULT 0
+    portal_first_opened INTEGER NOT NULL DEFAULT 0,
+
+    -- 게임 내 경과 시간 (minute 단위, audit-step168h)
+    time_elapsed        INTEGER NOT NULL DEFAULT 0
 );
 
 

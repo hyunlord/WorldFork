@@ -52,6 +52,9 @@ class SessionState:
     rift_is_variant: bool = False
     # ★ 6d-followup — 최초 포탈 개방 여부 (ep_0022)
     portal_first_opened: bool = False
+    # ★ audit-step168h — 게임 내 경과 시간 (minute 단위)
+    # force return 시 +1440min (24h), 본문: wiki 010 "다음날 정오"
+    time_elapsed: int = 0
 
 
 def _new_id() -> str:
@@ -88,6 +91,7 @@ def _to_row(s: SessionState) -> SessionRow:
         rift_sub_area=s.rift_sub_area,
         rift_is_variant=s.rift_is_variant,
         portal_first_opened=s.portal_first_opened,
+        time_elapsed=s.time_elapsed,
     )
 
 
@@ -118,6 +122,7 @@ def _from_row(r: SessionRow) -> SessionState:
         rift_sub_area=r.rift_sub_area,
         rift_is_variant=r.rift_is_variant,
         portal_first_opened=r.portal_first_opened,
+        time_elapsed=r.time_elapsed,
     )
 
 

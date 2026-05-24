@@ -86,6 +86,6 @@ def check_warning(
     if remaining_prev > _WARN_1H >= remaining_new:
         return WarningInfo(
             kind="1h",
-            message="그러고 보면 층계가 닫히려면 얼마 안 남은 셈인데……",
+            message="'층계가 닫히려면 1시간도 안 남은 셈이군.'",
         )
     return None
