@@ -33,11 +33,11 @@ class SessionState:
         default_factory=lambda: dict(DEFAULT_EQUIPMENT_DICT)
     )
     last_spawn_turn: int = -10
-    # ★ 6d — player progression
-    player_level: int = 4
+    # ★ 6d — player progression (본문 정합: ep_0022 L1 시작)
+    player_level: int = 1
     player_xp: int = 0
-    max_essences: int = 4
-    soul_power: int = 40
+    max_essences: int = 1
+    soul_power: int = 10
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
@@ -152,10 +152,10 @@ class SessionManager:
             status_effects=[],
             equipment=dict(DEFAULT_EQUIPMENT_DICT),
             last_spawn_turn=-10,
-            player_level=4,
+            player_level=1,
             player_xp=0,
-            max_essences=4,
-            soul_power=40,
+            max_essences=1,
+            soul_power=10,
             absorbed_essences=[],
             defeated_monster_types=[],
             floor_number=0,

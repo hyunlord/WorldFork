@@ -25,10 +25,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     equipment        TEXT    NOT NULL DEFAULT '{"weapon":null,"armor":null,"accessory":null}',
 
     -- 캐릭터 진행
-    player_level     INTEGER NOT NULL DEFAULT 4,
+    player_level     INTEGER NOT NULL DEFAULT 1,
     player_xp        INTEGER NOT NULL DEFAULT 0,
-    max_essences     INTEGER NOT NULL DEFAULT 4,
-    soul_power       INTEGER NOT NULL DEFAULT 40,
+    max_essences     INTEGER NOT NULL DEFAULT 1,
+    soul_power       INTEGER NOT NULL DEFAULT 10,
     absorbed_essences      TEXT NOT NULL DEFAULT '[]',
     defeated_monster_types TEXT NOT NULL DEFAULT '[]',
 

@@ -787,7 +787,7 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
     msg_lines: list[str] = [
         f"나는 {essence_name}을 손에 쥐었다."
         " 차가운 빛이 피부 아래로 스며들며 새 힘이 깃들었다.",
-        f"「{essence_name}이(가) 스며듭니다.」",
+        f"「캐릭터의 영혼에 '{essence_name}'이(가) 스며듭니다.」",
     ]
     index = get_entity_index()
     if index is not None:

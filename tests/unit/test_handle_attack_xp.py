@@ -18,7 +18,7 @@ def _enemy(name: str = "고블린", grade: int = 1, race: str = "고블린", hp:
 def _ctx(
     encounters: list[dict] | None = None,
     defeated: list[str] | None = None,
-    player_level: int = 4,
+    player_level: int = 1,
     player_xp: int = 0,
 ) -> ActionContext:
     return ActionContext(
@@ -42,7 +42,7 @@ def run(coro):  # type: ignore[no-untyped-def]
 def test_first_kill_grants_xp() -> None:
     ctx = _ctx(encounters=[_enemy("고블린", grade=1)])
     result = run(handle_attack(ctx))
-    assert result.xp_gain == 1
+    assert result.xp_gain == 9  # grade=1: 10-1=9
     assert "고블린" in result.defeated_monsters_add
 
 
@@ -56,25 +56,27 @@ def test_repeat_kill_zero_xp() -> None:
 def test_guardian_modifier() -> None:
     ctx = _ctx(encounters=[_enemy("1층 수호자", grade=3)])
     result = run(handle_attack(ctx))
-    assert result.xp_gain == 3 + 3  # grade=3, +guardian bonus 3
+    assert result.xp_gain == 7 + 3  # grade=3: 10-3=7, guardian bonus +3
 
 
-def test_stratum_boss_high_xp() -> None:
+def test_stratum_boss_no_special_bonus() -> None:
+    # stratum_boss modifier 제거 — grade 공식만 적용 (ep_0035 canon)
     ctx = _ctx(encounters=[_enemy("계층군주 드레드피어", grade=1)])
     result = run(handle_attack(ctx))
-    assert result.xp_gain == 1 + 99 + 15
+    assert result.xp_gain == 9  # grade=1: 10-1=9
 
 
 def test_level_up_when_xp_threshold_crossed() -> None:
-    # L4→L5 threshold = 130, 현재 xp=129, grade=1 enemy → xp+1=130
-    ctx = _ctx(encounters=[_enemy("새 몬스터", grade=1, race="새 몬스터")], player_xp=129)
+    # L1→L2 threshold = 6, player_xp=4, grade=8 enemy (+2 XP) → total 6
+    ctx = _ctx(encounters=[_enemy("8등급 마물", grade=8, race="8등급 마물")], player_xp=4)
     result = run(handle_attack(ctx))
     assert result.level_up is True
-    assert result.new_level == 5
+    assert result.new_level == 2
 
 
 def test_no_level_up_when_xp_below_threshold() -> None:
-    ctx = _ctx(encounters=[_enemy("고블린", grade=1)], player_xp=0)
+    # L1→L2 threshold = 6, player_xp=0, grade=9 (+1 XP) → total 1 < 6
+    ctx = _ctx(encounters=[_enemy("9등급 마물", grade=9, race="9등급 마물")], player_xp=0)
     result = run(handle_attack(ctx))
     assert result.level_up is False
     assert result.new_level is None

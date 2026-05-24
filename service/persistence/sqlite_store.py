@@ -25,11 +25,11 @@ class SessionRow:
         default_factory=lambda: {"weapon": None, "armor": None, "accessory": None}
     )
     last_spawn_turn: int = -10
-    # ★ 6d — player progression
-    player_level: int = 4
+    # ★ 6d — player progression (본문 정합: ep_0022 L1 시작)
+    player_level: int = 1
     player_xp: int = 0
-    max_essences: int = 4
-    soul_power: int = 40
+    max_essences: int = 1
+    soul_power: int = 10
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
@@ -95,7 +95,7 @@ class SqliteStore:
             ),
             (
                 "player_level",
-                "ALTER TABLE sessions ADD COLUMN player_level INTEGER NOT NULL DEFAULT 4",
+                "ALTER TABLE sessions ADD COLUMN player_level INTEGER NOT NULL DEFAULT 1",
             ),
             (
                 "player_xp",
@@ -103,11 +103,11 @@ class SqliteStore:
             ),
             (
                 "max_essences",
-                "ALTER TABLE sessions ADD COLUMN max_essences INTEGER NOT NULL DEFAULT 4",
+                "ALTER TABLE sessions ADD COLUMN max_essences INTEGER NOT NULL DEFAULT 1",
             ),
             (
                 "soul_power",
-                "ALTER TABLE sessions ADD COLUMN soul_power INTEGER NOT NULL DEFAULT 40",
+                "ALTER TABLE sessions ADD COLUMN soul_power INTEGER NOT NULL DEFAULT 10",
             ),
             (
                 "absorbed_essences",
@@ -260,10 +260,10 @@ class SqliteStore:
                 else {"weapon": None, "armor": None, "accessory": None}
             ),
             last_spawn_turn=last_spawn_turn,
-            player_level=_int_col("player_level", 4),
+            player_level=_int_col("player_level", 1),
             player_xp=_int_col("player_xp", 0),
-            max_essences=_int_col("max_essences", 4),
-            soul_power=_int_col("soul_power", 40),
+            max_essences=_int_col("max_essences", 1),
+            soul_power=_int_col("soul_power", 10),
             absorbed_essences=absorbed_parsed if isinstance(absorbed_parsed, list) else [],
             defeated_monster_types=(
                 defeated_parsed if isinstance(defeated_parsed, list) else []
