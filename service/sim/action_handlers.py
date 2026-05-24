@@ -540,6 +540,8 @@ def _build_attack_narrative(
             f"나는 {player_log.target_name}을(를) 공격했다."
             f" {player_log.damage_dealt} 피해를 줬다."
         )
+        if player_log.critical_hit:
+            parts.append(" 「치명타!」")
         if player_log.weakness_hit:
             parts.append(" 약점이 적중했다.")
 
@@ -579,12 +581,13 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     # Step 1: 플레이어 공격
     target_idx = find_target_index(enemies, ctx.user_input)
     attack_elements = _get_attack_elements(ctx)
+    player_agility = _compute_player_agility(ctx)
     item_pool = None
     registry = get_item_registry()
     if registry:
         item_pool = registry.all_items()
     enemies, player_log = execute_player_attack(
-        enemies, target_idx, player_attack, ctx.user_input, attack_elements
+        enemies, target_idx, player_attack, ctx.user_input, attack_elements, player_agility
     )
 
     # Step 2: 죽은 enemy 정리 + drop

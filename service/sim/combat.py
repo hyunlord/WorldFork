@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from service.sim.enemy import Enemy, EnemyType, enemy_to_dict
@@ -50,6 +51,30 @@ def format_bonus_message(bonus_type: str, xp_bonus: int) -> str:
     return f"「{bonus_type} 처치 보너스. EXP +{xp_bonus}」"
 
 
+# ── 치명타 (★ audit-5 Fix 6 / wiki 008 / ep_0018 유연성 정합) ──
+CRITICAL_BASE_CHANCE: float = 0.05   # 기본 5%
+CRITICAL_MULTIPLIER: float = 2.0     # 2x
+
+
+def compute_critical_hit(
+    player_agility: int = 0,
+    base_chance: float = CRITICAL_BASE_CHANCE,
+    rand_func: Callable[[], float] = random.random,
+) -> bool:
+    """치명타 발동 여부 판정.
+
+    본문 정합 (ep_0018): 유연성 → 치명타율 증가.
+    공식: base + agility * 0.005, 상한 30%.
+    """
+    chance = min(0.30, base_chance + player_agility * 0.005)
+    return rand_func() < chance
+
+
+def apply_critical_damage(base_damage: int) -> int:
+    """치명타 damage = base * CRITICAL_MULTIPLIER."""
+    return int(base_damage * CRITICAL_MULTIPLIER)
+
+
 @dataclass
 class CombatTurnLog:
     actor: str
@@ -60,8 +85,9 @@ class CombatTurnLog:
     status_applied: list[str] = field(default_factory=list)
     enemy_resolved: bool = False
     notes: str = ""
-    immune: bool = False        # 영체류 물리 면역 등
-    weakness_hit: bool = False  # 약점 적중 (1.5x)
+    immune: bool = False         # 영체류 물리 면역 등
+    weakness_hit: bool = False   # 약점 적중 (1.5x)
+    critical_hit: bool = False   # 치명타 (2x)
 
 
 def compute_damage_multiplier(
@@ -94,6 +120,8 @@ def execute_player_attack(
     player_attack: int,
     user_input: str,
     attack_elements: list[str] | None = None,
+    player_agility: int = 0,
+    rand_func: Callable[[], float] = random.random,
 ) -> tuple[list[Enemy], CombatTurnLog]:
     """플레이어가 target_idx 번 enemy를 공격."""
     if target_idx >= len(enemies):
@@ -126,6 +154,12 @@ def execute_player_attack(
         )
 
     damage = max(1, int(base * multiplier))
+
+    # 치명타 check — 면역 X 시에만 (★ ep_0018 유연성 정합)
+    is_critical = compute_critical_hit(player_agility, rand_func=rand_func)
+    if is_critical:
+        damage = apply_critical_damage(damage)
+
     target.hp = max(0, target.hp - damage)
     enemies[target_idx] = target
 
@@ -136,6 +170,7 @@ def execute_player_attack(
         target_name=target.name,
         enemy_resolved=(target.hp <= 0),
         weakness_hit=(multiplier > 1.0),
+        critical_hit=is_critical,
     )
 
 
