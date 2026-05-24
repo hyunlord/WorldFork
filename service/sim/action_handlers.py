@@ -23,13 +23,16 @@ from service.sim.action_helpers import (
 )
 from service.sim.combat import (
     CombatTurnLog,
+    check_hp_threshold_message,
     cleanup_dead_enemies,
     execute_enemy_turn,
     execute_player_attack,
     find_target_index,
+    format_kill_message,
 )
 from service.sim.dungeon_zones import Direction, get_adjacent_zone, get_zone_info
 from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
+from service.sim.enemy_ai import compose_flee_narrative, should_enemy_flee
 from service.sim.equipment import equipment_to_dict
 from service.sim.player_state import slot_to_dict
 from service.sim.status import deserialize_status, serialize_status
@@ -535,6 +538,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         )
 
     enemies = [enemy_from_dict(e) for e in ctx.encounters]
+    initial_enemy_count = len(enemies)
     player_attack = _compute_player_attack(ctx)
     player_defense = _compute_player_defense(ctx)
     player_status = [deserialize_status(s) for s in ctx.status_effects]
@@ -552,10 +556,24 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     # Step 2: 죽은 enemy 정리 + drop
     enemies, essence_drops, equipment_drops = cleanup_dead_enemies(enemies, item_pool)
 
-    # Step 3: 남은 enemy turn
+    # Step 3: 남은 enemy turn + enemy flee check
     enemy_logs: list[CombatTurnLog] = []
     hp_change = 0
     new_status = player_status
+    flee_narratives: list[str] = []
+    if enemies:
+        surviving_count = len(enemies)
+        fled: list[Enemy] = []
+        remaining: list[Enemy] = []
+        for e in enemies:
+            if should_enemy_flee(e, initial_enemy_count, surviving_count):
+                fled.append(e)
+            else:
+                remaining.append(e)
+        for fe in fled:
+            flee_narratives.append(compose_flee_narrative(fe.name))
+        enemies = remaining
+
     if enemies:
         enemies, new_player_hp, new_status, enemy_logs = execute_enemy_turn(
             enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status
@@ -603,8 +621,23 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     except Exception:
         pass
 
-    if xp_gain > 0:
-        narrative += f"\n\n「경험치 +{xp_gain}을 획득합니다.」"
+    # 도주 연출 추가
+    for fn in flee_narratives:
+        narrative += f"\n\n{fn}"
+
+    # 처치 메시지 (★ audit-5: 본문 정합 형식)
+    if xp_gain > 0 and player_log.enemy_resolved:
+        narrative += f"\n\n{format_kill_message(player_log.target_name, xp_gain)}"
+    elif xp_gain > 0:
+        narrative += f"\n\n「EXP +{xp_gain}」"
+
+    # HP threshold 시스템 메시지
+    if hp_change < 0:
+        new_hp_val = ctx.current_hp + hp_change
+        hp_msg = check_hp_threshold_message(ctx.current_hp, new_hp_val, ctx.max_hp)
+        if hp_msg:
+            narrative += f"\n\n{hp_msg}"
+
     if level_up and new_level is not None:
         sp_gain = soul_power_gain_on_level_up(new_level)
         narrative += (

@@ -9,6 +9,45 @@ from service.sim.enemy import Enemy, enemy_to_dict
 from service.sim.enemy_ai import plan_enemy_turn
 from service.sim.equipment import Equipment, equipment_to_dict
 from service.sim.status import StatusEffect, apply_status_effects, extract_status_from_text
+from service.util.korean import eul_reul
+
+# (threshold, message, is_critical)
+HP_THRESHOLDS: list[tuple[float, str, bool]] = [
+    (0.50, "「캐릭터의 생명력이 50% 이하입니다.」", False),
+    (0.20, "「캐릭터의 생명력이 20% 이하입니다.」", False),
+    (
+        0.05,
+        "「경고: 캐릭터의 생명력이 5% 미만입니다. 조속히 치료하지 않을 시, 캐릭터가 사망에 이를 수 있습니다.」",  # noqa: E501
+        True,
+    ),
+    (0.00, "「경고: 캐릭터의 생명력이 0%에 도달했습니다.」", True),
+]
+
+
+def check_hp_threshold_message(prev_hp: int, new_hp: int, max_hp: int) -> str | None:
+    """이전 HP → 새 HP 변화 시 처음으로 넘은 threshold 메시지 반환.
+
+    낮은 threshold가 우선(0% > 5% > 20% > 50% 순).
+    """
+    if max_hp <= 0:
+        return None
+    prev_ratio = prev_hp / max_hp
+    new_ratio = new_hp / max_hp
+    for threshold, message, _ in reversed(HP_THRESHOLDS):
+        if prev_ratio > threshold >= new_ratio:
+            return message
+    return None
+
+
+def format_kill_message(enemy_name: str, xp_gain: int) -> str:
+    """처치 메시지 — 「{이름}을(를) 처치했습니다. EXP +N」."""
+    particle = eul_reul(enemy_name)
+    return f"「{enemy_name}{particle} 처치했습니다. EXP +{xp_gain}」"
+
+
+def format_bonus_message(bonus_type: str, xp_bonus: int) -> str:
+    """보너스 XP 메시지 — 「{타입} 처치 보너스. EXP +N」."""
+    return f"「{bonus_type} 처치 보너스. EXP +{xp_bonus}」"
 
 
 @dataclass
