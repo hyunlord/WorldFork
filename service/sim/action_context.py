@@ -23,10 +23,10 @@ class ActionContext:
     status_effects: list[dict[str, object]] = field(default_factory=list)
     equipment: EquipmentSet | None = None
     # ★ 6d — player progression
-    player_level: int = 4          # 비요른 시작 레벨 (본문 정합)
+    player_level: int = 1
     player_xp: int = 0
-    max_essences: int = 4          # = player_level
-    soul_power: int = 40           # 영혼력 (L1 10 + L2-4 각 10)
+    max_essences: int = 1
+    soul_power: int = 10
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
     # ★ 7 — dungeon floor
@@ -35,6 +35,8 @@ class ActionContext:
     rift_id: str | None = None        # 현재 진입한 균열 id (None = 균열 밖)
     rift_sub_area: str | None = None  # 현재 chamber id
     rift_is_variant: bool = False     # 변종 균열 여부
+    # ★ 6d-followup — 최초 포탈 개방 여부 (ep_0022)
+    portal_first_opened: bool = False
 
     @property
     def essence_slots(self) -> list[EssenceSlot]:
@@ -80,3 +82,5 @@ class ActionResult:
     # enter:  {"action": "enter", "rift_id": str, "rift_sub_area": str, "is_variant": bool}
     # move:   {"action": "move_to_chamber", "rift_sub_area": str}
     # exit:   {"action": "exit"}
+    # ★ 6d-followup — 최초 포탈 개방 확정 (ep_0022: True 시 session에 flag set)
+    portal_first_opened_set: bool = False

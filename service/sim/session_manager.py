@@ -50,6 +50,8 @@ class SessionState:
     rift_id: str | None = None
     rift_sub_area: str | None = None
     rift_is_variant: bool = False
+    # ★ 6d-followup — 최초 포탈 개방 여부 (ep_0022)
+    portal_first_opened: bool = False
 
 
 def _new_id() -> str:
@@ -85,6 +87,7 @@ def _to_row(s: SessionState) -> SessionRow:
         rift_id=s.rift_id,
         rift_sub_area=s.rift_sub_area,
         rift_is_variant=s.rift_is_variant,
+        portal_first_opened=s.portal_first_opened,
     )
 
 
@@ -114,6 +117,7 @@ def _from_row(r: SessionRow) -> SessionState:
         rift_id=r.rift_id,
         rift_sub_area=r.rift_sub_area,
         rift_is_variant=r.rift_is_variant,
+        portal_first_opened=r.portal_first_opened,
     )
 
 
@@ -164,6 +168,7 @@ class SessionManager:
             rift_id=None,
             rift_sub_area=None,
             rift_is_variant=False,
+            portal_first_opened=False,
         )
         self._cache[state.session_id] = state
         self._last_seen[state.session_id] = datetime.utcnow()
@@ -248,6 +253,9 @@ class SessionManager:
         # ★ audit-c1 — stone_balance 누적
         if result.stone_change != 0:
             state.stone_balance += result.stone_change
+        # ★ 6d-followup — 최초 포탈 개방 flag (ep_0022)
+        if result.portal_first_opened_set:
+            state.portal_first_opened = True
         # ★ audit-3 — rift transition
         if result.rift_transition is not None:
             rt = result.rift_transition

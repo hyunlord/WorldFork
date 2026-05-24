@@ -58,6 +58,8 @@ class SessionStateResponse(BaseModel):
     rift_id: str | None
     rift_sub_area: str | None
     rift_is_variant: bool
+    # 최초 포탈 개방 여부
+    portal_first_opened: bool
     # encounters (in-memory only)
     encounters: list[dict[str, object]]
 
@@ -98,6 +100,7 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         rift_id=s.rift_id,
         rift_sub_area=s.rift_sub_area,
         rift_is_variant=s.rift_is_variant,
+        portal_first_opened=s.portal_first_opened,
         encounters=list(s.encounters),
     )
 

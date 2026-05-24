@@ -329,8 +329,17 @@ async def handle_move_chamber(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_exit_rift(ctx: ActionContext) -> ActionResult:
+    xp_gain = 0
+    extra = ""
+    portal_set = False
+    if not ctx.portal_first_opened:
+        xp_gain = 2
+        extra = "\n\n「최초로 포탈을 개방했습니다. EXP +2」"
+        portal_set = True
     return ActionResult(
-        narrative="균열 경계를 되짚어 빠져나왔다. 바깥의 냉기가 이마에 와 닿았다.",
+        narrative=(
+            "균열 경계를 되짚어 빠져나왔다. 바깥의 냉기가 이마에 와 닿았다." + extra
+        ),
         location=(
             ctx.location.replace(" (균열 내부)", "")
             if "(균열 내부)" in ctx.location
@@ -338,6 +347,8 @@ async def handle_exit_rift(ctx: ActionContext) -> ActionResult:
         ),
         time_advance=1,
         rift_transition={"action": "exit"},
+        xp_gain=xp_gain,
+        portal_first_opened_set=portal_set,
     )
 
 

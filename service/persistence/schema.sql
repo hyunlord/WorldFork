@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     -- rift 상태
     rift_id          TEXT    DEFAULT NULL,
     rift_sub_area    TEXT    DEFAULT NULL,
-    rift_is_variant  INTEGER NOT NULL DEFAULT 0
+    rift_is_variant  INTEGER NOT NULL DEFAULT 0,
+
+    -- 최초 포탈 개방 여부 (ep_0022)
+    portal_first_opened INTEGER NOT NULL DEFAULT 0
 );
 
 
