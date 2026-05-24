@@ -124,8 +124,10 @@ async def test_attack_weakness_multiplier() -> None:
 
 
 @pytest.mark.asyncio
-async def test_attack_min_damage_one() -> None:
-    """defense >> attack 시 최소 1 damage."""
+async def test_attack_min_damage_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """defense >> attack 시 최소 1 damage (critical 없음 고정)."""
+    from service.sim import combat as _combat
+    monkeypatch.setattr(_combat, "compute_critical_hit", lambda *_a, **_k: False)
     ctx = _ctx_with_enemy(hp=100, defense=50)
     result = await handle_attack(ctx)
     assert result.encounters_update is not None
