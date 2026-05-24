@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from service.canon.schema import CanonFacts
-from service.sim.enemy import Enemy
+from service.sim.enemy import WEAKNESS_BY_TYPE, Enemy, infer_enemy_type
 
 # ── hostile role keywords ─────────────────────────────────────────────────────
 _HOSTILE_ROLE_KEYWORDS: tuple[str, ...] = (
@@ -96,6 +96,7 @@ def _character_to_enemy(c: object) -> Enemy:
     assert isinstance(c, Character)
     grade = _infer_grade(c.name, c.grade)
     base_hp = 20 + grade * 10
+    etype = infer_enemy_type(c.race, c.name)
     return Enemy(
         name=c.name,
         hp=base_hp, max_hp=base_hp,
@@ -104,6 +105,8 @@ def _character_to_enemy(c: object) -> Enemy:
         grade=grade,
         race=c.race,
         abilities=list(c.skills[:5]),
+        enemy_type=etype,
+        weakness_types=list(WEAKNESS_BY_TYPE.get(etype, [])),
     )
 
 
@@ -160,12 +163,15 @@ def _monster_name_to_enemy(name: str, grade: int | None = None) -> Enemy:
     """monster name → Enemy (grade 명시 없으면 name에서 추정)."""
     g = _infer_grade(name, grade)
     base_hp = 20 + g * 10
+    etype = infer_enemy_type(None, name)
     return Enemy(
         name=name,
         hp=base_hp, max_hp=base_hp,
         attack=5 + g * 3,
         defense=2 + g,
         grade=g,
+        enemy_type=etype,
+        weakness_types=list(WEAKNESS_BY_TYPE.get(etype, [])),
     )
 
 

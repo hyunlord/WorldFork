@@ -3,6 +3,85 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+
+class EnemyType(StrEnum):
+    """본문 정합 enemy type (★ wiki 009).
+
+    PSIONIC  이능계  — 파괴적 액티브 스킬 보유
+    SPIRIT   영체류  — 물리 피해 면역 (★ Fix 5)
+    PHYSICAL 육체   — default, 육탄 능력 강
+    UNDEAD   언데드  — 신성력 / 불 약점, 코어=실제 HP
+    COLD_BEAST 냉기/짐승 — 전격 약점
+    DARK     어둠   — 태양 / 빛 약점
+    """
+
+    PSIONIC = "psionic"
+    SPIRIT = "spirit"
+    PHYSICAL = "physical"
+    UNDEAD = "undead"
+    COLD_BEAST = "cold_beast"
+    DARK = "dark"
+
+
+# 이름 keyword → EnemyType (부분 매칭 — name에 keyword 포함 시)
+NAME_KEYWORD_TO_TYPE: dict[str, EnemyType] = {
+    # 영체류 — 물리 면역
+    "유령": EnemyType.SPIRIT,
+    "원혼": EnemyType.SPIRIT,
+    "레이스": EnemyType.SPIRIT,
+    "벤시": EnemyType.SPIRIT,
+    "영혼": EnemyType.SPIRIT,
+    # 언데드 — 신성력/불 약점
+    "구울": EnemyType.UNDEAD,
+    "스켈레톤": EnemyType.UNDEAD,
+    "좀비": EnemyType.UNDEAD,
+    "데드맨": EnemyType.UNDEAD,
+    "시체골렘": EnemyType.UNDEAD,
+    "데스나이트": EnemyType.UNDEAD,
+    "뱀파이어": EnemyType.UNDEAD,
+    "본 나이트": EnemyType.UNDEAD,
+    "스컬": EnemyType.UNDEAD,
+    "리치": EnemyType.UNDEAD,
+    # 냉기/짐승 — 전격 약점
+    "예티": EnemyType.COLD_BEAST,
+    "서리": EnemyType.COLD_BEAST,
+    "기가울프": EnemyType.COLD_BEAST,
+    # 어둠 — 태양/빛 약점
+    "그림자": EnemyType.DARK,
+    # 이능계 — 파괴적 스킬
+    "바포메트": EnemyType.PSIONIC,
+    "도플갱어": EnemyType.PSIONIC,
+}
+
+# EnemyType → default weakness_types 목록 (★ wiki 009)
+WEAKNESS_BY_TYPE: dict[EnemyType, list[str]] = {
+    EnemyType.UNDEAD: ["신성력", "불"],
+    EnemyType.COLD_BEAST: ["전격"],
+    EnemyType.DARK: ["태양", "빛"],
+    EnemyType.SPIRIT: [],
+    EnemyType.PHYSICAL: [],
+    EnemyType.PSIONIC: [],
+}
+
+
+def infer_enemy_type(
+    race: str | None = None,
+    name: str | None = None,
+) -> EnemyType:
+    """race 또는 name keyword로 EnemyType 추론.
+
+    race 완전 매칭 우선, 이후 name keyword 부분 매칭.
+    미매칭 시 default PHYSICAL.
+    """
+    if race and race in NAME_KEYWORD_TO_TYPE:
+        return NAME_KEYWORD_TO_TYPE[race]
+    if name:
+        for keyword, etype in NAME_KEYWORD_TO_TYPE.items():
+            if keyword in name:
+                return etype
+    return EnemyType.PHYSICAL
 
 
 @dataclass
@@ -21,6 +100,7 @@ class Enemy:
     weakness_types: list[str] = field(default_factory=list)
     essence_drop: str | None = None
     is_hostile: bool = True
+    enemy_type: EnemyType = EnemyType.PHYSICAL
 
 
 def enemy_to_dict(e: Enemy) -> dict[str, object]:
@@ -40,6 +120,7 @@ def enemy_to_dict(e: Enemy) -> dict[str, object]:
         # ★ get_first_enemy 호환: hostile 키 True 보장
         "hostile": e.is_hostile,
         "is_hostile": e.is_hostile,
+        "enemy_type": e.enemy_type.value,
     }
 
 
@@ -74,8 +155,18 @@ def enemy_from_dict(d: dict[str, object]) -> Enemy:
     hostile_raw = d.get("is_hostile", d.get("hostile", True))
     is_hostile = bool(hostile_raw)
 
+    raw_etype = d.get("enemy_type")
+    try:
+        enemy_type = EnemyType(str(raw_etype)) if raw_etype is not None else EnemyType.PHYSICAL
+    except ValueError:
+        enemy_type = EnemyType.PHYSICAL
+
+    name_val = str(d.get("name", "이름 모를 적"))
+    if enemy_type == EnemyType.PHYSICAL:
+        enemy_type = infer_enemy_type(race, name_val)
+
     return Enemy(
-        name=str(d.get("name", "이름 모를 적")),
+        name=name_val,
         hp=_to_int(d.get("hp"), 30),
         max_hp=_to_int(d.get("max_hp"), 30),
         attack=_to_int(d.get("attack"), 8),
@@ -87,4 +178,5 @@ def enemy_from_dict(d: dict[str, object]) -> Enemy:
         weakness_types=_to_str_list(d.get("weakness_types")),
         essence_drop=essence_drop,
         is_hostile=is_hostile,
+        enemy_type=enemy_type,
     )

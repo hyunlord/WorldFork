@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from service.sim.enemy import Enemy, enemy_to_dict
+from service.sim.enemy import Enemy, EnemyType, enemy_to_dict
 from service.sim.enemy_ai import plan_enemy_turn
 from service.sim.equipment import Equipment, equipment_to_dict
 from service.sim.status import StatusEffect, apply_status_effects, extract_status_from_text
@@ -60,6 +60,32 @@ class CombatTurnLog:
     status_applied: list[str] = field(default_factory=list)
     enemy_resolved: bool = False
     notes: str = ""
+    immune: bool = False        # 영체류 물리 면역 등
+    weakness_hit: bool = False  # 약점 적중 (1.5x)
+
+
+def compute_damage_multiplier(
+    enemy: Enemy,
+    attack_elements: list[str] | None = None,
+) -> float:
+    """damage multiplier 계산 — wiki 009 본문 정합.
+
+    영체류 + 물리 only → 0.0 (면역)
+    weakness_types ∩ attack_elements → 1.5
+    기본 → 1.0
+    """
+    elements: set[str] = set(attack_elements) if attack_elements else {"물리"}
+
+    if enemy.enemy_type == EnemyType.SPIRIT:
+        non_physical = elements - {"물리"}
+        if not non_physical:
+            return 0.0
+
+    weak_set = set(enemy.weakness_types)
+    if weak_set & elements:
+        return 1.5
+
+    return 1.0
 
 
 def execute_player_attack(
@@ -67,6 +93,7 @@ def execute_player_attack(
     target_idx: int,
     player_attack: int,
     user_input: str,
+    attack_elements: list[str] | None = None,
 ) -> tuple[list[Enemy], CombatTurnLog]:
     """플레이어가 target_idx 번 enemy를 공격."""
     if target_idx >= len(enemies):
@@ -78,11 +105,26 @@ def execute_player_attack(
     target = enemies[target_idx]
 
     base = max(1, player_attack - target.defense)
-    multiplier = 1.0
-    for race in target.weakness_races:
-        if race in user_input:
-            multiplier = 1.5
-            break
+    multiplier = compute_damage_multiplier(target, attack_elements)
+
+    # weakness_races — user_input 텍스트 매칭 (기존 동작 보존)
+    if multiplier < 1.5:
+        for race in target.weakness_races:
+            if race in user_input:
+                multiplier = max(multiplier, 1.5)
+                break
+
+    if multiplier == 0.0:
+        enemies[target_idx] = target
+        return enemies, CombatTurnLog(
+            actor="player",
+            action_name="공격",
+            damage_dealt=0,
+            target_name=target.name,
+            enemy_resolved=False,
+            immune=True,
+        )
+
     damage = max(1, int(base * multiplier))
     target.hp = max(0, target.hp - damage)
     enemies[target_idx] = target
@@ -93,6 +135,7 @@ def execute_player_attack(
         damage_dealt=damage,
         target_name=target.name,
         enemy_resolved=(target.hp <= 0),
+        weakness_hit=(multiplier > 1.0),
     )
 
 

@@ -42,6 +42,7 @@ from service.sim.xp_curve import (
     compute_xp_grant,
     soul_power_gain_on_level_up,
 )
+from service.util.korean import i_ga
 
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
 
@@ -488,6 +489,29 @@ def _compute_player_defense(ctx: ActionContext) -> int:
     return base + bonus
 
 
+def _get_attack_elements(ctx: ActionContext) -> list[str]:
+    """ctx.equipment 무기 이름에서 attack element list 추출.
+
+    default ["물리"]. 특수 무기명 keyword → element 추가.
+    """
+    elements: list[str] = ["물리"]
+    if ctx.equipment is None:
+        return elements
+    weapon = ctx.equipment.weapon
+    if weapon is None:
+        return elements
+    name = weapon.name
+    if any(kw in name for kw in ("성스러운", "신성")):
+        elements.append("신성력")
+    if any(kw in name for kw in ("화염", "불")):
+        elements.append("불")
+    if any(kw in name for kw in ("전격", "번개", "전기")):
+        elements.append("전격")
+    if any(kw in name for kw in ("태양", "빛")):
+        elements.append("빛")
+    return elements
+
+
 def _build_attack_narrative(
     player_log: CombatTurnLog,
     enemy_logs: list[CombatTurnLog],
@@ -497,7 +521,14 @@ def _build_attack_narrative(
     """template 기반 전투 narrative."""
     parts: list[str] = []
 
-    if player_log.enemy_resolved:
+    if player_log.immune:
+        # 영체류 물리 면역
+        particle = i_ga(player_log.target_name)
+        parts.append(
+            f"나는 {player_log.target_name}을(를) 공격했다."
+            f" {player_log.target_name}{particle} 물리 공격을 통과시켰다."
+        )
+    elif player_log.enemy_resolved:
         parts.append(
             f"나는 {player_log.target_name}에게 일격을 가했다."
             f" 쓰러지는 {player_log.target_name}에서 빛이 사그라들었다."
@@ -509,6 +540,8 @@ def _build_attack_narrative(
             f"나는 {player_log.target_name}을(를) 공격했다."
             f" {player_log.damage_dealt} 피해를 줬다."
         )
+        if player_log.weakness_hit:
+            parts.append(" 약점이 적중했다.")
 
     for log in enemy_logs:
         if log.notes and "hp +" in log.notes:
@@ -545,12 +578,13 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
 
     # Step 1: 플레이어 공격
     target_idx = find_target_index(enemies, ctx.user_input)
+    attack_elements = _get_attack_elements(ctx)
     item_pool = None
     registry = get_item_registry()
     if registry:
         item_pool = registry.all_items()
     enemies, player_log = execute_player_attack(
-        enemies, target_idx, player_attack, ctx.user_input
+        enemies, target_idx, player_attack, ctx.user_input, attack_elements
     )
 
     # Step 2: 죽은 enemy 정리 + drop
