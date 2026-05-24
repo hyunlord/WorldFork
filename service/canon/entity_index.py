@@ -33,6 +33,8 @@ class EntityIndex:
     def __init__(self, facts: CanonFacts) -> None:
         self._by_name: dict[str, EntityRef] = {}
         self._raw_essences: dict[str, dict[str, object]] = {}
+        self._raw_characters: dict[str, dict[str, object]] = {}
+        self._raw_locations: dict[str, dict[str, object]] = {}
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
@@ -44,12 +46,16 @@ class EntityIndex:
         for c in facts.characters:
             ref = EntityRef("character", c.name, _summarize_character(c))
             self._by_name[c.name] = ref
+            raw = c.model_dump()
+            self._raw_characters[c.name] = raw
             for alias in c.aliases:
                 self._by_name[alias] = ref
+                self._raw_characters[alias] = raw
 
         for loc in facts.locations:
             ref = EntityRef("location", loc.name, _summarize_location(loc))
             self._by_name[loc.name] = ref
+            self._raw_locations[loc.name] = loc.model_dump()
 
         for r in facts.races:
             ref = EntityRef("race", r.name, _summarize_race(r))
@@ -86,6 +92,14 @@ class EntityIndex:
     def get_raw_essence(self, name: str) -> dict[str, object] | None:
         """essence name → raw dict (abilities parse용)."""
         return self._raw_essences.get(name)
+
+    def get_raw_character(self, name: str) -> dict[str, object] | None:
+        """character name/alias → raw dict (role/background 활용)."""
+        return self._raw_characters.get(name)
+
+    def get_raw_location(self, name: str) -> dict[str, object] | None:
+        """location name → raw dict (description/sub_locations 활용)."""
+        return self._raw_locations.get(name)
 
     def size(self) -> int:
         return len(self._by_name)

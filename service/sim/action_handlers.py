@@ -66,23 +66,50 @@ async def handle_activate_light(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_explore(ctx: ActionContext) -> ActionResult:
-    return ActionResult(
-        narrative=(
+    """I-F1: canon location description + sub_locations 활용."""
+    index = get_entity_index()
+    raw_loc = index.get_raw_location(ctx.location) if index else None
+
+    if raw_loc:
+        desc = str(raw_loc.get("description") or "")[:200]
+        sub_locs = raw_loc.get("sub_locations")
+        sub_list = sub_locs if isinstance(sub_locs, list) else []
+
+        narrative = f"나는 {ctx.location}을 천천히 살폈다."
+        if desc:
+            narrative += f" {desc}"
+        else:
+            narrative += " 익숙해진 눈이 어둠 속에서 세세한 것들을 포착했다."
+        if sub_list:
+            sub_str = ", ".join(str(s) for s in sub_list[:3])
+            narrative += f" 주변에 {sub_str} 위치가 눈에 들어왔다."
+    else:
+        narrative = (
             f"나는 {ctx.location}을 천천히 살폈다."
             " 익숙해진 눈이 어둠 속에서 세세한 것들을 포착했다."
-        ),
-        time_advance=2,
-    )
+        )
+
+    return ActionResult(narrative=narrative, time_advance=2)
 
 
 async def handle_library_search(ctx: ActionContext) -> ActionResult:
-    return ActionResult(
-        narrative=(
+    """I-D1: canon entity keyword_match로 관련 정보 출력."""
+    index = get_entity_index()
+    refs = index.keyword_match(ctx.user_input, limit=3) if index else []
+
+    if refs:
+        lines = [f"- {ref.name}: {ref.summary[:150]}" for ref in refs]
+        narrative = (
+            "나는 도서관 서가를 따라 관련 기록을 찾아보았다.\n"
+            + "\n".join(lines)
+        )
+    else:
+        narrative = (
             "나는 도서관 서가를 따라 걸으며 낯선 문자들을 훑어봤다."
-            " 파르시티에브 관련 기록이 눈에 들어왔다."
-        ),
-        time_advance=2,
-    )
+            " 별다른 관련 기록은 보이지 않았다."
+        )
+
+    return ActionResult(narrative=narrative, time_advance=2)
 
 
 # ─── 이동 ───
@@ -1074,6 +1101,10 @@ async def handle_communicate(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_dialogue(ctx: ActionContext) -> ActionResult:
+    """I-E1: hybrid — 짧은 인사 template / 깊은 대화 27B."""
+    from service.sim.dialogue_27b import compose_dialogue_narrative
+    from service.sim.dialogue_helper import is_deep_dialogue
+
     npc = get_first_npc(ctx.encounters)
     if not npc:
         return ActionResult(
@@ -1083,8 +1114,30 @@ async def handle_dialogue(ctx: ActionContext) -> ActionResult:
             time_advance=0,
         )
     name = get_entity_name(npc, "NPC")
+
+    index = get_entity_index()
+    raw_char = index.get_raw_character(name) if index else None
+    npc_role = str(raw_char["role"]) if raw_char and raw_char.get("role") else None
+    npc_bg = str(raw_char["background"]) if raw_char and raw_char.get("background") else None
+
+    if is_deep_dialogue(ctx.user_input):
+        narrative = await asyncio.to_thread(
+            compose_dialogue_narrative, name, npc_role, npc_bg, ctx.user_input
+        )
+        if not narrative:
+            role_suffix = f" ({npc_role})" if npc_role else ""
+            narrative = (
+                f"나는 {name}{role_suffix}에게 말을 건넸다. 대화가 이어졌다."
+            )
+    else:
+        role_suffix = f" ({npc_role})" if npc_role else ""
+        narrative = (
+            f"나는 {name}{role_suffix}에게 다가가 말을 건넸다."
+            " 짧은 인사가 오고 갔다."
+        )
+
     return ActionResult(
-        narrative=f"나는 {name}에게 다가가 말을 건넸다. 짧은 대화가 오고 갔다.",
+        narrative=narrative,
         affinity_changes={name: 1},
         time_advance=1,
     )
