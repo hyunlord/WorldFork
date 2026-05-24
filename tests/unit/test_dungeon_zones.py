@@ -89,8 +89,8 @@ def test_get_adjacent_zone_floor2_returns_none() -> None:
 @pytest.mark.parametrize("zone,lighting", [
     ("1층 입구", "bright"),
     ("1층 수정 동굴", "bright"),
-    ("1층 초입부", "bright"),
-    ("1층 중심부", "normal"),
+    ("1층 초입부", "very_dark"),
+    ("1층 중심부", "dark"),
     ("1층 동쪽 지구", "normal"),
     ("1층 암흑지대", "very_dark"),
 ])

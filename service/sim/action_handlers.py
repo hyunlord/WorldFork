@@ -89,6 +89,7 @@ async def handle_library_search(ctx: ActionContext) -> ActionResult:
 
 _KOR_TO_4WAY: dict[str, Direction] = {
     "북": "north", "남": "south", "동": "east", "서": "west",
+    "북동": "north", "북서": "north", "남동": "south", "남서": "south",
 }
 
 _DIRECTION_KOR: dict[Direction, str] = {
@@ -118,7 +119,7 @@ def _lighting_narrative(zone_name: str, floor: int) -> str:
     if info.lighting == "dark":
         return " 어둠이 짙어졌다. 발밑을 주의해야 한다."
     if info.lighting == "bright":
-        return " 수정 빛이 은은하게 길을 비췄다."
+        return " 수정 빛이 주변을 환하게 밝혔다."
     return ""
 
 
@@ -367,7 +368,7 @@ async def handle_enter_next_floor(ctx: ActionContext) -> ActionResult:
         )
     return ActionResult(
         narrative=(
-            "나는 층계를 내려가 다음 층으로 발을 딛었다."
+            "나는 포탈 비석을 통해 다음 층으로 발을 내디뎠다."
             " 더 짙은 어둠이 앞을 막아섰다."
         ),
         location=f"{next_floor}층 입구",

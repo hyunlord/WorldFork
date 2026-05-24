@@ -30,15 +30,15 @@ FLOOR_1_ZONES: dict[str, ZoneInfo] = {
     ),
     "1층 수정 동굴": ZoneInfo(
         "1층 수정 동굴", "bright", 1,
-        "벽과 천장의 수정이 은은한 빛을 낸다",
+        "벽과 천장의 수정들이 환한 빛을 뿜어낸다",
     ),
     "1층 초입부": ZoneInfo(
-        "1층 초입부", "bright", 1,
-        "포탈에서 멀지 않은 곳. 수정 빛이 아직 닿는다",
+        "1층 초입부", "very_dark", 1,
+        "빛이 닿지 않는 어두운 통로. 포탈에서 떨어져 있다.",
     ),
     "1층 중심부": ZoneInfo(
-        "1층 중심부", "normal", 2,
-        "수정의 빛이 약해진 통로. 네 방향의 지구가 합류하는 교차점",
+        "1층 중심부", "dark", 2,
+        "대현자 기념비가 있는 안전 지대. 어둠 속에서도 기념비의 빛이 보인다.",
     ),
     "1층 동쪽 지구": ZoneInfo(
         "1층 동쪽 지구", "normal", 2,
@@ -66,7 +66,6 @@ FLOOR_1_ZONES: dict[str, ZoneInfo] = {
 FLOOR_1_ADJACENCY: dict[str, dict[Direction, str]] = {
     "1층 입구": {
         "north": "1층 초입부",
-        "south": "1층 입구",
         "east": "1층 동쪽 지구",
         "west": "1층 서쪽 지구",
     },
@@ -90,13 +89,13 @@ FLOOR_1_ADJACENCY: dict[str, dict[Direction, str]] = {
     },
     "1층 동쪽 지구": {
         "north": "1층 암흑지대",
-        "south": "1층 입구",
+        "south": "1층 중심부",
         "east": "1층 암흑지대",
         "west": "1층 중심부",
     },
     "1층 서쪽 지구": {
         "north": "1층 암흑지대",
-        "south": "1층 입구",
+        "south": "1층 중심부",
         "east": "1층 중심부",
         "west": "1층 암흑지대",
     },
