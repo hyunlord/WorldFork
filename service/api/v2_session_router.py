@@ -64,6 +64,8 @@ class SessionStateResponse(BaseModel):
     encounters: list[dict[str, object]]
     # 게임 내 경과 시간 (minute 단위)
     time_elapsed: int
+    # 종족 (★ phase-e-1)
+    race: str
 
 
 def _to_start_resp(s: SessionState) -> SessionStartResponse:
@@ -105,6 +107,7 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         portal_first_opened=s.portal_first_opened,
         encounters=list(s.encounters),
         time_elapsed=s.time_elapsed,
+        race=s.race,
     )
 
 

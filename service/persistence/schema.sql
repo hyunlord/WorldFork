@@ -48,7 +48,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     portal_first_opened INTEGER NOT NULL DEFAULT 0,
 
     -- 게임 내 경과 시간 (minute 단위, audit-step168h)
-    time_elapsed        INTEGER NOT NULL DEFAULT 0
+    time_elapsed        INTEGER NOT NULL DEFAULT 0,
+
+    -- 종족 (phase-e-1, ★ default 바바리안)
+    race                TEXT    NOT NULL DEFAULT 'barbarian'
 );
 
 

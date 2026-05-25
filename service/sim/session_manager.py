@@ -55,6 +55,8 @@ class SessionState:
     # ★ audit-step168h — 게임 내 경과 시간 (minute 단위)
     # force return 시 +1440min (24h), 본문: wiki 010 "다음날 정오"
     time_elapsed: int = 0
+    # ★ phase-e-1 — 종족 (★ default 바바리안, 본문 정합)
+    race: str = "barbarian"
 
 
 def _new_id() -> str:
@@ -92,6 +94,7 @@ def _to_row(s: SessionState) -> SessionRow:
         rift_is_variant=s.rift_is_variant,
         portal_first_opened=s.portal_first_opened,
         time_elapsed=s.time_elapsed,
+        race=s.race,
     )
 
 
@@ -123,6 +126,7 @@ def _from_row(r: SessionRow) -> SessionState:
         rift_is_variant=r.rift_is_variant,
         portal_first_opened=r.portal_first_opened,
         time_elapsed=r.time_elapsed,
+        race=r.race,
     )
 
 
