@@ -1101,11 +1101,41 @@ async def handle_communicate(ctx: ActionContext) -> ActionResult:
 
 
 async def handle_dialogue(ctx: ActionContext) -> ActionResult:
-    """I-E1: hybrid — 짧은 인사 template / 깊은 대화 27B."""
+    """I-E1: hybrid — 짧은 인사 template / 깊은 대화 27B.
+    I-C1: extracted_entities.actor 우선 NPC 선택.
+    """
     from service.sim.dialogue_27b import compose_dialogue_narrative
     from service.sim.dialogue_helper import is_deep_dialogue
 
-    npc = get_first_npc(ctx.encounters)
+    npc: dict[str, object] | None = None
+
+    # I-C1 — actor field 우선: encounters에서 actor 매칭 NPC 선택
+    actor_name = (
+        ctx.extracted_entities.actor
+        if ctx.extracted_entities and ctx.extracted_entities.actor
+        else None
+    )
+    if actor_name:
+        index = get_entity_index()
+        canon_ref = index.fuzzy_lookup(actor_name) if index else None
+        canon_name = canon_ref.name if canon_ref else actor_name
+        npc = next(
+            (
+                e for e in ctx.encounters
+                if (
+                    e.get("name") == canon_name
+                    or actor_name in str(e.get("name", ""))
+                    or canon_name in str(e.get("name", ""))
+                )
+                and not e.get("hostile")
+            ),
+            None,
+        )
+
+    # fallback — 첫 비적대 NPC
+    if npc is None:
+        npc = get_first_npc(ctx.encounters)
+
     if not npc:
         return ActionResult(
             narrative="대화할 상대가 없다.",

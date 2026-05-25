@@ -2,10 +2,12 @@
 
 8,180 entity를 name + alias 기준으로 O(1) lookup.
 keyword_match 는 substring 검색 + longest-name-first 우선순위.
+fuzzy_lookup_by_name: 조사 제거 + partial match (audit-step4-2).
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from service.canon.schema import (
@@ -16,6 +18,14 @@ from service.canon.schema import (
     Mechanism,
     Race,
 )
+
+# ── 한국어 조사 목록 (긴 것 우선 정렬) ──────────────────────────────────────
+_PARTICLES: tuple[str, ...] = (
+    "에서", "으로", "의", "을", "를", "이", "가", "은", "는", "에", "로",
+)
+
+# entity name 내부에 나타나는 조사 ("의" 등) 제거용 pattern
+_INNER_PARTICLE_RE = re.compile(r"의")
 
 
 @dataclass(frozen=True)
@@ -35,6 +45,8 @@ class EntityIndex:
         self._raw_essences: dict[str, dict[str, object]] = {}
         self._raw_characters: dict[str, dict[str, object]] = {}
         self._raw_locations: dict[str, dict[str, object]] = {}
+        self._norm_by_name: dict[str, EntityRef] = {}   # space 제거
+        self._deep_by_name: dict[str, EntityRef] = {}   # space + "의" 제거
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
@@ -42,31 +54,78 @@ class EntityIndex:
             ref = EntityRef("essence", e.name, _summarize_essence(e))
             self._by_name[e.name] = ref
             self._raw_essences[e.name] = e.model_dump()
+            self._norm_by_name[_normalize(e.name)] = ref
+            self._deep_by_name[_normalize_deep(e.name)] = ref
 
         for c in facts.characters:
             ref = EntityRef("character", c.name, _summarize_character(c))
             self._by_name[c.name] = ref
             raw = c.model_dump()
             self._raw_characters[c.name] = raw
+            self._norm_by_name[_normalize(c.name)] = ref
+            self._deep_by_name[_normalize_deep(c.name)] = ref
             for alias in c.aliases:
                 self._by_name[alias] = ref
                 self._raw_characters[alias] = raw
+                self._norm_by_name[_normalize(alias)] = ref
+                self._deep_by_name[_normalize_deep(alias)] = ref
 
         for loc in facts.locations:
             ref = EntityRef("location", loc.name, _summarize_location(loc))
             self._by_name[loc.name] = ref
             self._raw_locations[loc.name] = loc.model_dump()
+            self._norm_by_name[_normalize(loc.name)] = ref
+            self._deep_by_name[_normalize_deep(loc.name)] = ref
 
         for r in facts.races:
             ref = EntityRef("race", r.name, _summarize_race(r))
             self._by_name[r.name] = ref
+            self._norm_by_name[_normalize(r.name)] = ref
+            self._deep_by_name[_normalize_deep(r.name)] = ref
 
         for m in facts.mechanisms:
             ref = EntityRef("mechanism", m.name, _summarize_mechanism(m))
             self._by_name[m.name] = ref
+            self._norm_by_name[_normalize(m.name)] = ref
+            self._deep_by_name[_normalize_deep(m.name)] = ref
 
     def lookup_by_name(self, name: str) -> EntityRef | None:
         return self._by_name.get(name)
+
+    def fuzzy_lookup(self, query: str) -> EntityRef | None:
+        """fuzzy lookup — exact → normalized → deep-normalized → partial.
+
+        1. exact: lookup_by_name(query)
+        2. normalized (공백 제거): norm_by_name lookup
+        3. deep-normalized (공백 + "의" 제거): deep_by_name lookup
+        4. partial: deep-normalized query ↔ deep-normalized entity name
+        """
+        if not query:
+            return None
+        # 1. exact
+        ref = self._by_name.get(query)
+        if ref is not None:
+            return ref
+        # 2. normalized (공백 제거)
+        norm_q = _normalize(query)
+        if not norm_q:
+            return None
+        ref = self._norm_by_name.get(norm_q)
+        if ref is not None:
+            return ref
+        # 3. deep-normalized ("의" 추가 제거)
+        deep_q = _normalize_deep(query)
+        ref = self._deep_by_name.get(deep_q)
+        if ref is not None:
+            return ref
+        # 4. partial — 가장 긴 entity name 우선
+        best: tuple[int, EntityRef] | None = None
+        for deep_name, cand in self._deep_by_name.items():
+            if deep_q in deep_name or deep_name in deep_q:
+                length = len(deep_name)
+                if best is None or length > best[0]:
+                    best = (length, cand)
+        return best[1] if best else None
 
     def lookup_many(self, names: list[str]) -> list[EntityRef]:
         return [ref for name in names if (ref := self.lookup_by_name(name))]
@@ -103,6 +162,38 @@ class EntityIndex:
 
     def size(self) -> int:
         return len(self._by_name)
+
+
+# ── normalization ─────────────────────────────────────────────────────────────
+
+
+def _normalize(text: str) -> str:
+    """공백 제거 + 소문자화 + 끝 조사 제거.
+
+    ex) "고블린의 정수" → "고블린의정수"
+        "정수를" → "정수"
+    """
+    normalized = re.sub(r"\s+", "", text.strip().lower())
+    for particle in _PARTICLES:
+        if normalized.endswith(particle):
+            normalized = normalized[: -len(particle)]
+            break
+    return normalized
+
+
+def _normalize_deep(text: str) -> str:
+    """공백 + 내부 '의' + 끝 조사 제거.
+
+    ex) "고블린의 정수" → "고블린정수"
+        "고블린 정수" → "고블린정수"
+    """
+    normalized = re.sub(r"\s+", "", text.strip().lower())
+    normalized = _INNER_PARTICLE_RE.sub("", normalized)
+    for particle in _PARTICLES:
+        if normalized.endswith(particle):
+            normalized = normalized[: -len(particle)]
+            break
+    return normalized
 
 
 # ── summary helpers ───────────────────────────────────────────────────────────

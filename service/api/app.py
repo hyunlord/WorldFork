@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from service.api.admin_router import router as admin_router
 from service.api.game_routes import router as game_router
 from service.api.v2_freeform_router import router as v2_freeform_router
 from service.api.v2_session_router import router as v2_session_router
@@ -104,6 +105,8 @@ def create_app() -> FastAPI:
     app.include_router(v2_freeform_router)
     # ★ Phase D step 4: 세션 관리 endpoints
     app.include_router(v2_session_router)
+    # ★ audit-step4-2: runtime canon reload
+    app.include_router(admin_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
