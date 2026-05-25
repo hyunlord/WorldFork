@@ -25,10 +25,11 @@ class TestCreateSession:
     def test_default_state(self, tmp_path: Path) -> None:
         mgr = _make_manager(tmp_path)
         state = run(mgr.create_session())
-        assert state.current_hp == 100
-        assert state.max_hp == 100
+        # phase-e-2: 기본 = BJORN + BARBARIAN → HP=120, 위치=라스카니아 차원광장
+        assert state.current_hp == 120
+        assert state.max_hp == 120
         assert state.inventory == []
-        assert state.location == "1층 입구"
+        assert "라스카니아" in state.location
         assert state.turn_count == 0
         assert len(state.session_id) == 36  # UUID format
 
@@ -152,7 +153,7 @@ class TestGetOrCreate:
         mgr = _make_manager(tmp_path)
         state = run(mgr.get_or_create(None))
         assert state.session_id is not None
-        assert state.current_hp == 100
+        assert state.current_hp == 120  # phase-e-2: BJORN+BARBARIAN default
 
     def test_get_existing_by_id(self, tmp_path: Path) -> None:
         mgr = _make_manager(tmp_path)

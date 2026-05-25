@@ -8,6 +8,8 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+from service.canon.races import Race, get_race_config
+from service.canon.scenario import SCENARIO_CONFIGS, ScenarioMode, resolve_race_for_scenario
 from service.persistence.sqlite_store import SessionRow, SqliteStore, TurnRow
 from service.sim.action_context import ActionResult
 from service.sim.equipment import DEFAULT_EQUIPMENT_DICT
@@ -57,6 +59,8 @@ class SessionState:
     time_elapsed: int = 0
     # ★ phase-e-1 — 종족 (★ default 바바리안, 본문 정합)
     race: str = "barbarian"
+    # ★ phase-e-2 — 시나리오 모드 (★ default bjorn)
+    scenario_mode: str = "bjorn"
 
 
 def _new_id() -> str:
@@ -95,6 +99,7 @@ def _to_row(s: SessionState) -> SessionRow:
         portal_first_opened=s.portal_first_opened,
         time_elapsed=s.time_elapsed,
         race=s.race,
+        scenario_mode=s.scenario_mode,
     )
 
 
@@ -127,6 +132,7 @@ def _from_row(r: SessionRow) -> SessionState:
         portal_first_opened=r.portal_first_opened,
         time_elapsed=r.time_elapsed,
         race=r.race,
+        scenario_mode=r.scenario_mode,
     )
 
 
@@ -145,19 +151,28 @@ class SessionManager:
 
     async def create_session(
         self,
-        current_hp: int = 100,
-        max_hp: int = 100,
+        race: Race | None = None,
+        scenario_mode: ScenarioMode = ScenarioMode.BJORN,
         inventory: list[str] | None = None,
-        location: str = "1층 입구",
+        location: str | None = None,
+        *,
+        current_hp: int | None = None,
+        max_hp: int | None = None,
     ) -> SessionState:
         await self.evict_stale()
         now = _now()
+        resolved_race = resolve_race_for_scenario(scenario_mode, race)
+        race_cfg = get_race_config(resolved_race)
+        scenario_cfg = SCENARIO_CONFIGS[scenario_mode]
+        use_hp = current_hp if current_hp is not None else race_cfg.hp_base
+        use_max_hp = max_hp if max_hp is not None else race_cfg.hp_base
+        use_location = location if location is not None else scenario_cfg.starting_location
         state = SessionState(
             session_id=_new_id(),
-            current_hp=current_hp,
-            max_hp=max_hp,
+            current_hp=use_hp,
+            max_hp=use_max_hp,
             inventory=list(inventory or []),
-            location=location,
+            location=use_location,
             encounters=[],
             turn_count=0,
             created_at=now,
@@ -167,8 +182,8 @@ class SessionManager:
             last_spawn_turn=-10,
             player_level=1,
             player_xp=0,
-            max_essences=1,
-            soul_power=10,
+            max_essences=race_cfg.max_essences_base,
+            soul_power=race_cfg.soul_power_base,
             absorbed_essences=[],
             defeated_monster_types=[],
             floor_number=0,
@@ -178,6 +193,8 @@ class SessionManager:
             rift_sub_area=None,
             rift_is_variant=False,
             portal_first_opened=False,
+            race=resolved_race.value,
+            scenario_mode=scenario_mode.value,
         )
         self._cache[state.session_id] = state
         self._last_seen[state.session_id] = datetime.utcnow()
@@ -335,10 +352,10 @@ class SessionManager:
         self,
         session_id: str | None,
         *,
-        current_hp: int = 100,
-        max_hp: int = 100,
+        current_hp: int | None = None,
+        max_hp: int | None = None,
         inventory: list[str] | None = None,
-        location: str = "1층 입구",
+        location: str | None = None,
     ) -> SessionState:
         """session_id가 있으면 조회, 없으면 신규 생성."""
         if session_id is not None:
@@ -346,10 +363,10 @@ class SessionManager:
             if state is not None:
                 return state
         return await self.create_session(
-            current_hp=current_hp,
-            max_hp=max_hp,
             inventory=inventory,
             location=location,
+            current_hp=current_hp,
+            max_hp=max_hp,
         )
 
 

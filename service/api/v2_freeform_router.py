@@ -193,10 +193,10 @@ async def freeform_action_endpoint(
         if session_state is None:
             # session_id 제공했지만 없으면 자동 생성
             session_state = await mgr.create_session(
+                inventory=list(req.inventory),
+                location=req.location or None,
                 current_hp=req.current_hp,
                 max_hp=req.max_hp,
-                inventory=list(req.inventory),
-                location=req.location,
             )
 
     try:

@@ -48,6 +48,8 @@ class SessionRow:
     time_elapsed: int = 0
     # ★ phase-e-1 — 종족
     race: str = "barbarian"
+    # ★ phase-e-2 — 시나리오 모드
+    scenario_mode: str = "bjorn"
 
 
 @dataclass
@@ -159,6 +161,10 @@ class SqliteStore:
                 "race",
                 "ALTER TABLE sessions ADD COLUMN race TEXT NOT NULL DEFAULT 'barbarian'",
             ),
+            (
+                "scenario_mode",
+                "ALTER TABLE sessions ADD COLUMN scenario_mode TEXT NOT NULL DEFAULT 'bjorn'",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -177,8 +183,8 @@ class SqliteStore:
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
              absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon,
              stone_balance, rift_id, rift_sub_area, rift_is_variant, portal_first_opened,
-             time_elapsed, race)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             time_elapsed, race, scenario_mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -203,7 +209,8 @@ class SqliteStore:
             rift_is_variant         = excluded.rift_is_variant,
             portal_first_opened     = excluded.portal_first_opened,
             time_elapsed            = excluded.time_elapsed,
-            race                    = excluded.race
+            race                    = excluded.race,
+            scenario_mode           = excluded.scenario_mode
         """
         with self._connect() as conn:
             conn.execute(
@@ -235,6 +242,7 @@ class SqliteStore:
                     1 if row.portal_first_opened else 0,
                     row.time_elapsed,
                     row.race,
+                    row.scenario_mode,
                 ),
             )
 
@@ -303,6 +311,11 @@ class SqliteStore:
             portal_first_opened=bool(raw_portal),
             time_elapsed=_int_col("time_elapsed", 0),
             race=str(row["race"]) if "race" in keys and row["race"] else "barbarian",
+            scenario_mode=(
+                str(row["scenario_mode"])
+                if "scenario_mode" in keys and row["scenario_mode"]
+                else "bjorn"
+            ),
         )
 
     def delete_session(self, session_id: str) -> None:

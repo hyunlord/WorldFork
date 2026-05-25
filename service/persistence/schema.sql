@@ -51,7 +51,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     time_elapsed        INTEGER NOT NULL DEFAULT 0,
 
     -- 종족 (phase-e-1, ★ default 바바리안)
-    race                TEXT    NOT NULL DEFAULT 'barbarian'
+    race                TEXT    NOT NULL DEFAULT 'barbarian',
+
+    -- 시나리오 모드 (phase-e-2, ★ default bjorn)
+    scenario_mode       TEXT    NOT NULL DEFAULT 'bjorn'
 );
 
 

@@ -66,6 +66,8 @@ class SessionStateResponse(BaseModel):
     time_elapsed: int
     # 종족 (★ phase-e-1)
     race: str
+    # 시나리오 모드 (★ phase-e-2)
+    scenario_mode: str
 
 
 def _to_start_resp(s: SessionState) -> SessionStartResponse:
@@ -108,6 +110,7 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         encounters=list(s.encounters),
         time_elapsed=s.time_elapsed,
         race=s.race,
+        scenario_mode=s.scenario_mode,
     )
 
 
@@ -115,10 +118,10 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
 async def session_start(req: SessionStartRequest) -> SessionStartResponse:
     mgr = get_session_manager()
     state = await mgr.create_session(
+        inventory=list(req.inventory),
+        location=req.location or None,
         current_hp=req.current_hp,
         max_hp=req.max_hp,
-        inventory=list(req.inventory),
-        location=req.location,
     )
     return _to_start_resp(state)
 
