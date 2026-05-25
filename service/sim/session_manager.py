@@ -167,11 +167,17 @@ class SessionManager:
         use_hp = current_hp if current_hp is not None else race_cfg.hp_base
         use_max_hp = max_hp if max_hp is not None else race_cfg.hp_base
         use_location = location if location is not None else scenario_cfg.starting_location
-        use_inventory = (
-            list(inventory)
-            if inventory is not None
-            else list(scenario_cfg.starting_inventory)
-        )
+        # inventory 우선순위:
+        # 1. 명시적 전달값 (테스트 / custom 시나리오)
+        # 2. scenario.starting_inventory (BJORN → 방패)
+        # 3. race.starting_inventory_default (NEW_EXPLORER → 종족 정합)
+        # 4. 빈 list
+        if inventory is not None:
+            use_inventory = list(inventory)
+        elif scenario_cfg.starting_inventory:
+            use_inventory = list(scenario_cfg.starting_inventory)
+        else:
+            use_inventory = list(race_cfg.starting_inventory_default)
         state = SessionState(
             session_id=_new_id(),
             current_hp=use_hp,
