@@ -28,7 +28,7 @@ class TestCreateSession:
         # phase-e-2: 기본 = BJORN + BARBARIAN → HP=120, 위치=라스카니아 차원광장
         assert state.current_hp == 120
         assert state.max_hp == 120
-        assert state.inventory == []
+        assert state.inventory == ["방패"]  # phase-e-3: BJORN 기본 시작 아이템
         assert "라스카니아" in state.location
         assert state.turn_count == 0
         assert len(state.session_id) == 36  # UUID format

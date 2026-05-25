@@ -167,11 +167,16 @@ class SessionManager:
         use_hp = current_hp if current_hp is not None else race_cfg.hp_base
         use_max_hp = max_hp if max_hp is not None else race_cfg.hp_base
         use_location = location if location is not None else scenario_cfg.starting_location
+        use_inventory = (
+            list(inventory)
+            if inventory is not None
+            else list(scenario_cfg.starting_inventory)
+        )
         state = SessionState(
             session_id=_new_id(),
             current_hp=use_hp,
             max_hp=use_max_hp,
-            inventory=list(inventory or []),
+            inventory=use_inventory,
             location=use_location,
             encounters=[],
             turn_count=0,

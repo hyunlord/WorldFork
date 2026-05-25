@@ -1,4 +1,4 @@
-"""ScenarioMode + 시나리오 설정 (Phase E-2).
+"""ScenarioMode + 시나리오 설정 (Phase E-2/3).
 
 두 가지 시나리오:
 - BJORN: 바바리안 고정, 라스카니아 · 차원광장 시작 (ep_0003 anchor)
@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from service.canon.races import Race
@@ -25,6 +25,8 @@ class ScenarioConfig:
     fixed_race: Race | None
     description: str
     canon_anchor: str
+    # ★ phase-e-3: 시나리오 시작 inventory (frozen dataclass → tuple)
+    starting_inventory: tuple[str, ...] = field(default_factory=tuple)
 
 
 SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
@@ -35,6 +37,12 @@ SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
         fixed_race=Race.BARBARIAN,
         description="바바리안의 시점으로 라스카니아 차원광장에서 시작하는 시나리오.",
         canon_anchor="ep_0003",
+        # ★ 본문 정합 (ep_0002-0005):
+        # - ep_0002: 성인식에서 무기 하나 선택
+        # - ep_0003: 비요른 → 방패 선택 ("시작 무기 중에서도 방패가 되팔았을 때 가장 비싸다")
+        # - ep_0004: "야만인들도 전부 무기 하나만 달랑 들고 있어서"
+        # - ep_0005: "방패 하나만 달랑 가진 좆밥 바바리안"
+        starting_inventory=("방패",),
     ),
     ScenarioMode.NEW_EXPLORER: ScenarioConfig(
         name_ko="새로운 탐험가",
@@ -43,6 +51,8 @@ SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
         fixed_race=None,
         description="5종 종족 중 원하는 종족을 선택해 라스카니아를 탐험하는 시나리오.",
         canon_anchor="",
+        # ★ commit 4의 종족별 default inventory 적용
+        starting_inventory=(),
     ),
 }
 
