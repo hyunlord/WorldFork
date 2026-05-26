@@ -31,7 +31,7 @@ export default function StartScreen() {
 
         <nav className="mt-20 flex w-[360px] flex-col gap-3.5">
           <Link
-            href="/game"
+            href="/character"
             className="block cursor-pointer border border-amber bg-gradient-to-br from-crimson/50 to-bg-deep px-8 py-4 text-center font-serif text-2xl font-bold tracking-[0.4em] text-amber transition hover:bg-gradient-to-br hover:from-crimson/80 hover:to-bg-deep hover:tracking-[0.5em] hover:[text-shadow:0_0_20px_var(--color-amber)]"
           >
             새 게임
