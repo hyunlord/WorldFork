@@ -46,6 +46,10 @@ class RaceConfig:
     description: str = ""
     # ★ phase-e-4 — NEW_EXPLORER 시나리오 종족별 default inventory
     starting_inventory_default: tuple[str, ...] = field(default_factory=tuple)
+    # ★ race-effects — combat / XP trait values
+    dodge_chance_pct: int = 0       # 회피 확률 % (드워프 5, 요정 10)
+    unarmed_bonus: int = 0          # 비무장 공격 보너스 (수인 3)
+    xp_multiplier: float = 1.0      # 정수 흡수 XP 배율 (인간 1.1)
 
 
 # ── 본문 정합 base stat table ────────────────────────────────────────────────
@@ -88,6 +92,7 @@ RACE_CONFIGS: dict[Race, RaceConfig] = {
         description="라스카니아에서 가장 흔한 종족. 모든 stat 균형, 후반 포텐.",
         # ★ wiki 012: "오러는 무조건 도검류. '검'은 오러를 가장 활용하기 좋은 무기"
         starting_inventory_default=("검",),
+        xp_multiplier=1.1,  # ★ 정수 흡수 XP +10%
     ),
     Race.DWARF: RaceConfig(
         name_ko="드워프",
@@ -107,6 +112,7 @@ RACE_CONFIGS: dict[Race, RaceConfig] = {
         description="장인과 광부의 종족. 야금술과 건축 특화.",
         # ★ wiki 012: "'내 망치를 걸고 맹세', '두모카' = 판결하는 망치 (부족장 칭호)
         starting_inventory_default=("망치",),
+        dodge_chance_pct=5,  # ★ 회피 +5%
     ),
     Race.BEASTKIN: RaceConfig(
         name_ko="수인",
@@ -126,6 +132,7 @@ RACE_CONFIGS: dict[Race, RaceConfig] = {
         description="동물귀를 지닌 종족. 민첩성과 감각 능력 특화.",
         # ★ wiki 012: "발톱 — 비무장 공격 +3" traits 정합 — 비무장 출발
         starting_inventory_default=(),
+        unarmed_bonus=3,     # ★ 발톱 비무장 공격 +3
     ),
     Race.FAIRY: RaceConfig(
         name_ko="요정",
@@ -146,6 +153,7 @@ RACE_CONFIGS: dict[Race, RaceConfig] = {
         description="정령술을 쓰는 종족. 뛰어난 기감과 정수 친화력.",
         # ★ 정령술 마법 위주 + 기동성 정합 — 근접 보조 단검 (wiki 명시 없음)
         starting_inventory_default=("단검",),
+        dodge_chance_pct=10,  # ★ 회피 +10%
     ),
 }
 
@@ -175,6 +183,21 @@ def race_from_string(value: str) -> Race | None:
         if config.name_ko == stripped or config.name_en.lower() == lower:
             return race
     return None
+
+
+def get_dodge_chance(race: Race) -> int:
+    """회피 확률 % — 드워프 5, 요정 10, 나머지 0."""
+    return RACE_CONFIGS[race].dodge_chance_pct
+
+
+def get_unarmed_bonus(race: Race) -> int:
+    """비무장 공격 보너스 — 수인 3, 나머지 0."""
+    return RACE_CONFIGS[race].unarmed_bonus
+
+
+def get_xp_multiplier(race: Race) -> float:
+    """정수 흡수 XP 배율 — 인간 1.1, 나머지 1.0."""
+    return RACE_CONFIGS[race].xp_multiplier
 
 
 def apply_race_base_stats(state: dict[str, object], race: Race) -> dict[str, object]:

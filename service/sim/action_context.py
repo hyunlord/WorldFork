@@ -37,6 +37,8 @@ class ActionContext:
     rift_is_variant: bool = False     # 변종 균열 여부
     # ★ 6d-followup — 최초 포탈 개방 여부 (ep_0022)
     portal_first_opened: bool = False
+    # ★ race-effects — 종족 식별자 (combat trait 적용)
+    race: str = "barbarian"
 
     @property
     def essence_slots(self) -> list[EssenceSlot]:

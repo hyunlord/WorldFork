@@ -180,10 +180,12 @@ def execute_enemy_turn(
     player_max_hp: int,
     player_defense: int,
     player_status: list[StatusEffect],
+    player_dodge_pct: int = 0,
 ) -> tuple[list[Enemy], int, list[StatusEffect], list[CombatTurnLog]]:
     """살아 있는 enemy들이 플레이어를 공격.
 
     return: (enemies, new_player_hp, new_player_status, logs)
+    player_dodge_pct: race 회피 확률 % (드워프 5, 요정 10)
     """
     actions = plan_enemy_turn(enemies)
     logs: list[CombatTurnLog] = []
@@ -208,15 +210,24 @@ def execute_enemy_turn(
             ))
             continue
 
-        # 공격
-        damage = max(1, enemy.attack - player_defense)
-        new_hp = max(0, new_hp - damage)
+        # 공격 — race 회피 확률 적용
+        base_damage = max(1, enemy.attack - player_defense)
+        if player_dodge_pct > 0 and random.random() * 100 < player_dodge_pct:
+            logs.append(CombatTurnLog(
+                actor=enemy.name,
+                action_name=action.ability_name,
+                damage_received=0,
+                target_name="player",
+                notes="dodged",
+            ))
+            continue
+        new_hp = max(0, new_hp - base_damage)
         applied = extract_status_from_text(action.ability_name)
         new_status.extend(applied)
         logs.append(CombatTurnLog(
             actor=enemy.name,
             action_name=action.ability_name,
-            damage_received=damage,
+            damage_received=base_damage,
             target_name="player",
             status_applied=[s.type.value for s in applied],
         ))

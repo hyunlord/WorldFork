@@ -151,6 +151,7 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             rift_sub_area=state.rift_sub_area,
             rift_is_variant=state.rift_is_variant,
             portal_first_opened=state.portal_first_opened,
+            race=state.race,
         )
     return ActionContext(
         current_hp=req.current_hp,

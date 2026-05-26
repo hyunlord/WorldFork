@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 
 from service.canon.context import get_entity_index, get_item_registry
 from service.canon.effects import classify_skill, essence_to_slot, parse_essence_abilities
+from service.canon.races import Race, get_dodge_chance, get_unarmed_bonus, get_xp_multiplier
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_helpers import (
     extract_direction,
@@ -34,6 +35,7 @@ from service.sim.dungeon_zones import Direction, get_adjacent_zone, get_zone_inf
 from service.sim.enemy import Enemy, enemy_from_dict, enemy_to_dict
 from service.sim.enemy_ai import compose_flee_narrative, should_enemy_flee
 from service.sim.equipment import equipment_to_dict
+from service.sim.inventory_helpers import is_unarmed
 from service.sim.player_state import slot_to_dict
 from service.sim.status import deserialize_status, serialize_status
 from service.sim.types import PlayerActionType
@@ -443,31 +445,39 @@ async def handle_enter_dungeon(ctx: ActionContext) -> ActionResult:
 
 
 def _compute_player_attack(ctx: ActionContext) -> int:
-    """base attack + 인벤토리 정수 abilities + active skill bonus."""
+    """base attack + 인벤토리 정수 abilities + active skill bonus + 발톱 (수인 비무장)."""
     base = 10
     index = get_entity_index()
-    if index is None:
-        return base
 
     bonus = 0
-    for item in ctx.inventory:
-        ref = index.lookup_by_name(item)
-        if ref is None or ref.entity_type != "essence":
-            continue
-        raw = index.get_raw_essence(item)
-        if raw is None:
-            continue
-        abilities_raw = raw.get("abilities", {})
-        if not isinstance(abilities_raw, dict):
-            continue
-        effects = parse_essence_abilities(abilities_raw)
-        bonus += effects.get("attack_bonus", 0)
-        bonus += effects.get("strength", 0)
-        skills_raw = raw.get("skills_granted")
-        if isinstance(skills_raw, list):
-            for skill in skills_raw:
-                if classify_skill(str(skill)) == "active":
-                    bonus += 2
+    if index is not None:
+        for item in ctx.inventory:
+            ref = index.lookup_by_name(item)
+            if ref is None or ref.entity_type != "essence":
+                continue
+            raw = index.get_raw_essence(item)
+            if raw is None:
+                continue
+            abilities_raw = raw.get("abilities", {})
+            if not isinstance(abilities_raw, dict):
+                continue
+            effects = parse_essence_abilities(abilities_raw)
+            bonus += effects.get("attack_bonus", 0)
+            bonus += effects.get("strength", 0)
+            skills_raw = raw.get("skills_granted")
+            if isinstance(skills_raw, list):
+                for skill in skills_raw:
+                    if classify_skill(str(skill)) == "active":
+                        bonus += 2
+
+    # ★ race-effects — 수인 발톱 비무장 +3
+    try:
+        race = Race(ctx.race)
+        if is_unarmed(ctx.inventory):
+            bonus += get_unarmed_bonus(race)
+    except (ValueError, KeyError):
+        pass
+
     return base + bonus
 
 
@@ -576,6 +586,11 @@ def _build_attack_narrative(
     for log in enemy_logs:
         if log.notes and "hp +" in log.notes:
             parts.append(f" {log.actor}이(가) 상처를 회복했다.")
+        elif log.notes == "dodged":
+            parts.append(
+                f" {log.actor}이(가) {log.action_name}으로 덤벼들었다."
+                " 그러나 나는 가까스로 회피했다."
+            )
         elif log.damage_received > 0:
             parts.append(
                 f" {log.actor}이(가) {log.action_name}으로 반격했다."
@@ -640,8 +655,15 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         enemies = remaining
 
     if enemies:
+        # ★ race-effects — 드워프/요정 회피 확률 전달
+        player_dodge_pct = 0
+        try:
+            player_dodge_pct = get_dodge_chance(Race(ctx.race))
+        except (ValueError, KeyError):
+            pass
         enemies, new_player_hp, new_status, enemy_logs = execute_enemy_turn(
-            enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status
+            enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status,
+            player_dodge_pct=player_dodge_pct,
         )
         hp_change = new_player_hp - ctx.current_hp
 
@@ -913,11 +935,34 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
         from service.sim.player_state import EssenceSlot
         slot_dict = slot_to_dict(EssenceSlot(essence_name=essence_name))
 
+    # ★ race-effects — 정수 흡수 XP + 인간 ×1.1
+    from service.sim.player_state import slot_from_dict
+    absorbed_slot = slot_from_dict(slot_dict)
+    base_xp = compute_xp_grant(absorbed_slot.grade, True, [])
+    try:
+        multiplier = get_xp_multiplier(Race(ctx.race))
+    except (ValueError, KeyError):
+        multiplier = 1.0
+    essence_xp = int(round(base_xp * multiplier))
+    if multiplier > 1.0 and essence_xp > base_xp:
+        msg_lines.append(f"「적응력 발현, 경험치 +{int((multiplier - 1) * 100)}%」")
+
+    level_up = False
+    new_level: int | None = None
+    if essence_xp > 0:
+        computed = compute_level_for_xp(ctx.player_xp + essence_xp)
+        if computed > ctx.player_level:
+            level_up = True
+            new_level = computed
+
     return ActionResult(
         narrative="\n".join(msg_lines),
         inventory_remove=[essence_name],
         time_advance=1,
         essence_slot_add=slot_dict,
+        xp_gain=essence_xp,
+        level_up=level_up,
+        new_level=new_level,
     )
 
 
