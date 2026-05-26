@@ -56,6 +56,7 @@ class Essence(BaseModel):
     side_effects: list[str] = Field(default_factory=list)
     absorption_mechanism: str | None = Field(default=None, max_length=500)
     citations: list[Citation] = Field(default_factory=list)
+    source_monster: str | None = Field(default=None, max_length=100)
 
 
 class Character(BaseModel):
