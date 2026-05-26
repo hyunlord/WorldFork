@@ -19,6 +19,13 @@ export interface StatusBarData {
   grade?: string;
   mageStones?: number;
   runLabel?: string;
+  // ★ commit 2 — 신규 stat fields
+  soulPower?: number;
+  soulPowerMax?: number;
+  essenceCount?: number;
+  essenceMax?: number;
+  playerLevel?: number;
+  floorNumber?: number;
 }
 
 export type TileType =
@@ -48,7 +55,8 @@ export type NarrativeSpan =
   | { kind: "emph"; text: string }
   | { kind: "name"; text: string }
   | { kind: "danger"; text: string }
-  | { kind: "whisper"; text: string };
+  | { kind: "whisper"; text: string }
+  | { kind: "essence"; text: string };
 
 export interface NarrativeParagraph {
   spans: NarrativeSpan[];

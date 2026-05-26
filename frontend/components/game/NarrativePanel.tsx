@@ -38,6 +38,15 @@ function Span({ span, idx }: { span: NarrativeSpan; idx: number }) {
           {span.text}
         </span>
       );
+    case "essence":
+      return (
+        <span
+          key={idx}
+          className="rounded bg-amber/10 px-1 font-medium text-amber [text-shadow:0_0_6px_var(--torch-glow)]"
+        >
+          {span.text}
+        </span>
+      );
     case "plain":
     default:
       return <span key={idx}>{span.text}</span>;
