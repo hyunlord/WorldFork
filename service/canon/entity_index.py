@@ -47,15 +47,19 @@ class EntityIndex:
         self._raw_locations: dict[str, dict[str, object]] = {}
         self._norm_by_name: dict[str, EntityRef] = {}   # space 제거
         self._deep_by_name: dict[str, EntityRef] = {}   # space + "의" 제거
+        self._source_monster_map: dict[str, list[dict[str, object]]] = {}
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
         for e in facts.essences:
             ref = EntityRef("essence", e.name, _summarize_essence(e))
             self._by_name[e.name] = ref
-            self._raw_essences[e.name] = e.model_dump()
+            raw = e.model_dump()
+            self._raw_essences[e.name] = raw
             self._norm_by_name[_normalize(e.name)] = ref
             self._deep_by_name[_normalize_deep(e.name)] = ref
+            if e.source_monster:
+                self._source_monster_map.setdefault(e.source_monster, []).append(raw)
 
         for c in facts.characters:
             ref = EntityRef("character", c.name, _summarize_character(c))
@@ -159,6 +163,27 @@ class EntityIndex:
     def get_raw_location(self, name: str) -> dict[str, object] | None:
         """location name → raw dict (description/sub_locations 활용)."""
         return self._raw_locations.get(name)
+
+    def get_essences_by_source_monster(self, monster_name: str) -> list[dict[str, object]]:
+        """source_monster 정합 essence raw dict list 반환."""
+        return list(self._source_monster_map.get(monster_name, []))
+
+    def get_primary_essence_for_monster(self, monster_name: str) -> dict[str, object] | None:
+        """source_monster 정합 essence 중 대표 1개 반환.
+
+        우선순위: 'X 정수' 명칭 보유 → 최고 grade → 첫 등록 순.
+        """
+        candidates = self._source_monster_map.get(monster_name, [])
+        if not candidates:
+            return None
+        preferred = [c for c in candidates if "정수" in str(c.get("name", ""))]
+        pool = preferred if preferred else candidates
+
+        def _grade(c: dict[str, object]) -> int:
+            g = c.get("grade")
+            return int(g) if isinstance(g, int) else 0
+
+        return max(pool, key=_grade)
 
     def size(self) -> int:
         return len(self._by_name)

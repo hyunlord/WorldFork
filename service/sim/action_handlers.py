@@ -636,6 +636,18 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     # Step 2: 죽은 enemy 정리 + drop
     enemies, essence_drops, equipment_drops = cleanup_dead_enemies(enemies, item_pool)
 
+    # source_monster canon drop — essence_drop이 미설정된 처치 시 보완
+    if player_log.enemy_resolved and not player_log.immune:
+        killed = enemy_from_dict(ctx.encounters[target_idx])
+        if killed.essence_drop is None:
+            _idx = get_entity_index()
+            if _idx is not None:
+                primary = _idx.get_primary_essence_for_monster(killed.name)
+                if primary is not None:
+                    drop_name = primary.get("name")
+                    if isinstance(drop_name, str):
+                        essence_drops.append(drop_name)
+
     # Step 3: 남은 enemy turn + enemy flee check
     enemy_logs: list[CombatTurnLog] = []
     hp_change = 0
