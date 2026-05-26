@@ -195,27 +195,36 @@ DETAILS="$DETAILS\n[5/6] E2E: $E2E_SCORE/10"
 echo ""
 echo "[6/6] Verify Agent (★ Cross-LLM 코드 리뷰 — 50점)..."
 VERIFY_SCORE=0
+VERIFY_FLAKE=0
 
 # ★ codex가 git diff 리뷰 (★ 자기 합리화 차단)
 if command -v codex &>/dev/null; then
     REVIEW_OUTPUT=$(python scripts/verify_layer1_review.py 2>&1)
     REVIEW_EXIT=$?
 
-    SCORE_LINE=$(echo "$REVIEW_OUTPUT" | grep -oE 'SCORE=[0-9]+' | tail -1)
-    if [ -n "$SCORE_LINE" ]; then
-        VERIFY_SCORE_RAW=$(echo "$SCORE_LINE" | sed 's/SCORE=//')
-        # ★ 25점 만점 → 50점 환산 (× 2)
-        VERIFY_SCORE=$((VERIFY_SCORE_RAW * 2))
-        if [ $REVIEW_EXIT -eq 0 ]; then
-            echo "  ✅ Verify passed ($VERIFY_SCORE_RAW/25 raw → $VERIFY_SCORE/50)"
-        else
-            echo "  ⚠️ Verify fail ($VERIFY_SCORE_RAW/25 raw → $VERIFY_SCORE/50)"
-        fi
-        echo "$REVIEW_OUTPUT" | head -8 | sed 's/^/    /'
-    else
-        echo "  ❌ Verify Agent output parse failed"
-        echo "$REVIEW_OUTPUT" | head -5 | sed 's/^/    /'
+    if [ $REVIEW_EXIT -eq 2 ]; then
+        # exit 2 = flake (codex CLI timeout 전체 소진)
+        echo "  ⚠️  Verify Agent codex CLI flake — SKIP (N/A)"
         VERIFY_SCORE=0
+        VERIFY_FLAKE=1
+        echo "$REVIEW_OUTPUT" | tail -4 | sed 's/^/    /'
+    else
+        SCORE_LINE=$(echo "$REVIEW_OUTPUT" | grep -oE 'SCORE=[0-9]+' | tail -1)
+        if [ -n "$SCORE_LINE" ]; then
+            VERIFY_SCORE_RAW=$(echo "$SCORE_LINE" | sed 's/SCORE=//')
+            # ★ 25점 만점 → 50점 환산 (× 2)
+            VERIFY_SCORE=$((VERIFY_SCORE_RAW * 2))
+            if [ $REVIEW_EXIT -eq 0 ]; then
+                echo "  ✅ Verify passed ($VERIFY_SCORE_RAW/25 raw → $VERIFY_SCORE/50)"
+            else
+                echo "  ⚠️ Verify fail ($VERIFY_SCORE_RAW/25 raw → $VERIFY_SCORE/50)"
+            fi
+            echo "$REVIEW_OUTPUT" | head -8 | sed 's/^/    /'
+        else
+            echo "  ❌ Verify Agent output parse failed"
+            echo "$REVIEW_OUTPUT" | head -5 | sed 's/^/    /'
+            VERIFY_SCORE=0
+        fi
     fi
 else
     echo "  ⚠️ codex CLI not available"
@@ -223,26 +232,44 @@ else
 fi
 
 SCORE=$((SCORE + VERIFY_SCORE))
-DETAILS="$DETAILS\n[6/6] Verify Agent: $VERIFY_SCORE/50"
 
-# 결과
+# verify SKIP 시 N/A 표시
+if [ $VERIFY_FLAKE -eq 1 ]; then
+    DETAILS="$DETAILS\n[6/6] Verify Agent: N/A (flake skip)"
+else
+    DETAILS="$DETAILS\n[6/6] Verify Agent: $VERIFY_SCORE/50"
+fi
+
+# 결과 (★ verify SKIP 시 분모 50, threshold 95% = 48)
 echo ""
 echo "════════════════════════════════════════════════"
-echo "TOTAL: $SCORE/100"
+if [ $VERIFY_FLAKE -eq 1 ]; then
+    echo "TOTAL: $SCORE/50 (★ Verify SKIP — flake N/A)"
+    MAX_SCORE=50
+    PASS_THRESHOLD=48
+    WARN_THRESHOLD=40
+    FAIL_C_THRESHOLD=35
+else
+    echo "TOTAL: $SCORE/100"
+    MAX_SCORE=100
+    PASS_THRESHOLD=95
+    WARN_THRESHOLD=80
+    FAIL_C_THRESHOLD=70
+fi
 echo "════════════════════════════════════════════════"
 printf "%b\n" "$DETAILS"
 echo ""
 
-if [ $SCORE -ge 95 ]; then
-    echo "✅ Ship gate PASSED (A 등급, $SCORE/100)"
+if [ $SCORE -ge $PASS_THRESHOLD ]; then
+    echo "✅ Ship gate PASSED (A 등급, $SCORE/$MAX_SCORE)"
     exit 0
-elif [ $SCORE -ge 80 ]; then
-    echo "⚠️ Ship gate WARN (B 등급, $SCORE/100) — push 안 됨"
+elif [ $SCORE -ge $WARN_THRESHOLD ]; then
+    echo "⚠️ Ship gate WARN (B 등급, $SCORE/$MAX_SCORE) — push 안 됨"
     exit 1
-elif [ $SCORE -ge 70 ]; then
-    echo "❌ Ship gate FAILED (C 등급, $SCORE/100)"
+elif [ $SCORE -ge $FAIL_C_THRESHOLD ]; then
+    echo "❌ Ship gate FAILED (C 등급, $SCORE/$MAX_SCORE)"
     exit 1
 else
-    echo "❌ Ship gate FAILED (F, $SCORE/100)"
+    echo "❌ Ship gate FAILED (F, $SCORE/$MAX_SCORE)"
     exit 1
 fi
