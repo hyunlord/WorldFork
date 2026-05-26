@@ -6,7 +6,6 @@
  */
 
 import type {
-  CharacterSheetData,
   DungeonViewData,
   EncounterPanelData,
   EssenceDetailData,
@@ -180,60 +179,6 @@ export const DEMO_PARTY: PartyPanelData = {
       mood: "confident",
       moodLabel: "자신",
     },
-  ],
-};
-
-export const DEMO_CHARACTER: CharacterSheetData = {
-  name: "비요른",
-  portraitCh: "@",
-  subtitle: "~ 미궁 탐험가 · 7등급 ~",
-  statSections: [
-    {
-      header: "기본",
-      stats: [
-        { label: "HP", value: "75 / 100", bar: 75 },
-        { label: "기력", value: "8 / 10", bar: 80 },
-        { label: "등급", value: "7등급", amber: true },
-        { label: "다음 등급", value: "조건 X · 길드 시험", unidentified: true },
-      ],
-    },
-    {
-      header: "전투",
-      stats: [
-        { label: "공격", value: "14" },
-        { label: "방어", value: "9" },
-        { label: "민첩", value: "11" },
-        { label: "치명", value: "측정 X", unidentified: true },
-      ],
-    },
-    {
-      header: "상태",
-      stats: [
-        { label: "시간", value: "24h / 174h" },
-        { label: "위치", value: "1층 · 진입점" },
-        { label: "횃불", value: "활성 · 50%", amber: true },
-      ],
-    },
-  ],
-  essenceSlots: [
-    { state: "filled", icon: "◆", label: "힘 정수 · 9등급" },
-    { state: "uncertain", icon: "◇", label: "검증 X" },
-    { state: "empty", icon: "·", label: "empty" },
-    { state: "locked", icon: "✕", label: "locked" },
-  ],
-  skillRows: [
-    { name: "강타", meta: "힘 정수 9등급 · 능동", value: "레벨 3" },
-    {
-      name: "??? · 미검증",
-      meta: "검증 X · 사용 X",
-      value: "측정 X",
-      unidentified: true,
-    },
-  ],
-  equipRows: [
-    { name: "청동 단검 +1", meta: "무기 · 공격 +3", value: "착용" },
-    { name: "가죽 갑옷", meta: "방어구 · 방어 +2", value: "착용" },
-    { name: "9등급 마석 × 3", meta: "자원 · 마석", value: "소지" },
   ],
 };
 

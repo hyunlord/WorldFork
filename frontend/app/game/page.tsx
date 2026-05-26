@@ -15,8 +15,13 @@ import type {
   CharacterListRow,
   CharacterSheetData,
   EssenceSlot,
+  InventoryPanelData,
+  InventoryRow,
   NarrativePanelData,
   NarrativeSpan,
+  PartyMember,
+  PartyMemberMood,
+  PartyPanelData,
   StatusBarData,
 } from "@/components/game/types";
 import {
@@ -32,7 +37,7 @@ import { useGameState } from "@/lib/hooks/useGameState";
 import { useKeyboard } from "@/lib/hooks/useKeyboard";
 import { usePostAction } from "@/lib/hooks/usePostAction";
 import { RACES } from "@/lib/types/character";
-import type { CharacterV2 } from "@/lib/api/v2";
+import type { CharacterV2, StateResponse } from "@/lib/api/v2";
 
 const MAX_HOURS = 174;
 
@@ -149,6 +154,86 @@ function buildCharacterSheet(player: CharacterV2): CharacterSheetData {
   };
 }
 
+function buildInventory(player: CharacterV2 | null): InventoryPanelData {
+  if (!player) return DEMO_INVENTORY;
+  const p = player as Record<string, unknown>;
+  const eq = (p.equipment ?? {}) as Record<string, unknown>;
+  const inv = (p.inventory ?? {}) as Record<string, unknown>;
+  const items = Array.isArray(inv.items) ? (inv.items as Record<string, unknown>[]) : [];
+
+  const weapon = eq.weapon as Record<string, unknown> | null | undefined;
+  const armor = eq.armor as Record<string, unknown> | null | undefined;
+  const acc1 = eq.accessory_1 as Record<string, unknown> | null | undefined;
+  const acc2 = eq.accessory_2 as Record<string, unknown> | null | undefined;
+  const equipRows: InventoryRow[] = [
+    { label: "무기", value: weapon ? String(weapon.name) : "없음" },
+    { label: "방어구", value: armor ? String(armor.name) : "없음" },
+  ];
+  if (acc1) equipRows.push({ label: "장신구 1", value: String(acc1.name) });
+  if (acc2) equipRows.push({ label: "장신구 2", value: String(acc2.name) });
+
+  const stoneMap: Record<string, number> = {};
+  const resourceRows: InventoryRow[] = [];
+  for (const item of items) {
+    const category = String(item.category ?? "");
+    const name = String(item.name ?? "아이템");
+    const grade = item.grade;
+    if (grade != null) {
+      const key = `${grade}등급 마석`;
+      stoneMap[key] = (stoneMap[key] ?? 0) + 1;
+    } else if (category === "마도구" || name.includes("횃불")) {
+      resourceRows.push({ label: name, value: "활성", kind: "amber" });
+    } else if (category !== "무기" && category !== "방어구" && category !== "장신구") {
+      resourceRows.push({ label: name, value: "1" });
+    }
+  }
+  for (const [label, count] of Object.entries(stoneMap)) {
+    resourceRows.push({ label, value: `× ${count}` });
+  }
+  if (resourceRows.length === 0) {
+    resourceRows.push({ label: "자원 없음", value: "-" });
+  }
+
+  return {
+    sections: [
+      { header: "장비", rows: equipRows },
+      { header: "자원", rows: resourceRows },
+    ],
+  };
+}
+
+function buildParty(data: StateResponse | null): PartyPanelData {
+  if (!data) return DEMO_PARTY;
+  const chars = Object.values(data.state.characters);
+  if (chars.length === 0) return DEMO_PARTY;
+
+  const members: PartyMember[] = chars.map((c) => {
+    const char = c as CharacterV2 & Record<string, unknown>;
+    const hp = Number(char.hp ?? 100);
+    const hpMax = Number(char.hp_max ?? 100);
+    const grade = Number(char.grade ?? 1);
+    const isPlayer = Boolean(char.is_player);
+    const hpPct = hpMax > 0 ? hp / hpMax : 1;
+    const mood: PartyMemberMood =
+      hpPct < 0.3 ? "wounded" : hpPct < 0.7 ? "alert" : "confident";
+    const moodLabel =
+      mood === "wounded" ? "부상" : mood === "alert" ? "경계" : "양호";
+    return {
+      id: String(char.name ?? "unknown"),
+      name: String(char.name ?? "탐험가"),
+      portraitCh: isPlayer ? "@" : String(char.name ?? "N")[0] ?? "N",
+      role: `${grade}등급`,
+      isSelf: isPlayer,
+      hp,
+      hpMax,
+      mood,
+      moodLabel,
+    };
+  });
+  members.sort((a, b) => (a.isSelf ? -1 : b.isSelf ? 1 : 0));
+  return { members };
+}
+
 export default function GamePage() {
   const { data } = useGameState();
   const { execute, executing } = usePostAction();
@@ -212,6 +297,16 @@ export default function GamePage() {
     return buildCharacterSheet(player);
   }, [player]);
 
+  const inventoryData = useMemo<InventoryPanelData>(
+    () => buildInventory(player),
+    [player],
+  );
+
+  const partyData = useMemo<PartyPanelData>(
+    () => buildParty(data),
+    [data],
+  );
+
   const handleSubmit = useCallback(
     async (text: string) => {
       const resp = await freeform.submit(text);
@@ -273,7 +368,7 @@ export default function GamePage() {
               }
             }}
           />
-          <InventoryPanel data={DEMO_INVENTORY} />
+          <InventoryPanel data={inventoryData} />
         </div>
       </div>
 
@@ -291,7 +386,7 @@ export default function GamePage() {
       )}
 
       <PartyPanel
-        data={DEMO_PARTY}
+        data={partyData}
         onMember={(id) => {
           if (id === "self") setCharOpen(true);
         }}
