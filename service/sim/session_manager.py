@@ -307,6 +307,8 @@ class SessionManager:
                 state.rift_id = None
                 state.rift_sub_area = None
                 state.rift_is_variant = False
+        # ★ audit-step168h-followup — 일반 turn 경과 시간 누적 (minute 단위)
+        state.time_elapsed += int(round(result.time_advance * 60))
         state.turn_count += 1
         state.last_active = _now()
 

@@ -45,14 +45,15 @@ def _force_return_narrative() -> str:
     )
 
 
-def _force_return_to_city(state: SessionState) -> None:
+def _force_return_to_city(state: SessionState, undo_min: int = 0) -> None:
     """168h 도달 시 강제 귀환 — state 인플레이스 변경.
 
     - inventory / level / xp / absorbed_essences 유지 (ep_0016 정합)
     - status_effects 해제 (마을 안전)
     - encounters / hours_in_dungeon 초기화
     - floor_number → 0, location → 차원광장
-    - time_elapsed += 1440min (24h) — wiki 010 "다음날 정오"
+    - time_elapsed += 1440min - undo_min — wiki 010 "다음날 정오"
+      apply_result가 이미 더한 분량(undo_min)을 상쇄 후 24h 스킵만 적용
     """
     state.floor_number = 0
     state.location = "라스카니아 · 차원광장"
@@ -60,18 +61,20 @@ def _force_return_to_city(state: SessionState) -> None:
     state.status_effects = []
     state.hours_in_dungeon = 0.0
     state.last_spawn_turn = -10
-    state.time_elapsed += int(RETURN_TIME_ADVANCE_HOURS * 60)
+    state.time_elapsed += int(RETURN_TIME_ADVANCE_HOURS * 60) - undo_min
 
 
 def _post_apply_dungeon_clock(
     state: SessionState,
     prev_hours: float,
+    last_advance_min: int = 0,
 ) -> str | None:
     """dungeon clock 체크 — 강제 귀환 또는 경고 메시지 반환.
 
     강제 귀환 시 state를 인플레이스 변경하고 narrative를 반환.
     경고만 있으면 경고 메시지 반환.
     이상 없으면 None 반환.
+    last_advance_min: apply_result가 이미 time_elapsed에 더한 분량 (force_return 시 상쇄).
     """
     floor = state.floor_number
     if floor < 1:
@@ -80,7 +83,7 @@ def _post_apply_dungeon_clock(
     new_hours = state.hours_in_dungeon
 
     if should_force_return(floor, new_hours):
-        _force_return_to_city(state)
+        _force_return_to_city(state, undo_min=last_advance_min)
         return _force_return_narrative()
 
     warning = check_warning(floor, prev_hours, new_hours)
@@ -240,7 +243,11 @@ async def freeform_action_endpoint(
                     resolved_path=resolved_path,
                 )
                 _post_apply_spawn(session_state)
-                clock_msg = _post_apply_dungeon_clock(session_state, prev_hours)
+                clock_msg = _post_apply_dungeon_clock(
+                    session_state,
+                    prev_hours,
+                    last_advance_min=int(round(result.time_advance * 60)),
+                )
                 tip_msg = _build_tip_message(session_state.stone_balance, prev_stone)
                 needs_save = False
                 if clock_msg:
@@ -317,7 +324,11 @@ async def freeform_action_endpoint(
             resolved_path=resolved_path_fb,
         )
         _post_apply_spawn(session_state)
-        clock_msg_fb = _post_apply_dungeon_clock(session_state, prev_hours_fb)
+        clock_msg_fb = _post_apply_dungeon_clock(
+            session_state,
+            prev_hours_fb,
+            last_advance_min=int(round(pseudo_result.time_advance * 60)),
+        )
         tip_msg_fb = _build_tip_message(session_state.stone_balance, prev_stone_fb)
         needs_save_fb = False
         if clock_msg_fb:
