@@ -145,7 +145,7 @@ def _plaza_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -160,7 +160,7 @@ def test_first_meet_no_fame_baseline() -> None:
     world = WorldState()
     actor = _bjorn(fame=0)
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert result.success is True
     assert world.npc_affinities["aenar"] == AFFINITY_DELTA_DIALOGUE
@@ -170,7 +170,7 @@ def test_first_meet_with_fame_50_bonus_5() -> None:
     """fame=50 → bonus 5 → 시작 5, +5 → 10."""
     world = WorldState()
     actor = _bjorn(fame=50)
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     assert world.npc_affinities["aenar"] == 10
 
 
@@ -178,7 +178,7 @@ def test_first_meet_with_fame_30_bonus_3() -> None:
     """fame=30 → bonus 3 → 시작 3, +5 → 8."""
     world = WorldState()
     actor = _bjorn(fame=30)
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     assert world.npc_affinities["aenar"] == 8
 
 
@@ -187,7 +187,7 @@ def test_repeat_meet_no_fame_bonus() -> None:
     world = WorldState()
     world.npc_affinities["aenar"] = 20  # ★ 이미 만남
     actor = _bjorn(fame=100)
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     # 재만남: 20 + 5 = 25 (★ fame 100 영향 X)
     assert world.npc_affinities["aenar"] == 25
 
@@ -196,7 +196,7 @@ def test_first_meet_fame_bonus_caps_at_max() -> None:
     """fame=1000 → bonus 100 → 시작 100, +5 → cap 100."""
     world = WorldState()
     actor = _bjorn(fame=1000)
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     assert world.npc_affinities["aenar"] == AFFINITY_MAX
 
 
@@ -204,7 +204,7 @@ def test_first_meet_message_shows_fame_bonus() -> None:
     world = WorldState()
     actor = _bjorn(fame=30)
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert "명성 30" in result.message
     assert "+3" in result.message
@@ -215,7 +215,7 @@ def test_first_meet_fame_0_no_bonus_message() -> None:
     world = WorldState()
     actor = _bjorn(fame=0)
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert "명성" not in result.message
 
@@ -226,7 +226,7 @@ def test_repeat_meet_no_fame_message() -> None:
     world.npc_affinities["aenar"] = 10
     actor = _bjorn(fame=100)
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert "명성" not in result.message
 
@@ -257,7 +257,7 @@ def _base_ctx() -> dict[str, Any]:
     return {
         "work_name": "1층",
         "work_genre": "판타지",
-        "world_setting": "라프도니아",
+        "world_setting": "라스카니아",
         "world_tone": "차분",
         "world_rules": ["1층 어둠"],
         "main_character_name": "비요른",

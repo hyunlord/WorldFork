@@ -86,7 +86,7 @@ def _exchange_office_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area=EXCHANGE_OFFICE_SUB_AREA,
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -122,7 +122,7 @@ def test_fails_wrong_sub_area() -> None:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
     result = exchange_mage_stones(actor, loc)
     assert result.success is False
@@ -229,7 +229,7 @@ def test_gm_prompt_exchange_office_hint() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "exchange_office",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
@@ -246,7 +246,7 @@ def test_gm_prompt_other_sub_area_no_hint() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)

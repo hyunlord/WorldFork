@@ -230,7 +230,7 @@ _EAST_PASSAGE = SubArea(
 
 _ENTRANCE = SubArea(
     name="진입점",
-    description="1층 시작 위치. 라프도니아 차원광장에서 연결.",
+    description="1층 시작 위치. 라스카니아 차원광장에서 연결.",
     accessible_from=("북쪽 통로",),
     monster_names=(),  # ★ 안전 영역
     is_dark=False,

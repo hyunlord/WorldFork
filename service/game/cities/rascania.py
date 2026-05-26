@@ -1,20 +1,17 @@
-"""라프도니아 도시 정의 (★ Phase 8 (a-2)).
+"""라스카니아 도시 정의 (★ Phase 8 (a-2)).
 
-본 commit 본문 정합 (★ docs/village_spec.md §7 + .local/novel_bodies/):
-- 3화: "라프도니아......" 도시 진입
-- 16화: 에르웬 본격 본격
+본문 정합 (★ docs/village_spec.md §7 + .local/novel_bodies/):
+- 3화: 도시 진입
+- 16화: 실렌 합류
 - 19화: "매월 1일 자정 미궁 열림, 한 달 정확히 30일"
 - 127화: "현재 거주 중인 7구역"
 - 162화: "7구역의 중앙 광장. 모임 장소" + "오늘은 미궁이 열리는 날"
-- namu §4.3: 시설 18개 (★ 본 commit 9개 선택)
+- namu §4.3: 시설 18개 (★ 9개 선택)
 - namu §7.1: 탐험가 길드 본점
 - namu §4.3: 라비기온 중앙 도서관 — 사서 라그나
 
-본 commit data-only. Location.city_id / 환전 mechanism / gm_agent prompt 본격
-후속 (a-3) commit.
-
 작품 IP masking (★ docs/PHASE_C_LAUNCH_GUIDE 7장 정합):
-- 본 commit은 1차 자료 매핑 본격 — 비식별 layer는 service/pipeline/ip_masking.py 본격.
+- 라프도니아 → 라스카니아, 에르웬 → 실렌, 아이나르 → 카이라
 """
 
 from __future__ import annotations
@@ -23,11 +20,11 @@ from .city_definition import CityDefinition, CitySubAreaDef, NPCDef
 
 # ─── NPCs (★ 4 canonical 본문 인물 + 5 직책만) ───
 
-RAPDONIA_NPCS: tuple[NPCDef, ...] = (
+RASCANIA_NPCS: tuple[NPCDef, ...] = (
     # ── 본문 등장 인물 (★ is_canonical=True) ──
     NPCDef(
         id="aenar",
-        name="아이나르",
+        name="카이라",
         role="barbarian_companion",
         sub_area_id="district_7_plaza",
         dialogue_intro="프넬린의 두 번째 딸 — 바바리안 동료 (★ 3화).",
@@ -35,10 +32,10 @@ RAPDONIA_NPCS: tuple[NPCDef, ...] = (
     ),
     NPCDef(
         id="erwen",
-        name="에르웬",
+        name="실렌",
         role="party_companion",
         sub_area_id="district_7_plaza",
-        dialogue_intro="비요른의 동료 — 요정 (★ 16/18화). 회계/세금 정보.",
+        dialogue_intro="투르윈의 동료 — 요정 (★ 16/18화). 회계/세금 정보.",
         is_canonical=True,
     ),
     NPCDef(
@@ -134,10 +131,10 @@ RAPDONIA_NPCS: tuple[NPCDef, ...] = (
 
 # ─── Sub Areas (★ 9개 — namu §4.3 + 본문 162화) ───
 
-RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
+RASCANIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
     CitySubAreaDef(
         id="district_7_plaza",
-        name="라프도니아 7구역 중앙 광장",
+        name="라스카니아 7구역 중앙 광장",
         description=(
             "매월 1일 자정 미궁 포탈이 열리는 광장 (★ 19화). "
             "모임 장소로 많이 쓰는 곳 (★ 162화). "
@@ -236,7 +233,7 @@ RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
         ),
         connections=("district_7_plaza", "inn"),
     ),
-    # ── Phase 9.5 삼신교 (★ 268화 라프도니아 세 교단) ──
+    # ── Phase 9.5 삼신교 (★ 268화 라스카니아 세 교단) ──
     CitySubAreaDef(
         id="toberah_temple",
         name="토베라 신전",
@@ -270,10 +267,10 @@ RAPDONIA_SUB_AREAS: tuple[CitySubAreaDef, ...] = (
 
 # ─── City Definition (★ 본 commit data 핵심) ───
 
-RAPDONIA: CityDefinition = CityDefinition(
-    city_id="rapdonia",
-    city_name="라프도니아",
+RASCANIA: CityDefinition = CityDefinition(
+    city_id="rascania",
+    city_name="라스카니아",
     entry_sub_area="district_7_plaza",
-    sub_areas=RAPDONIA_SUB_AREAS,
-    npcs=RAPDONIA_NPCS,
+    sub_areas=RASCANIA_SUB_AREAS,
+    npcs=RASCANIA_NPCS,
 )

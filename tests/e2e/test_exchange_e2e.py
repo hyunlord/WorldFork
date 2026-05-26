@@ -63,7 +63,7 @@ def _exchange_office_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="exchange_office",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -118,7 +118,7 @@ def test_scripted_exchange_outside_office_fails() -> None:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
     actions = [

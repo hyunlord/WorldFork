@@ -39,9 +39,9 @@ def _force_return_narrative() -> str:
     return (
         "「층계 폐쇄까지 1분 남았습니다.」\n\n"
         "빛이 눈앞을 뒤덮고, 그보다 옅은 빛이 얹어지며 시야가 돌아온다. "
-        "나는 멍하니 하늘을 올려다보았다. 라프도니아 차원광장이다.\n\n"
+        "나는 멍하니 하늘을 올려다보았다. 라스카니아 차원광장이다.\n\n"
         "「미궁이 폐쇄되었습니다.」\n"
-        "「캐릭터가 라프도니아로 이동합니다.」"
+        "「캐릭터가 라스카니아로 이동합니다.」"
     )
 
 
@@ -55,7 +55,7 @@ def _force_return_to_city(state: SessionState) -> None:
     - time_elapsed += 1440min (24h) — wiki 010 "다음날 정오"
     """
     state.floor_number = 0
-    state.location = "라프도니아 · 차원광장"
+    state.location = "라스카니아 · 차원광장"
     state.encounters = []
     state.status_effects = []
     state.hours_in_dungeon = 0.0

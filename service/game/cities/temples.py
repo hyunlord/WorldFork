@@ -10,7 +10,7 @@
 - 레아틀라스 사제 이름
 
 production caller (★ Phase 9.5):
-- service/game/cities/rapdonia.py: 3 temple sub_areas
+- service/game/cities/rascania.py: 3 temple sub_areas
 - service/game/turn_handler_v2.py: execute_heal_at_temple
 - service/game/gm_agent.py: _format_city_context temple hint
 """

@@ -9,7 +9,7 @@
 본격 본질:
 - singleton holder (★ 본격 단순 — 후속 session-aware 본격)
 - default party/world/location (★ E2E 본격 패턴 동일):
-  비요른 (바바리안) + 에르웬 (요정), 1층 진입점 DUNGEON
+  투르윈 (바바리안) + 실렌 (요정), 1층 진입점 DUNGEON
 - recent_actions 본격 빈 list (★ 본 commit /action 시 본격 append)
 
 Phase 9.18-a 본격 (★ §E fix from 30턴 playthrough):
@@ -87,10 +87,10 @@ class _V2StateHolder:
         self._init_default()
 
     def _init_default(self) -> None:
-        """E2E 패턴 동일 default — 비요른 + 에르웬, 1층 진입점."""
+        """E2E 패턴 동일 default — 투르윈 + 실렌, 1층 진입점."""
         self.party = {
-            "비요른": Character(
-                name="비요른",
+            "투르윈": Character(
+                name="투르윈",
                 race=Race.BARBARIAN,
                 hp=150,
                 hp_max=150,
@@ -99,8 +99,8 @@ class _V2StateHolder:
                 bone_strength=12,
                 is_player=True,
             ),
-            "에르웬": Character(
-                name="에르웬",
+            "실렌": Character(
+                name="실렌",
                 race=Race.FAERIE,
                 hp=90,
                 hp_max=90,
@@ -108,7 +108,7 @@ class _V2StateHolder:
                 soul_power_max=60,
             ),
         }
-        self.world = WorldState(party_members=["비요른", "에르웬"])
+        self.world = WorldState(party_members=["투르윈", "실렌"])
         self.location = Location(
             realm=Realm.DUNGEON,
             floor=1,
@@ -416,7 +416,7 @@ def _build_v2_ctx(holder: _V2StateHolder) -> dict[str, Any]:
     - language / character_response
     - v2_characters / v2_world_state / v2_initial_location / active_encounters
     """
-    main_name = "비요른"
+    main_name = "투르윈"
     supporting = [
         {"name": n, "role": "동료"}
         for n in holder.party
@@ -426,13 +426,13 @@ def _build_v2_ctx(holder: _V2StateHolder) -> dict[str, Any]:
     return {
         "work_name": "1층 미궁",
         "work_genre": "판타지",
-        "world_setting": "라프도니아",
+        "world_setting": "라스카니아",
         "world_tone": "차분하고 신중한 톤",
         "world_rules": [
             "1층 어둠 본질",
             "한국어만",
             "격식체",
-            "라프도니아 본문 정합 — 추측 사실 X",
+            "라스카니아 본문 정합 — 추측 사실 X",
         ],
         "main_character_name": main_name,
         "main_character_role": "주인공",

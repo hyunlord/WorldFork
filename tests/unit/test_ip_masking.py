@@ -48,7 +48,7 @@ class TestMaskText:
 
     def test_default_replacement_is_generic(self) -> None:
         result = mask_text("비요른")
-        assert result.masked in GENERIC_REPLACEMENTS["character"]
+        assert result.masked == GENERIC_REPLACEMENTS["비요른"]
 
 
 class TestApplyIPMasking:
@@ -109,8 +109,9 @@ class TestKeywordConfig:
         assert "비요른" in KOREAN_IP_KEYWORDS
         assert "라프도니아" in KOREAN_IP_KEYWORDS
 
-    def test_generic_replacements_have_categories(self) -> None:
-        assert "character" in GENERIC_REPLACEMENTS
-        assert "place" in GENERIC_REPLACEMENTS
-        assert "world" in GENERIC_REPLACEMENTS
-        assert len(GENERIC_REPLACEMENTS["character"]) >= 1
+    def test_generic_replacements_have_entries(self) -> None:
+        assert "비요른" in GENERIC_REPLACEMENTS
+        assert "라프도니아" in GENERIC_REPLACEMENTS
+        assert "에르웬" in GENERIC_REPLACEMENTS
+        assert GENERIC_REPLACEMENTS["비요른"] == "투르윈"
+        assert GENERIC_REPLACEMENTS["라프도니아"] == "라스카니아"

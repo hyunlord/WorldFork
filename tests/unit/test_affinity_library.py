@@ -63,7 +63,7 @@ def _plaza_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -81,7 +81,7 @@ def test_dialogue_increases_affinity_by_5() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert result.success is True
     assert world.npc_affinities["aenar"] == AFFINITY_DELTA_DIALOGUE
@@ -92,7 +92,7 @@ def test_dialogue_caps_at_max_100_643hwa() -> None:
     world = WorldState()
     world.npc_affinities["aenar"] = 99
     actor = _actor()
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     assert world.npc_affinities["aenar"] == AFFINITY_MAX
 
 
@@ -100,7 +100,7 @@ def test_dialogue_outside_city_fails() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _dungeon_loc()
+        "비요른", "카이라", [actor], world, _dungeon_loc()
     )
     assert result.success is False
 
@@ -129,7 +129,7 @@ def test_dialogue_side_effect_marker() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert any(
         s == "affinity_changed=aenar:0->5" for s in result.side_effects
@@ -147,7 +147,7 @@ def test_dialogue_actor_not_in_party_fails() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_dialogue(
-        "투르윈", "아이나르", [actor], world, _plaza_loc()
+        "투르윈", "카이라", [actor], world, _plaza_loc()
     )
     assert result.success is False
 
@@ -160,7 +160,7 @@ def _library_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="central_library",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -278,12 +278,12 @@ def _base_ctx() -> dict[str, Any]:
         "main_character_name": "비요른",
         "main_character_role": "주인공",
         "supporting_characters": [],
-        "current_location": "라프도니아",
+        "current_location": "라스카니아",
         "current_turn": 0,
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
     }
 
@@ -293,7 +293,7 @@ def test_prompt_shows_npc_affinity_in_plaza() -> None:
     ctx["v2_world_state"] = {"npc_affinities": {"aenar": 25}}
     prompt = _gm_system_prompt(ctx)
     # ★ Phase 9.17-g — label 추가 (★ 162화 정합)
-    assert "아이나르 (호감도 25 동료)" in prompt
+    assert "카이라 (호감도 25 동료)" in prompt
     assert "DIALOGUE" in prompt
 
 
@@ -302,7 +302,7 @@ def test_prompt_shows_default_affinity_0() -> None:
     ctx = _base_ctx()
     prompt = _gm_system_prompt(ctx)
     # ★ Phase 9.17-g — label 추가 (★ 0 = 지인)
-    assert "아이나르 (호감도 0 지인)" in prompt
+    assert "카이라 (호감도 0 지인)" in prompt
 
 
 def test_prompt_library_low_affinity_shows_fee() -> None:
@@ -310,7 +310,7 @@ def test_prompt_library_low_affinity_shows_fee() -> None:
     ctx["v2_initial_location"] = {
         "realm": "도시",
         "sub_area": "central_library",
-        "city_id": "rapdonia",
+        "city_id": "rascania",
     }
     prompt = _gm_system_prompt(ctx)
     assert "LIBRARY_SEARCH" in prompt
@@ -324,7 +324,7 @@ def test_prompt_library_high_affinity_shows_free() -> None:
     ctx["v2_initial_location"] = {
         "realm": "도시",
         "sub_area": "central_library",
-        "city_id": "rapdonia",
+        "city_id": "rascania",
     }
     ctx["v2_world_state"] = {"npc_affinities": {LIBRARIAN_NPC_ID: 80}}
     prompt = _gm_system_prompt(ctx)

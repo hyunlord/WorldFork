@@ -203,7 +203,7 @@ def test_wait_disability_side_effect_emitted() -> None:
 
 def _temple_loc(sub_area: str = "reatlas_temple") -> Location:
     return Location(
-        realm=Realm.CITY, floor=0, sub_area=sub_area, city_id="rapdonia"
+        realm=Realm.CITY, floor=0, sub_area=sub_area, city_id="rascania"
     )
 
 
@@ -321,7 +321,7 @@ def _base_ctx() -> dict[str, Any]:
         "main_character_name": "비요른",
         "main_character_role": "주인공",
         "supporting_characters": [],
-        "current_location": "라프도니아",
+        "current_location": "라스카니아",
         "current_turn": 0,
     }
 

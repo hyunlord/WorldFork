@@ -127,7 +127,7 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
     """마을 본격 GM prompt — sub_area + NPC + 인접 이동 (★ Phase 8 village mech).
 
     본 함수는 ctx['v2_initial_location'].realm == 'city' 시 본격 prompt block 본격.
-    a-2 선례 정합: RAPDONIA 직접 import (★ CITY_REGISTRY dict 본격 X).
+    a-2 선례 정합: RASCANIA 직접 import (★ CITY_REGISTRY dict 본격 X).
 
     본 commit (a-2)+(a-3) 본격 SKIP된 GM prompt wire — 환전 mechanism은 후속 commit.
     """
@@ -139,29 +139,29 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
     if not city_id:
         return ""
 
-    # 본 sim 본격 1 city (라프도니아). 후속 multi-city 본격 dispatch 본격 본격.
-    from .cities.rapdonia import RAPDONIA
+    # sim 현재 1 city (라스카니아). 후속 multi-city dispatch 본격.
+    from .cities.rascania import RASCANIA
 
-    if city_id != RAPDONIA.city_id:
+    if city_id != RASCANIA.city_id:
         return f"📍 마을: {city_id} (★ 본격 데이터 X)\n\n"
 
     current_sub_id = loc.get("sub_area")
     sub = next(
-        (s for s in RAPDONIA.sub_areas if s.id == current_sub_id),
+        (s for s in RASCANIA.sub_areas if s.id == current_sub_id),
         None,
     )
     if sub is None:
         return (
-            f"📍 {RAPDONIA.city_name} (★ sub_area X: {current_sub_id})\n\n"
+            f"📍 {RASCANIA.city_name} (★ sub_area X: {current_sub_id})\n\n"
         )
 
     lines = [
-        f"📍 마을 — {RAPDONIA.city_name} · {sub.name}",
+        f"📍 마을 — {RASCANIA.city_name} · {sub.name}",
         f"  {sub.description}",
     ]
 
     if sub.npc_ids:
-        npcs_here = [n for n in RAPDONIA.npcs if n.id in sub.npc_ids]
+        npcs_here = [n for n in RASCANIA.npcs if n.id in sub.npc_ids]
         if npcs_here:
             # ★ Phase 9.7 — NPC 호감도 표시 (★ DIALOGUE target enabler)
             # ★ Phase 9.17-g — 호감도 단계 label 추가 (★ 162화 절친 정합)
@@ -185,7 +185,7 @@ def _format_city_context(ctx: dict[str, Any]) -> str:
         conn_names: list[str] = []
         for cid in sub.connections:
             c = next(
-                (s for s in RAPDONIA.sub_areas if s.id == cid), None
+                (s for s in RASCANIA.sub_areas if s.id == cid), None
             )
             if c is not None:
                 conn_names.append(c.name)
@@ -592,7 +592,7 @@ def _gm_system_prompt(ctx: dict[str, Any]) -> str:
         ws_lines = ["게임 진행 상태 (★ 작품 본질):"]
         ws_lines.append(
             f"- 라운드: {world_state.get('current_round', 1)} "
-            "(★ 라프도니아 N번째 도전)"
+            "(★ 라스카니아 N번째 도전)"
         )
         ws_lines.append(
             f"- 미궁 시간: {world_state.get('hours_in_dungeon', 0)}시간"
@@ -1346,7 +1346,7 @@ class GMAgent:
             [
                 "",
                 "# 작성 지시",
-                "위 mechanical 결과를 본문 어조(라프도니아, 격식체, 차분)로 "
+                "위 mechanical 결과를 라스카니아 어조(격식체, 차분)로 "
                 "1-2 문단 한국어 narrative 작성.",
                 "추측 사실 추가 X (★ mechanical result 본격 본격 본격).",
                 "선택지 / 시스템 메시지 / JSON 본격 본격 X (★ 본격 narrative 본격).",

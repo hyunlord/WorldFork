@@ -291,7 +291,7 @@ def _detect_initial_realm_from_plan(plan: Plan) -> Realm:
     """Plan opening_scene → 초기 Realm 추정 (★ Stage 1).
 
     예: 미궁/동굴/N층 → DUNGEON
-        도시/라프도니아/노아르크 → CITY
+        도시/라스카니아/노아르크 → CITY
         균열 → RIFT
         지하 → UNDERGROUND
     기본: DUNGEON (★ 작품 본질, 시작 시 미궁 진입).
@@ -301,7 +301,7 @@ def _detect_initial_realm_from_plan(plan: Plan) -> Realm:
         return Realm.DUNGEON
     if any(f"{f}층" in scene for f in range(1, 11)):
         return Realm.DUNGEON
-    if "도시" in scene or "라프도니아" in scene or "노아르크" in scene:
+    if "도시" in scene or "라스카니아" in scene or "노아르크" in scene:
         return Realm.CITY
     if "균열" in scene:
         return Realm.RIFT

@@ -193,7 +193,7 @@ def _temple_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="reatlas_temple",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 

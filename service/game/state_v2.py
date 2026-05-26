@@ -184,7 +184,7 @@ class Realm(StrEnum):
     RIFT = "균열"  # 균열 차원 (★ 미궁 속 미궁)
     HIDDEN_FIELD = "히든 필드"  # 라르카즈 / 불의 거울 등
     UNDERGROUND = "지하"  # 지하 1층 (무지개섬 / 도서관섬)
-    CITY = "도시"  # 라프도니아 / 노아르크 / 카루이
+    CITY = "도시"  # 라스카니아 / 노아르크 / 카루이
     WILDERNESS = "야외"  # 도시 외 야외
 
 
@@ -925,7 +925,7 @@ class FloorState:
 class WorldState:
     """게임 진행 상태 (★ 작품 본질, V4 분석).
 
-    - current_round: 라프도니아 차원광장 N번째 도전
+    - current_round: 라스카니아 차원광장 N번째 도전
     - hours_in_dungeon: 1층 168시간 한도 (★ 1차 자료)
     - is_dimension_collapse: 100판 1번 진짜 재앙
     """

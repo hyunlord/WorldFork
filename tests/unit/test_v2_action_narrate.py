@@ -67,14 +67,14 @@ class TestLazyNarrator:
 
 def _bjorn_default() -> Any:
     h = _V2StateHolder()
-    return h.party["비요른"]
+    return h.party["투르윈"]
 
 
 class TestSerializeCharMin:
     def test_includes_basic_fields(self) -> None:
         c = _bjorn_default()
         d = _serialize_char_min(c)
-        assert d["name"] == "비요른"
+        assert d["name"] == "투르윈"
         assert "race" in d
         assert d["hp"] == c.hp
         assert d["hp_max"] == c.hp_max
@@ -136,9 +136,9 @@ class TestBuildV2Ctx:
         h = _V2StateHolder()
         ctx = _build_v2_ctx(h)
         names = [s["name"] for s in ctx["supporting_characters"]]
-        assert "비요른" not in names
+        assert "투르윈" not in names
         # 에르웬 본격 supporting 본격 포함
-        assert "에르웬" in names
+        assert "실렌" in names
 
     def test_includes_active_encounters(self) -> None:
         h = _V2StateHolder()

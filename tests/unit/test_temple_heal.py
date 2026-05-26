@@ -6,7 +6,7 @@
 - 55화: 레아틀라스 선 성향
 - 72화: 카루이 사제 엘리사
 - get_deity_by_sub_area lookup
-- RAPDONIA 12 sub_areas + 12 NPCs
+- RASCANIA 12 sub_areas + 12 NPCs
 - execute_heal_at_temple:
   * 위치 검증 (★ realm=CITY + sub_area=temple)
   * race 거절 (★ 268화 바바리안-토베라)
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from service.game.cities.rapdonia import RAPDONIA_SUB_AREAS
+from service.game.cities.rascania import RASCANIA_SUB_AREAS
 from service.game.cities.temples import (
     KARUYI,
     REATLAS,
@@ -94,16 +94,16 @@ def test_lookup_non_temple_none() -> None:
     assert get_deity_by_sub_area("district_7_plaza") is None
 
 
-# ─── 3. RAPDONIA structure (★ cascade regression) ───
+# ─── 3. RASCANIA structure (★ cascade regression) ───
 
 
 def test_rapdonia_12_sub_areas() -> None:
     """9 본격 + 3 temple (★ Phase 9.5)."""
-    assert len(RAPDONIA_SUB_AREAS) == 12
+    assert len(RASCANIA_SUB_AREAS) == 12
 
 
 def test_temple_sub_areas_registered() -> None:
-    ids = {s.id for s in RAPDONIA_SUB_AREAS}
+    ids = {s.id for s in RASCANIA_SUB_AREAS}
     assert "toberah_temple" in ids
     assert "reatlas_temple" in ids
     assert "karuyi_temple" in ids
@@ -111,7 +111,7 @@ def test_temple_sub_areas_registered() -> None:
 
 def test_plaza_connects_to_three_temples() -> None:
     plaza = next(
-        s for s in RAPDONIA_SUB_AREAS if s.id == "district_7_plaza"
+        s for s in RASCANIA_SUB_AREAS if s.id == "district_7_plaza"
     )
     assert "toberah_temple" in plaza.connections
     assert "reatlas_temple" in plaza.connections
@@ -121,7 +121,7 @@ def test_plaza_connects_to_three_temples() -> None:
 def test_temples_connect_back_to_plaza() -> None:
     """bidirectional 일관성."""
     for tid in ("toberah_temple", "reatlas_temple", "karuyi_temple"):
-        sub = next(s for s in RAPDONIA_SUB_AREAS if s.id == tid)
+        sub = next(s for s in RASCANIA_SUB_AREAS if s.id == tid)
         assert "district_7_plaza" in sub.connections
 
 
@@ -133,7 +133,7 @@ def _temple_loc(sub_area: str = "reatlas_temple") -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area=sub_area,
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -322,7 +322,7 @@ def _base_ctx(sub_area: str) -> dict[str, Any]:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": sub_area,
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
 

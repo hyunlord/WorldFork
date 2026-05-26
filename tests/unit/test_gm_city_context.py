@@ -58,11 +58,11 @@ def test_unknown_sub_area_fallback() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "nonexistent_sub_area",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
-    assert "라프도니아" in out
+    assert "라스카니아" in out
     assert "sub_area X" in out
     assert "nonexistent_sub_area" in out
 
@@ -75,12 +75,12 @@ def test_plaza_shows_city_and_sub_area_names() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
-    assert "라프도니아" in out
-    assert "라프도니아 7구역 중앙 광장" in out
+    assert "라스카니아" in out
+    assert "라스카니아 7구역 중앙 광장" in out
 
 
 def test_plaza_shows_description() -> None:
@@ -89,7 +89,7 @@ def test_plaza_shows_description() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
@@ -102,13 +102,13 @@ def test_plaza_shows_3_canonical_npcs() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
     assert "여기 NPC:" in out
-    assert "아이나르" in out
-    assert "에르웬" in out
+    assert "카이라" in out
+    assert "실렌" in out
     assert "미샤" in out
 
 
@@ -118,7 +118,7 @@ def test_plaza_shows_connections() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
@@ -139,7 +139,7 @@ def test_library_shows_ragna() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "central_library",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
@@ -156,7 +156,7 @@ def test_exchange_office_shows_action_hint() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "exchange_office",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)
@@ -174,7 +174,7 @@ def test_tavern_no_npcs_no_npc_line() -> None:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "tavern",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
     out = _format_city_context(ctx)

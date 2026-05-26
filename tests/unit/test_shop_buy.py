@@ -162,7 +162,7 @@ def _blacksmith_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="blacksmith",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -171,7 +171,7 @@ def _general_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="general_store",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -180,7 +180,7 @@ def _alminus_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="alminus_market",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -352,7 +352,7 @@ def _ctx(sub_area: str) -> dict[str, Any]:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": sub_area,
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
 

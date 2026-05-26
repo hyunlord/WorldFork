@@ -174,8 +174,8 @@ def test_scripted_party_defeated_all_dead() -> None:
     assert world.simulation_over_reason == "탐사대 전원이 미궁에서 쓰러졌다."
     assert world.simulation_over_turn is not None
     # 두 캐릭터 모두 HP=0
-    assert party["비요른"].hp == 0
-    assert party["에르웬"].hp == 0
+    assert party["투르윈"].hp == 0
+    assert party["실렌"].hp == 0
 
 
 def test_scripted_permadeath_still_first_priority() -> None:

@@ -23,7 +23,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from service.game.cities.rapdonia import RAPDONIA, RAPDONIA_NPCS
+from service.game.cities.rascania import RASCANIA, RASCANIA_NPCS
 from service.game.gm_agent import _gm_system_prompt
 from service.game.state_v2 import (
     Character,
@@ -105,7 +105,7 @@ def _guild_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="explorer_guild_branch",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -114,7 +114,7 @@ def _plaza_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -228,13 +228,13 @@ def test_recruit_side_effects() -> None:
 
 
 def test_frail_guild_clerk_exists() -> None:
-    ids = {n.id for n in RAPDONIA_NPCS}
+    ids = {n.id for n in RASCANIA_NPCS}
     assert "frail_guild_clerk" in ids
 
 
 def test_frail_in_explorer_guild_branch() -> None:
     frail = next(
-        (n for n in RAPDONIA_NPCS if n.id == "frail_guild_clerk"), None
+        (n for n in RASCANIA_NPCS if n.id == "frail_guild_clerk"), None
     )
     assert frail is not None
     assert frail.sub_area_id == "explorer_guild_branch"
@@ -243,7 +243,7 @@ def test_frail_in_explorer_guild_branch() -> None:
 
 def test_explorer_guild_branch_has_npc() -> None:
     sub = next(
-        s for s in RAPDONIA.sub_areas if s.id == "explorer_guild_branch"
+        s for s in RASCANIA.sub_areas if s.id == "explorer_guild_branch"
     )
     assert "frail_guild_clerk" in sub.npc_ids
 
@@ -261,12 +261,12 @@ def _base_ctx() -> dict[str, Any]:
         "main_character_name": "비요른",
         "main_character_role": "주인공",
         "supporting_characters": [],
-        "current_location": "라프도니아",
+        "current_location": "라스카니아",
         "current_turn": 0,
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "explorer_guild_branch",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
     }
 
@@ -298,7 +298,7 @@ def test_prompt_non_guild_no_recruit_hint() -> None:
     ctx["v2_initial_location"] = {
         "realm": "도시",
         "sub_area": "district_7_plaza",
-        "city_id": "rapdonia",
+        "city_id": "rascania",
     }
     prompt = _gm_system_prompt(ctx)
     assert "RECRUIT_FROM_GUILD" not in prompt

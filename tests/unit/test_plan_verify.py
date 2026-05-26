@@ -39,7 +39,7 @@ def _dirty_plan_with_ip() -> Plan:
         main_character=CharacterPlan(
             name="비요른", role="주인공", description="바바리안",
         ),
-        world=WorldSetting(setting_name="라프도니아", genre="판타지", tone="d", rules=[]),
+        world=WorldSetting(setting_name="라스카니아", genre="판타지", tone="d", rules=[]),
     )
 
 

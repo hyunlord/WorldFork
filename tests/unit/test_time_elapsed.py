@@ -83,7 +83,7 @@ def test_force_return_resets_dungeon_state() -> None:
     _force_return_to_city(state)
 
     assert state.floor_number == 0
-    assert state.location == "라프도니아 · 차원광장"
+    assert state.location == "라스카니아 · 차원광장"
     assert state.encounters == []
     assert state.status_effects == []
     assert state.hours_in_dungeon == 0.0

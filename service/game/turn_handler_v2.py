@@ -94,7 +94,7 @@ MAGE_STONE_EXCHANGE_RATE: dict[int, int] = {
     0: 39_062_500,  # 계층군주
 }
 
-# ★ Phase 8 exchange — 환전소 sub_area id (★ a-2 RAPDONIA 본격 본격).
+# ★ Phase 8 exchange — 환전소 sub_area id (★ a-2 RASCANIA 본격 본격).
 EXCHANGE_OFFICE_SUB_AREA: str = "exchange_office"
 
 # ★ Phase 8 A3 — boss grade → 기본 HP (★ 5등급=600, 8등급=200; spec X 시 추측,
@@ -1397,7 +1397,7 @@ def apply_time_limit_village_return(location: Location) -> None:
 
     본인 답 정합 (docs/village_spec.md §7):
     - 7일 (168h) 만료 → 자동 마을 포탈 귀환 (★ A4 simulation_over_reason)
-    - 도착 = 라프도니아 7구역 중앙 광장 (★ 162화 본문 정합)
+    - 도착 = 라스카니아 7구역 중앙 광장 (★ 162화 본문 정합)
     - floor=0 (★ 본인 답 7.2: "미궁의 층수와 마을은 별개")
     - realm=CITY (★ existing Realm.CITY enum)
 
@@ -1415,7 +1415,7 @@ def apply_time_limit_village_return(location: Location) -> None:
     location.rift_id = None
     location.rift_sub_area = None
     location.rift_is_variant = False
-    # 마을 = 빛 환경 (★ namu §4 라프도니아 도시)
+    # 마을 = 빛 환경 (★ namu §4 라스카니아 도시)
     location.has_light = True
     location.visibility_meters = 100
 
@@ -2468,15 +2468,15 @@ LIBRARIAN_NPC_ID: str = "ragna"  # ★ a-2 NPCDef.id
 def _find_npc_in_sub_area(
     target: str | None, sub_area_id: str
 ) -> tuple[str, str] | None:
-    """target (★ npc id 또는 name) 본격 RAPDONIA 본격 본격 sub_area 본격 NPC.
+    """target (★ npc id 또는 name) 본격 RASCANIA 본격 본격 sub_area 본격 NPC.
 
     Returns:
         (npc_id, npc_name) 본격 None.
     """
-    from .cities.rapdonia import RAPDONIA
+    from .cities.rascania import RASCANIA
 
     sub = next(
-        (s for s in RAPDONIA.sub_areas if s.id == sub_area_id), None
+        (s for s in RASCANIA.sub_areas if s.id == sub_area_id), None
     )
     if sub is None or not sub.npc_ids:
         return None
@@ -2485,7 +2485,7 @@ def _find_npc_in_sub_area(
         return None
 
     for npc_id in sub.npc_ids:
-        npc = next((n for n in RAPDONIA.npcs if n.id == npc_id), None)
+        npc = next((n for n in RASCANIA.npcs if n.id == npc_id), None)
         if npc is None:
             continue
         if npc.id == target or npc.name == target:

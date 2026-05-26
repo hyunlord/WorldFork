@@ -138,7 +138,7 @@ def _blacksmith_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="blacksmith",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -147,7 +147,7 @@ def _general_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="general_store",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -270,7 +270,7 @@ def _ctx(sub_area: str, affinity_npc: str = "", affinity: int = 0) -> dict[str, 
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": sub_area,
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
         "v2_world_state": {
             "npc_affinities": (

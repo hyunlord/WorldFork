@@ -244,7 +244,7 @@ def _village_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 

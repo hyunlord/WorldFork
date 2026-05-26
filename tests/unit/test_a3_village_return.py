@@ -39,7 +39,7 @@ def test_village_return_sets_realm_city() -> None:
     assert loc.realm == Realm.CITY
     assert loc.floor == 0  # ★ 본인 답 7.2: 마을 = 0
     assert loc.sub_area == DEFAULT_CITY_ENTRY_SUB_AREA == "district_7_plaza"
-    assert loc.city_id == DEFAULT_CITY_ID == "rapdonia"
+    assert loc.city_id == DEFAULT_CITY_ID == "rascania"
 
 
 def test_village_return_resets_rift_state() -> None:
@@ -121,7 +121,7 @@ def test_sim_runner_time_limit_triggers_village_return() -> None:
     assert loc.realm == Realm.CITY
     assert loc.floor == 0
     assert loc.sub_area == "district_7_plaza"
-    assert loc.city_id == "rapdonia"
+    assert loc.city_id == "rascania"
 
 
 def test_sim_runner_party_defeated_no_village_return() -> None:

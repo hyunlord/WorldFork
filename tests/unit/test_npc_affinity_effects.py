@@ -108,7 +108,7 @@ def _exchange_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="exchange_office",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -186,7 +186,7 @@ def _temple_loc(sub_area: str = "reatlas_temple") -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area=sub_area,
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -279,7 +279,7 @@ def _ctx_with_affinity(
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": sub_area,
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
         "v2_world_state": {
             "npc_affinities": affinities or {},

@@ -182,7 +182,7 @@ def _city_ctx_with_npc(npc_id: str, affinity: int) -> dict[str, Any]:
     return {
         "v2_initial_location": {
             "realm": "도시",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
             "sub_area": "district_7_plaza",
         },
         "v2_world_state": {

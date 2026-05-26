@@ -136,7 +136,7 @@ def _guild_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="explorer_guild_branch",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -216,18 +216,18 @@ def _base_ctx() -> dict[str, Any]:
     return {
         "work_name": "1층",
         "work_genre": "판타지",
-        "world_setting": "라프도니아",
+        "world_setting": "라스카니아",
         "world_tone": "차분",
         "world_rules": ["1층 어둠"],
         "main_character_name": "비요른",
         "main_character_role": "주인공",
         "supporting_characters": [],
-        "current_location": "라프도니아",
+        "current_location": "라스카니아",
         "current_turn": 0,
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "explorer_guild_branch",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
     }
 

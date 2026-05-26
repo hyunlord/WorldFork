@@ -21,21 +21,36 @@ GENERIC_WORK_NAMES = [
     "mystic_realm_y",
 ]
 
-# 한국 IP 키워드 감지용 (본인 작품 포함)
+# 한국 IP 키워드 감지용
 KOREAN_IP_KEYWORDS = [
     "바바리안",
     "주인공으로 살아남기",
     "회귀",
     "환생",
     "비요른",
+    "비요른 얀델",
     "라프도니아",
+    "라프도니아 왕국",
+    "에르웬",
+    "아이나르",
+    "에쉬드",
+    "두모카",
+    "넘버스",
 ]
 
-GENERIC_REPLACEMENTS: dict[str, list[str]] = {
-    "character": ["투르윈", "셰인", "에라드", "미아"],
-    "place": ["북부 던전", "신참의 마을", "북녁 산맥"],
-    "world": ["판타지 대륙", "고대 왕국", "신참 모험 세계"],
+# IP 명칭 변환 mapping (원본 → 변환, CLAUDE.md 7.1 + design 결정)
+GENERIC_REPLACEMENTS: dict[str, str] = {
+    "라프도니아 왕국": "라스카니아 왕국",
+    "라프도니아": "라스카니아",
+    "비요른 얀델": "투르윈",
+    "비요른": "투르윈",
+    "에르웬": "실렌",
+    "아이나르": "카이라",
+    "에쉬드": "셰인",
 }
+
+# 특정 매핑 없을 때 사용할 fallback 캐릭터명
+_FALLBACK_NAME = "투르윈"
 
 
 @dataclass
@@ -61,16 +76,16 @@ def mask_text(
 
     Args:
         text: 원본
-        keyword_replacements: 커스텀 매핑 (없으면 generic 기본)
+        keyword_replacements: 커스텀 매핑 (없으면 GENERIC_REPLACEMENTS 사용)
     """
     detected = detect_ip_keywords(text)
     if not detected:
         return MaskingResult(original=text, masked=text, masking_applied=False)
 
     masked = text
-    replacements = keyword_replacements or {}
+    replacements = {**GENERIC_REPLACEMENTS, **(keyword_replacements or {})}
     for kw in detected:
-        replacement = replacements.get(kw) or GENERIC_REPLACEMENTS["character"][0]
+        replacement = replacements.get(kw, _FALLBACK_NAME)
         masked = masked.replace(kw, replacement)
 
     return MaskingResult(

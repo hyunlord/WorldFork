@@ -29,7 +29,7 @@ def _facts_with_location() -> CanonFacts:
         characters=[],
         locations=[
             Location(
-                name="라프도니아",
+                name="라스카니아",
                 location_type="dungeon",
                 description="재상이 과거 재상이었던 국가/도시.",
                 sub_locations=["도시 아래 (상하수도 설비)", "집무실", "차원광장"],
@@ -56,16 +56,16 @@ def _index() -> object:
 def test_explore_uses_canon_description() -> None:
     """canon description → narrative에 포함."""
     result = asyncio.run(
-        handle_explore(_ctx("라프도니아"))
+        handle_explore(_ctx("라스카니아"))
     )
-    assert "라프도니아" in result.narrative
+    assert "라스카니아" in result.narrative
     assert "재상" in result.narrative
 
 
 def test_explore_includes_sub_locations() -> None:
     """sub_locations → narrative hint 포함."""
     result = asyncio.run(
-        handle_explore(_ctx("라프도니아"))
+        handle_explore(_ctx("라스카니아"))
     )
     assert "집무실" in result.narrative or "차원광장" in result.narrative
 
@@ -91,6 +91,6 @@ def test_explore_fallback_unknown_location() -> None:
 def test_explore_time_advance_two() -> None:
     """time_advance=2 고정."""
     result = asyncio.run(
-        handle_explore(_ctx("라프도니아"))
+        handle_explore(_ctx("라스카니아"))
     )
     assert result.time_advance == 2

@@ -87,7 +87,7 @@ class MockPlayerAgent:
         self._actions = mock_actions or [
             PlayerAction(
                 action_type=PlayerActionType.WAIT,
-                actor_name="비요른",
+                actor_name="투르윈",
                 rationale="기본 mock action",
             ),
         ]
@@ -256,19 +256,19 @@ else:
 ## few-shot 예시
 
 ### 예시 1 (★ 진입 직후)
-상황: 비요른, HP 150, has_active_light=false, hours_in_dungeon=0
+상황: 투르윈, HP 150, has_active_light=false, hours_in_dungeon=0
 출력:
 {"action_type": "activate_light", "target": "횃불",
  "rationale": "어둠 속 가시거리 10m. 횃불 활성으로 시야 확보 우선."}
 
 ### 예시 2 (★ 정수 발견)
-상황: 에르웬, HP 90, 정수 슬롯 0/9, 떠다니는 청록색 정수 발견
+상황: 실렌, HP 90, 정수 슬롯 0/9, 떠다니는 청록색 정수 발견
 출력:
 {"action_type": "absorb_essence", "target": "청록색 정수",
  "rationale": "30분 안 자연 소멸. 살이 닿아 자동 흡수."}
 
 ### 예시 3 (★ HP 낮음)
-상황: 비요른, HP 40/150, 미궁 시간 12h, has_active_light=true
+상황: 투르윈, HP 40/150, 미궁 시간 12h, has_active_light=true
 출력:
 {"action_type": "rest", "target": null,
  "rationale": "HP 27% 낮음. 4시간 휴식으로 회복 필요."}

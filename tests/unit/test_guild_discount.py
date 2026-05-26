@@ -68,7 +68,7 @@ def _guild_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="explorer_guild_branch",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -221,7 +221,7 @@ def _guild_ctx(affinity: int = 0) -> dict[str, Any]:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "explorer_guild_branch",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         },
         "v2_world_state": {
             "max_party_members": 5,

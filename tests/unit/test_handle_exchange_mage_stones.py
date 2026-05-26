@@ -17,7 +17,7 @@ def _ctx(inventory: list[str]) -> ActionContext:
         current_hp=100,
         max_hp=100,
         inventory=inventory,
-        location="라프도니아 · 차원광장",
+        location="라스카니아 · 차원광장",
     )
 
 

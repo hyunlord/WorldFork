@@ -68,7 +68,7 @@ def _plaza_loc() -> Location:
         realm=Realm.CITY,
         floor=0,
         sub_area="district_7_plaza",
-        city_id="rapdonia",
+        city_id="rascania",
     )
 
 
@@ -87,7 +87,7 @@ def test_reject_decreases_affinity_by_10() -> None:
     world.npc_affinities["aenar"] = 50
     actor = _actor()
     result = execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert result.success is True
     assert world.npc_affinities["aenar"] == 40
@@ -99,7 +99,7 @@ def test_reject_floor_at_zero() -> None:
     world.npc_affinities["aenar"] = 5
     actor = _actor()
     execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert world.npc_affinities["aenar"] == 0
 
@@ -109,7 +109,7 @@ def test_reject_no_negative_from_zero() -> None:
     world.npc_affinities["aenar"] = 0
     actor = _actor()
     execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert world.npc_affinities["aenar"] == 0
 
@@ -119,7 +119,7 @@ def test_reject_initial_default_zero() -> None:
     world = WorldState()
     actor = _actor()
     execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert world.npc_affinities["aenar"] == 0
 
@@ -128,7 +128,7 @@ def test_reject_outside_city_fails() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _dungeon_loc()
+        "비요른", "카이라", [actor], world, _dungeon_loc()
     )
     assert result.success is False
 
@@ -167,7 +167,7 @@ def test_reject_actor_not_in_party_fails() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_reject_dialogue(
-        "투르윈", "아이나르", [actor], world, _plaza_loc()
+        "투르윈", "카이라", [actor], world, _plaza_loc()
     )
     assert result.success is False
 
@@ -177,7 +177,7 @@ def test_reject_side_effect_emitted() -> None:
     world.npc_affinities["aenar"] = 50
     actor = _actor()
     result = execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert any(
         s == "affinity_changed=aenar:50->40"
@@ -189,9 +189,9 @@ def test_reject_message_includes_npc_name() -> None:
     world = WorldState()
     actor = _actor()
     result = execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
-    assert "아이나르" in result.message
+    assert "카이라" in result.message
     assert "거절" in result.message
 
 
@@ -202,10 +202,10 @@ def test_dialogue_then_reject_net_minus_5() -> None:
     """DIALOGUE +5 → REJECT -10 = net -5 → floor 0."""
     world = WorldState()
     actor = _actor()
-    execute_dialogue("비요른", "아이나르", [actor], world, _plaza_loc())
+    execute_dialogue("비요른", "카이라", [actor], world, _plaza_loc())
     assert world.npc_affinities["aenar"] == AFFINITY_DELTA_DIALOGUE  # 5
     execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     # 5 + (-10) = -5 → floor 0
     assert world.npc_affinities["aenar"] == 0
@@ -217,11 +217,11 @@ def test_dialogue_3x_then_reject_no_floor() -> None:
     actor = _actor()
     for _ in range(3):
         execute_dialogue(
-            "비요른", "아이나르", [actor], world, _plaza_loc()
+            "비요른", "카이라", [actor], world, _plaza_loc()
         )
     assert world.npc_affinities["aenar"] == 15
     execute_reject_dialogue(
-        "비요른", "아이나르", [actor], world, _plaza_loc()
+        "비요른", "카이라", [actor], world, _plaza_loc()
     )
     assert world.npc_affinities["aenar"] == 5
 
@@ -234,7 +234,7 @@ def _plaza_ctx() -> dict[str, Any]:
         "v2_initial_location": {
             "realm": "도시",
             "sub_area": "district_7_plaza",
-            "city_id": "rapdonia",
+            "city_id": "rascania",
         }
     }
 

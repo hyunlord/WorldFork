@@ -19,16 +19,16 @@ def test_force_return_includes_ep_0016_gaze_quote() -> None:
 
 
 def test_force_return_includes_location() -> None:
-    """라프도니아 차원광장 위치 명시."""
+    """라스카니아 차원광장 위치 명시."""
     narrative = _force_return_narrative()
-    assert "라프도니아 차원광장" in narrative
+    assert "라스카니아 차원광장" in narrative
 
 
 def test_force_return_includes_ep_0036_system_messages() -> None:
     """ep_0036:300-302 시스템 메시지 포함."""
     narrative = _force_return_narrative()
     assert "「미궁이 폐쇄되었습니다.」" in narrative
-    assert "「캐릭터가 라프도니아로 이동합니다.」" in narrative
+    assert "「캐릭터가 라스카니아로 이동합니다.」" in narrative
 
 
 def test_force_return_first_person() -> None:

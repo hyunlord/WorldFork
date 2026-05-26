@@ -169,7 +169,7 @@ def _base_ctx() -> dict[str, Any]:
     return {
         "work_name": "1층",
         "work_genre": "판타지",
-        "world_setting": "라프도니아",
+        "world_setting": "라스카니아",
         "world_tone": "차분",
         "world_rules": ["1층 어둠"],
         "main_character_name": "비요른",

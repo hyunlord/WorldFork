@@ -97,7 +97,7 @@ class TestForceReturnNarrative:
 
     def test_contains_city_message(self) -> None:
         text = _force_return_narrative()
-        assert "라프도니아로 이동합니다" in text
+        assert "라스카니아로 이동합니다" in text
 
 
 class TestPostApplyDungeonClock:

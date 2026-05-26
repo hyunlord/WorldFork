@@ -976,7 +976,7 @@ class SimRunner:
             )
 
             # ★ Phase 8 a-3 — TIME_LIMIT_REACHED 시 마을 자동 귀환 location mutation
-            # (★ docs/village_spec.md §7.1 정합: 라프도니아 7구역 중앙 광장).
+            # (★ docs/village_spec.md §7.1 정합: 라스카니아 7구역 중앙 광장).
             # PARTY_DEFEATED 본격 본격 X (★ 사망 = 미궁 연료, 본인 답).
             if time_limit_triggered:
                 apply_time_limit_village_return(location)
