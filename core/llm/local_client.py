@@ -15,6 +15,7 @@ Phase A.3-b 추가:
 """
 
 import json
+import re
 import time
 from typing import Any
 
@@ -29,6 +30,9 @@ from .client import (
 )
 
 _THINKING_OFF: dict[str, Any] = {"enable_thinking": False}
+
+# Fallback: reasoning_content 분리 미지원 server에서 content에 thinking 포함 시 제거
+_THINK_RE: re.Pattern[str] = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
 def _to_strict_object_schema(
@@ -154,6 +158,7 @@ class LocalLLMClient(LLMClient):
             raise LLMError(
                 f"Empty content [{self._key}] (★ reasoning tokens?): {data}"
             )
+        text = _THINK_RE.sub("", text).strip()
         usage = data.get("usage", {})
         return LLMResponse(
             text=text,
@@ -197,6 +202,7 @@ class LocalLLMClient(LLMClient):
             raise LLMError(
                 f"Empty content under json_schema [{self._key}]: {data}"
             )
+        text = _THINK_RE.sub("", text).strip()
 
         try:
             parsed = json.loads(text)

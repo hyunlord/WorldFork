@@ -19,6 +19,7 @@ def _mock_response(
     location: str | None = None,
     item: str | None = None,
 ) -> MagicMock:
+    import json as _json
     mock_resp = MagicMock()
     mock_resp.parsed = {
         "matched_action": matched_action,
@@ -26,6 +27,7 @@ def _mock_response(
         "reason": reason,
         "entities": {"actor": actor, "location": location, "item": item},
     }
+    mock_resp.text = _json.dumps(mock_resp.parsed)
     return mock_resp
 
 

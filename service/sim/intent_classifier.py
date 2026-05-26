@@ -12,6 +12,7 @@ from typing import Any
 from core.llm.client import Prompt
 from core.llm.local_client import get_qwen35_9b_q3
 from service.api.schemas.freeform_action import ExtractedEntities, IntentMatch
+from service.sim.llm_helpers import strip_thinking_tags
 from service.sim.types import PlayerActionType
 
 _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
@@ -59,6 +60,7 @@ def build_action_list_text() -> str:
 
 
 INTENT_CLASSIFY_SYSTEM = (
+    "/no_think\n"
     "한국어 게임 자연어 input의 best-match action 분류 + entity 추출 전문가. "
     "입력 의도가 action과 분명히 매칭 시 confidence ≥ 0.85. "
     "자유 행동(list의 어떤 action도 아님) 시 matched_action=null + confidence < 0.5. "
@@ -116,7 +118,16 @@ def classify_intent(user_input: str) -> IntentMatch:
         max_tokens=400,
         temperature=0.2,
     )
-    parsed = response.parsed
+    # Fallback strip: local_client 단계 strip 이후에도 잔존 시 재파싱
+    clean_text = strip_thinking_tags(response.text)
+    if clean_text != response.text:
+        import json as _json
+        try:
+            parsed: dict[str, Any] = _json.loads(clean_text)
+        except _json.JSONDecodeError:
+            parsed = response.parsed
+    else:
+        parsed = response.parsed
     matched = parsed.get("matched_action")
     if matched is not None:
         try:
