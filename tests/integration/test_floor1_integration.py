@@ -79,8 +79,8 @@ def test_e2e_floor1_full_context(floor1_plan: Plan) -> None:
     # Floor1 풀 정의
     fd = ctx["v2_floor_definition"]
     assert fd["name"] == "수정동굴"
-    assert len(fd["sub_areas"]) == 6
-    assert len(fd["monsters"]) == 7
+    assert len(fd["sub_areas"]) == 10
+    assert len(fd["monsters"]) == 8
     assert len(fd["rifts"]) == 4
     assert len(fd["light_sources"]) == 3
     assert fd["bounty_config"] is not None
