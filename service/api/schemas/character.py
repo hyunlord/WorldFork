@@ -23,3 +23,5 @@ class CharacterConfigResponse(BaseModel):
     max_essences: int
     race_traits: list[str]
     scenario_description: str
+    # ★ phase-e-5: 시나리오 + 종족 정합 시작 narrative
+    starting_narrative: str

@@ -37,11 +37,24 @@ def test_character_create_bjorn_inventory_explicit_override(client: TestClient) 
     assert state_resp.json()["inventory"] == ["도끼"]
 
 
-def test_character_create_new_explorer_inventory_empty(client: TestClient) -> None:
-    """NEW_EXPLORER 시작 inventory 비어 있음 (commit 4 전)."""
+def test_character_create_new_explorer_human_default(client: TestClient) -> None:
+    """NEW_EXPLORER race 미지정 → HUMAN default → 검 (commit 4 정합)."""
     resp = client.post(
         "/api/v2/character/create",
         json={"scenario_mode": "new_explorer"},
+    )
+    assert resp.status_code == 200
+    session_id = resp.json()["session_id"]
+
+    state_resp = client.get(f"/api/v2/session/{session_id}/state")
+    assert state_resp.json()["inventory"] == ["검"]
+
+
+def test_character_create_new_explorer_beastkin_empty(client: TestClient) -> None:
+    """NEW_EXPLORER 수인 → 빈 inventory (발톱 비무장 정합)."""
+    resp = client.post(
+        "/api/v2/character/create",
+        json={"scenario_mode": "new_explorer", "race": "beastkin"},
     )
     assert resp.status_code == 200
     session_id = resp.json()["session_id"]

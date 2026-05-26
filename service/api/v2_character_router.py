@@ -7,6 +7,7 @@ from service.api.schemas.character import CharacterConfigRequest, CharacterConfi
 from service.canon.races import get_race_config, race_from_string
 from service.canon.scenario import (
     SCENARIO_CONFIGS,
+    build_starting_narrative,
     resolve_race_for_scenario,
     scenario_from_string,
 )
@@ -19,9 +20,14 @@ router = APIRouter(prefix="/api/v2/character", tags=["tier2-character"])
 async def character_create(req: CharacterConfigRequest) -> CharacterConfigResponse:
     mode = scenario_from_string(req.scenario_mode)
     if mode is None:
-        raise HTTPException(status_code=422, detail=f"unknown scenario_mode: {req.scenario_mode}")
+        raise HTTPException(status_code=400, detail=f"unknown scenario_mode: {req.scenario_mode}")
 
-    user_race = race_from_string(req.race) if req.race else None
+    user_race = None
+    if req.race:
+        user_race = race_from_string(req.race)
+        if user_race is None:
+            raise HTTPException(status_code=400, detail=f"unknown race: {req.race}")
+
     resolved_race = resolve_race_for_scenario(mode, user_race)
     race_cfg = get_race_config(resolved_race)
     scenario_cfg = SCENARIO_CONFIGS[mode]
@@ -33,6 +39,8 @@ async def character_create(req: CharacterConfigRequest) -> CharacterConfigRespon
         inventory=list(req.inventory) if req.inventory else None,
         location=req.location,
     )
+
+    narrative = build_starting_narrative(mode, resolved_race)
 
     return CharacterConfigResponse(
         session_id=state.session_id,
@@ -46,4 +54,5 @@ async def character_create(req: CharacterConfigRequest) -> CharacterConfigRespon
         max_essences=state.max_essences,
         race_traits=list(race_cfg.traits),
         scenario_description=scenario_cfg.description,
+        starting_narrative=narrative,
     )

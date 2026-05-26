@@ -58,9 +58,9 @@ def test_character_create_new_explorer_no_race_default_human(client: TestClient)
 
 
 def test_character_create_invalid_scenario(client: TestClient) -> None:
-    """알 수 없는 scenario_mode → 422."""
+    """알 수 없는 scenario_mode → 400."""
     resp = client.post("/api/v2/character/create", json={"scenario_mode": "invalid_mode"})
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 def test_character_create_race_traits_returned(client: TestClient) -> None:

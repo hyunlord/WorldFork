@@ -27,6 +27,8 @@ class ScenarioConfig:
     canon_anchor: str
     # ★ phase-e-3: 시나리오 시작 inventory (frozen dataclass → tuple)
     starting_inventory: tuple[str, ...] = field(default_factory=tuple)
+    # ★ phase-e-5: 시나리오 시작 narrative (BJORN hardcoded, NEW_EXPLORER race별)
+    starting_narrative: str = ""
 
 
 SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
@@ -43,6 +45,12 @@ SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
         # - ep_0004: "야만인들도 전부 무기 하나만 달랑 들고 있어서"
         # - ep_0005: "방패 하나만 달랑 가진 좆밥 바바리안"
         starting_inventory=("방패",),
+        # ★ 1인칭 + ep_0003 정합 (라프도니아 → 라스카니아 IP 치환)
+        starting_narrative=(
+            "나는 라스카니아 차원광장에 서 있다. "
+            "미궁 입구가 멀리 보인다. "
+            "방패 하나를 든 채로, 첫 미궁에 들어가야 한다."
+        ),
     ),
     ScenarioMode.NEW_EXPLORER: ScenarioConfig(
         name_ko="새로운 탐험가",
@@ -53,8 +61,43 @@ SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
         canon_anchor="",
         # ★ commit 4의 종족별 default inventory 적용
         starting_inventory=(),
+        # ★ NEW_EXPLORER narrative는 race별 — build_starting_narrative() 사용
+        starting_narrative="",
     ),
 }
+
+# ★ phase-e-5: NEW_EXPLORER 종족별 시작 narrative (1인칭 + 본문 정합)
+RACE_STARTING_NARRATIVES: dict[str, str] = {
+    "barbarian": (
+        "나는 도끼를 들고 라스카니아 차원광장에 섰다. "
+        "미궁을 향한 첫걸음이다."
+    ),
+    "human": (
+        "나는 검을 차고 라스카니아 차원광장에 섰다. "
+        "미궁의 어둠이 부른다."
+    ),
+    "dwarf": (
+        "나는 망치를 어깨에 메고 라스카니아 차원광장에 섰다. "
+        "미궁 깊은 곳을 향해 나아갈 때다."
+    ),
+    "beastkin": (
+        "나는 라스카니아 차원광장에 섰다. "
+        "발톱 외에 다른 무기는 없다. "
+        "본능만이 의지다."
+    ),
+    "fairy": (
+        "나는 단검을 손에 쥐고 라스카니아 차원광장에 섰다. "
+        "정령의 속삭임이 들린다."
+    ),
+}
+
+
+def build_starting_narrative(mode: ScenarioMode, race: Race) -> str:
+    """시나리오 + 종족 정합 시작 narrative."""
+    cfg = SCENARIO_CONFIGS[mode]
+    if cfg.starting_narrative:
+        return cfg.starting_narrative
+    return RACE_STARTING_NARRATIVES.get(race.value, "")
 
 
 def resolve_race_for_scenario(
