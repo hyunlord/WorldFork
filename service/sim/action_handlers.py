@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 
 from service.canon.context import get_entity_index, get_item_registry
 from service.canon.effects import classify_skill, essence_to_slot, parse_essence_abilities
-from service.canon.races import Race, get_dodge_chance, get_unarmed_bonus, get_xp_multiplier
+from service.canon.races import Race, get_unarmed_bonus, get_xp_multiplier
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_helpers import (
     extract_direction,
@@ -655,15 +655,15 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         enemies = remaining
 
     if enemies:
-        # ★ race-effects — 드워프/요정 회피 확률 전달
-        player_dodge_pct = 0
+        # ★ race-effects — 드워프/요정 회피 확률 (apply_race_dodge 위임)
+        player_race: Race | None = None
         try:
-            player_dodge_pct = get_dodge_chance(Race(ctx.race))
+            player_race = Race(ctx.race)
         except (ValueError, KeyError):
             pass
         enemies, new_player_hp, new_status, enemy_logs = execute_enemy_turn(
             enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status,
-            player_dodge_pct=player_dodge_pct,
+            player_race=player_race,
         )
         hp_change = new_player_hp - ctx.current_hp
 

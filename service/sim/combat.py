@@ -6,6 +6,8 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from service.canon.races import Race
+from service.sim.combat_helpers import apply_race_dodge
 from service.sim.enemy import Enemy, EnemyType, enemy_to_dict
 from service.sim.enemy_ai import plan_enemy_turn
 from service.sim.equipment import Equipment, equipment_to_dict
@@ -180,12 +182,12 @@ def execute_enemy_turn(
     player_max_hp: int,
     player_defense: int,
     player_status: list[StatusEffect],
-    player_dodge_pct: int = 0,
+    player_race: Race | None = None,
 ) -> tuple[list[Enemy], int, list[StatusEffect], list[CombatTurnLog]]:
     """살아 있는 enemy들이 플레이어를 공격.
 
     return: (enemies, new_player_hp, new_player_status, logs)
-    player_dodge_pct: race 회피 확률 % (드워프 5, 요정 10)
+    player_race: race 회피 확률 적용용 (드워프 5%, 요정 10%)
     """
     actions = plan_enemy_turn(enemies)
     logs: list[CombatTurnLog] = []
@@ -210,9 +212,13 @@ def execute_enemy_turn(
             ))
             continue
 
-        # 공격 — race 회피 확률 적용
+        # 공격 — apply_race_dodge로 회피 확률 적용
         base_damage = max(1, enemy.attack - player_defense)
-        if player_dodge_pct > 0 and random.random() * 100 < player_dodge_pct:
+        if player_race is not None:
+            final_damage, dodged = apply_race_dodge(player_race, base_damage)
+        else:
+            final_damage, dodged = base_damage, False
+        if dodged:
             logs.append(CombatTurnLog(
                 actor=enemy.name,
                 action_name=action.ability_name,
@@ -221,13 +227,13 @@ def execute_enemy_turn(
                 notes="dodged",
             ))
             continue
-        new_hp = max(0, new_hp - base_damage)
+        new_hp = max(0, new_hp - final_damage)
         applied = extract_status_from_text(action.ability_name)
         new_status.extend(applied)
         logs.append(CombatTurnLog(
             actor=enemy.name,
             action_name=action.ability_name,
-            damage_received=base_damage,
+            damage_received=final_damage,
             target_name="player",
             status_applied=[s.type.value for s in applied],
         ))
