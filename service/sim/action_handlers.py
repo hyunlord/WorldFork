@@ -49,6 +49,15 @@ from service.util.korean import i_ga
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
 
 
+# ★ I-E2 — taxonomy role 정합 어조 hint (handle_dialogue + 27B prompt)
+ROLE_TONE_HINTS: dict[str, str] = {
+    "동료": "친근하고 가까운 사이의 어조. 본문 정합 파티원 관계.",
+    "주요 NPC": "정중하고 공손한 어조. 신분/지위 정합 격식.",
+    "주민": "일상적이고 평이한 어조. 직업/상황 정합 자연스러운 응대.",
+    "엑스트라": "짧고 minimal한 어조. 단역 정합 한두 마디.",
+}
+
+
 # ─── 빛 / 탐색 ───
 
 
@@ -1207,9 +1216,21 @@ async def handle_dialogue(ctx: ActionContext) -> ActionResult:
     npc_role = str(raw_char["role"]) if raw_char and raw_char.get("role") else None
     npc_bg = str(raw_char["background"]) if raw_char and raw_char.get("background") else None
 
+    # ★ I-E2 — 메타 character dialogue 거부 (본문 외 entity)
+    if npc_role == "메타":
+        return ActionResult(
+            narrative=f"{name}은(는) 본문 외 인물이라 대화할 수 없다.",
+            success=False,
+            fail_reason="meta_character",
+            time_advance=0,
+        )
+
+    role_hint = ROLE_TONE_HINTS.get(npc_role or "", "")
+
     if is_deep_dialogue(ctx.user_input):
         narrative = await asyncio.to_thread(
-            compose_dialogue_narrative, name, npc_role, npc_bg, ctx.user_input
+            compose_dialogue_narrative, name, npc_role, npc_bg,
+            ctx.user_input, role_hint,
         )
         if not narrative:
             role_suffix = f" ({npc_role})" if npc_role else ""

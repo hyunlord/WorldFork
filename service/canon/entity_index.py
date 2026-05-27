@@ -48,6 +48,7 @@ class EntityIndex:
         self._norm_by_name: dict[str, EntityRef] = {}   # space 제거
         self._deep_by_name: dict[str, EntityRef] = {}   # space + "의" 제거
         self._source_monster_map: dict[str, list[dict[str, object]]] = {}
+        self._role_map: dict[str, list[dict[str, object]]] = {}
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
@@ -73,6 +74,8 @@ class EntityIndex:
                 self._raw_characters[alias] = raw
                 self._norm_by_name[_normalize(alias)] = ref
                 self._deep_by_name[_normalize_deep(alias)] = ref
+            if c.role:
+                self._role_map.setdefault(c.role, []).append(raw)
 
         for loc in facts.locations:
             ref = EntityRef("location", loc.name, _summarize_location(loc))
@@ -167,6 +170,35 @@ class EntityIndex:
     def get_essences_by_source_monster(self, monster_name: str) -> list[dict[str, object]]:
         """source_monster 정합 essence raw dict list 반환."""
         return list(self._source_monster_map.get(monster_name, []))
+
+    def get_characters_by_role(self, role: str) -> list[dict[str, object]]:
+        """taxonomy role 정합 character raw dict list 반환.
+
+        ex: "주인공" → 비요른 / 투르윈 등, "동료" → 에르웬 / 아이나르 등.
+        """
+        if not role or not role.strip():
+            return []
+        return list(self._role_map.get(role.strip(), []))
+
+    def get_role_for_character(self, character_name: str) -> str | None:
+        """character name / alias / fuzzy lookup → role.
+
+        exact → normalized → deep-normalized → partial 순.
+        """
+        if not character_name:
+            return None
+        # 1. exact + alias (raw_characters는 alias key 포함)
+        raw = self._raw_characters.get(character_name)
+        if raw is None:
+            # 2. fuzzy — character entity_type만 채택
+            ref = self.fuzzy_lookup(character_name)
+            if ref is None or ref.entity_type != "character":
+                return None
+            raw = self._raw_characters.get(ref.name)
+        if raw is None:
+            return None
+        role_val = raw.get("role")
+        return str(role_val) if isinstance(role_val, str) and role_val else None
 
     def get_primary_essence_for_monster(self, monster_name: str) -> dict[str, object] | None:
         """source_monster 정합 essence 중 대표 1개 반환.
