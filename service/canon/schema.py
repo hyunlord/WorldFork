@@ -17,6 +17,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class CharacterRole(StrEnum):
+    """I-E2 character role taxonomy (★ 6 categories)."""
+
+    PROTAGONIST = "주인공"
+    COMPANION = "동료"
+    MAJOR_NPC = "주요 NPC"
+    RESIDENT = "주민"
+    EXTRA = "엑스트라"
+    META = "메타"
+
+
 class Source(StrEnum):
     """fact 출처."""
 
