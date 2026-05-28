@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 
 from service.api.schemas.freeform_action import ExtractedEntities
 from service.sim.equipment import EquipmentSet
-from service.sim.player_state import EssenceSlot, compute_total_stats, slot_from_dict
+from service.sim.player_state import (
+    EssenceSlot,
+    compute_total_resistances,
+    compute_total_stats,
+    slot_from_dict,
+)
 
 
 @dataclass
@@ -47,6 +52,11 @@ class ActionContext:
     @property
     def total_stats(self) -> dict[str, int]:
         return compute_total_stats(self.essence_slots)
+
+    @property
+    def total_resistances(self) -> dict[str, int]:
+        """★ I-G1 — 흡수 정수의 resistances 합산."""
+        return compute_total_resistances(self.essence_slots)
 
 
 @dataclass

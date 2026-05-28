@@ -1,8 +1,14 @@
-"""Phase D step 6a/6d — canon abilities text parse + skill 분류 + EssenceSlot 변환."""
+"""Phase D step 6a/6d — canon abilities text parse + skill 분류 + EssenceSlot 변환.
+
+★ I-G1 parsed ability 통합 (★ ee5d7d7 정합):
+- parsed list 보유 시 classify_ability / apply_parsed_abilities 본 stat_bundle + resistances 적용
+- parsed가 있으면 기존 text-based parse skip (★ double counting 방지)
+"""
 
 from __future__ import annotations
 
 import re
+from typing import Final
 
 from service.sim.player_state import EssenceSlot
 
@@ -47,6 +53,107 @@ _GRADE_TO_DELTA: dict[str, int] = {
     "상": 3,
     "최상": 4,
 }
+
+# ── I-G1 parsed ability classification ────────────────────────────────────────
+
+TIER_VALUE: Final[dict[str, int]] = {
+    "상": 3,
+    "중": 2,
+    "하": 1,
+}
+
+# 저항 keyword → resistance type — substring 매칭, 긴 keyword 우선
+_RESISTANCE_KEYWORDS: Final[list[tuple[str, str]]] = [
+    ("냉기 감응도", "냉기"),
+    ("냉기응축", "냉기"),
+    ("냉기 내성", "냉기"),
+    ("독 내성", "독"),
+    ("독내성", "독"),
+    ("고통 내성", "고통"),
+    ("고통내성", "고통"),
+    ("정신 내성", "정신"),
+    ("물리 내성", "물리"),
+    ("화염 내성", "화염"),
+    ("열 내성", "화염"),
+    ("대지 저항", "대지"),
+    ("산성 내성", "산성"),
+    ("산성", "산성"),
+    ("오한", "냉기"),
+    ("화염", "화염"),
+    ("독", "독"),
+    ("내성", "기타"),
+]
+
+_ATTACK_KEYWORDS: Final[frozenset[str]] = frozenset([
+    "근력", "완력", "절삭력", "골강도", "파괴력", "강타",
+    "공격력", "타격", "위력", "각력",
+])
+
+_DEX_KEYWORDS: Final[frozenset[str]] = frozenset([
+    "민첩", "직감", "기민", "반응", "유연성", "기동",
+])
+
+
+def classify_ability(name: str) -> tuple[str, str | None]:
+    """ability name → (category, resistance_type).
+
+    category: "attack" | "dex" | "resistance" | "etc"
+    resistance_type: 저항 시 "독"/"냉기"/.., 그 외 None
+    """
+    s = name.strip()
+    if not s:
+        return ("etc", None)
+    # 저항 우선 (가장 specific, 긴 keyword 먼저 — list 순서 정합)
+    for kw, rtype in _RESISTANCE_KEYWORDS:
+        if kw in s:
+            return ("resistance", rtype)
+    for kw in _ATTACK_KEYWORDS:
+        if kw in s:
+            return ("attack", None)
+    for kw in _DEX_KEYWORDS:
+        if kw in s:
+            return ("dex", None)
+    return ("etc", None)
+
+
+def apply_parsed_abilities(
+    parsed: list[dict[str, object]],
+) -> tuple[dict[str, int], dict[str, int], list[str]]:
+    """parsed list → (stat_bundle, resistances, etc_logs).
+
+    - attack → stat_bundle["attack_bonus"] += tier
+    - dex → stat_bundle["agility"] += tier
+    - resistance → resistances[type] += tier
+    - etc → log list 누적
+    """
+    stat_bundle: dict[str, int] = {}
+    resistances: dict[str, int] = {}
+    etc_logs: list[str] = []
+
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+        name_raw = entry.get("name")
+        tier_raw = entry.get("tier")
+        name = str(name_raw).strip() if isinstance(name_raw, str) else ""
+        tier = str(tier_raw) if isinstance(tier_raw, str) else "중"
+        value = TIER_VALUE.get(tier, 2)
+        if not name:
+            continue
+
+        category, rtype = classify_ability(name)
+
+        if category == "attack":
+            stat_bundle["attack_bonus"] = stat_bundle.get("attack_bonus", 0) + value
+        elif category == "dex":
+            stat_bundle["agility"] = stat_bundle.get("agility", 0) + value
+        elif category == "resistance" and rtype:
+            resistances[rtype] = resistances.get(rtype, 0) + value
+        else:
+            etc_logs.append(f"{name}({tier})")
+
+    return stat_bundle, resistances, etc_logs
+
 
 # ── regex patterns ────────────────────────────────────────────────────────────
 # "민첩성+15" / "유연성-7" 형태
@@ -124,13 +231,28 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
     """canon essence dict → EssenceSlot (ep_0337/0556 정합).
 
     abilities text → stat bonus (positive).
+    abilities parsed → stat_bundle + resistances + etc_abilities (★ I-G1).
     side_effects text → stat delta (may be negative).
     skills_granted → skills list.
     """
     abilities_raw = essence_data.get("abilities", {})
     stat_bundle: dict[str, int] = {}
+    resistances: dict[str, int] = {}
+    etc_abilities: list[str] = []
+
     if isinstance(abilities_raw, dict):
-        stat_bundle = parse_essence_abilities(abilities_raw)
+        # ★ parsed 우선 — double counting 방지 정합
+        parsed = abilities_raw.get("parsed")
+        if isinstance(parsed, list) and parsed:
+            p_stats, p_res, p_etc = apply_parsed_abilities(parsed)
+            for k, v in p_stats.items():
+                stat_bundle[k] = stat_bundle.get(k, 0) + v
+            for k, v in p_res.items():
+                resistances[k] = resistances.get(k, 0) + v
+            etc_abilities.extend(p_etc)
+        else:
+            # fallback — 기존 text-based parse
+            stat_bundle = parse_essence_abilities(abilities_raw)
     elif isinstance(abilities_raw, str):
         stat_bundle = parse_ability_text(abilities_raw)
 
@@ -157,6 +279,8 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
         stat_bundle=stat_bundle,
         skills=skills,
         grade=slot_grade,
+        resistances=resistances,
+        etc_abilities=etc_abilities,
     )
 
 

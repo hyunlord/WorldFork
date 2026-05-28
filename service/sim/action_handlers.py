@@ -951,6 +951,13 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
                 sign = "+" if delta >= 0 else ""
                 action = "상승" if delta >= 0 else "하락"
                 msg_lines.append(f"「{stat}이(가) {sign}{delta} {action}합니다.」")
+            # ★ I-G1 — resistances 출력
+            for rtype, value in slot.resistances.items():
+                msg_lines.append(f"「{rtype} 저항이(가) +{value} 증가합니다.」")
+            # ★ I-G1 — 미분류 ability log
+            if slot.etc_abilities:
+                etc_text = ", ".join(slot.etc_abilities)
+                msg_lines.append(f"「특성 발현: {etc_text}」")
 
     if slot_dict is None:
         from service.sim.player_state import EssenceSlot
