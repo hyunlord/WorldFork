@@ -57,12 +57,34 @@ class Citation(BaseModel):
     quote: str | None = Field(default=None, max_length=300)
 
 
+class AbilityTier(StrEnum):
+    """I-G1 ability 등급 (★ 본문 정합 — 상/중/하)."""
+
+    HIGH = "상"
+    MID = "중"
+    LOW = "하"
+
+
+class AbilityEntry(BaseModel):
+    """I-G1 parsed ability 1개 — name + tier."""
+
+    name: str = Field(..., max_length=100)
+    tier: AbilityTier
+
+
+class EssenceAbilities(BaseModel):
+    """I-G1 essence abilities — text + parsed (★ 혼합 schema)."""
+
+    text: str = Field(default="", max_length=2000)
+    parsed: list[AbilityEntry] = Field(default_factory=list)
+
+
 class Essence(BaseModel):
     """정수 fact (★ 본문 387 reference + 나무위키 '설정/정수')."""
 
     name: str = Field(..., max_length=100)
     grade: int | None = Field(default=None, ge=1, le=9)
-    abilities: dict[str, str] = Field(default_factory=dict)
+    abilities: EssenceAbilities = Field(default_factory=EssenceAbilities)
     skills_granted: list[str] = Field(default_factory=list)
     side_effects: list[str] = Field(default_factory=list)
     absorption_mechanism: str | None = Field(default=None, max_length=500)
