@@ -128,11 +128,16 @@ class Location(BaseModel):
 
 
 class Race(BaseModel):
-    """종족 fact (★ namuwiki '설정/종족')."""
+    """종족 fact (★ namuwiki '설정/종족').
+
+    ★ abilities: 본문/위키 원본 ability 이름 list (raw, tier 없음).
+    ★ ability_tiers: LLM 정합 tiered 표현 (text + parsed, essence 정합).
+    """
 
     name: str = Field(..., max_length=80)
     description: str | None = Field(default=None, max_length=1500)
     abilities: list[str] = Field(default_factory=list)
+    ability_tiers: EssenceAbilities = Field(default_factory=EssenceAbilities)
     citations: list[Citation] = Field(default_factory=list)
 
 
