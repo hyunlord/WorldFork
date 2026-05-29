@@ -605,6 +605,10 @@ def _build_attack_narrative(
                 f" {log.actor}이(가) {log.action_name}으로 반격했다."
                 f" 나는 {log.damage_received} 피해를 받았다."
             )
+            if log.resist_reduced > 0:
+                parts.append(
+                    f" {log.resist_element} 저항으로 피해가 {log.resist_reduced} 경감되었다."
+                )
             if log.status_applied:
                 parts.append(f" ({', '.join(log.status_applied)} 적용)")
 
@@ -685,6 +689,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
         enemies, new_player_hp, new_status, enemy_logs = execute_enemy_turn(
             enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status,
             player_race=player_race,
+            player_resistances=ctx.total_resistances,
         )
         hp_change = new_player_hp - ctx.current_hp
 

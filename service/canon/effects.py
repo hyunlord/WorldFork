@@ -116,6 +116,48 @@ def classify_ability(name: str) -> tuple[str, str | None]:
     return ("etc", None)
 
 
+# EnemyType(.value, lowercase) → player resistances dict key 정합 element
+# resistances key: 독/냉기/화염/고통/정신/물리/대지/산성/기타
+ENEMY_ELEMENT_MAP: Final[dict[str, str]] = {
+    "psionic": "정신",     # 이능계 — 정신 공격
+    "spirit": "정신",      # 영체류 — 정신 공격
+    "physical": "물리",    # 육체 — 물리
+    "undead": "물리",      # 언데드 — 물리 (어둠 resistance key 부재)
+    "cold_beast": "냉기",  # 냉기/짐승
+    "dark": "정신",        # 어둠 — 정신 (어둠 resistance key 부재)
+}
+
+
+def get_enemy_attack_element(enemy_type: str) -> str:
+    """EnemyType(.value) → attack element (★ default 물리).
+
+    resistances dict key 정합 element 반환.
+    """
+    return ENEMY_ELEMENT_MAP.get(enemy_type.strip().lower(), "물리")
+
+
+def apply_resistance(
+    damage: int,
+    element: str,
+    resistances: dict[str, int],
+) -> tuple[int, int]:
+    """player resistance 정합 damage flat 감산.
+
+    공식: damage_taken = max(1, damage - resistance[element])
+    최소 1 보장 (★ 완전 면역 방지).
+
+    return: (damage_taken, reduced_amount)
+    """
+    if damage <= 0:
+        return 0, 0
+    resist_value = resistances.get(element, 0)
+    if resist_value <= 0:
+        return damage, 0
+    damage_taken = max(1, damage - resist_value)
+    reduced = damage - damage_taken
+    return damage_taken, reduced
+
+
 def apply_parsed_abilities(
     parsed: list[dict[str, object]],
 ) -> tuple[dict[str, int], dict[str, int], list[str]]:

@@ -90,6 +90,8 @@ class CombatTurnLog:
     immune: bool = False         # 영체류 물리 면역 등
     weakness_hit: bool = False   # 약점 적중 (1.5x)
     critical_hit: bool = False   # 치명타 (2x)
+    resist_reduced: int = 0      # ★ I-G1 player 저항 감산량
+    resist_element: str = ""     # ★ I-G1 감산 element
 
 
 def compute_damage_multiplier(
@@ -183,12 +185,17 @@ def execute_enemy_turn(
     player_defense: int,
     player_status: list[StatusEffect],
     player_race: Race | None = None,
+    player_resistances: dict[str, int] | None = None,
 ) -> tuple[list[Enemy], int, list[StatusEffect], list[CombatTurnLog]]:
     """살아 있는 enemy들이 플레이어를 공격.
 
     return: (enemies, new_player_hp, new_player_status, logs)
     player_race: race 회피 확률 적용용 (드워프 5%, 요정 10%)
+    player_resistances: ★ I-G1 element 저항 dict — enemy element 정합 감산
     """
+    from service.canon.effects import apply_resistance, get_enemy_attack_element
+
+    resistances = player_resistances or {}
     actions = plan_enemy_turn(enemies)
     logs: list[CombatTurnLog] = []
     new_hp = player_hp
@@ -227,6 +234,11 @@ def execute_enemy_turn(
                 notes="dodged",
             ))
             continue
+        # ★ I-G1 — enemy element 정합 player 저항 감산
+        element = get_enemy_attack_element(enemy.enemy_type.value)
+        final_damage, resist_reduced = apply_resistance(
+            final_damage, element, resistances
+        )
         new_hp = max(0, new_hp - final_damage)
         applied = extract_status_from_text(action.ability_name)
         new_status.extend(applied)
@@ -236,6 +248,8 @@ def execute_enemy_turn(
             damage_received=final_damage,
             target_name="player",
             status_applied=[s.type.value for s in applied],
+            resist_reduced=resist_reduced,
+            resist_element=element if resist_reduced > 0 else "",
         ))
 
     # status 적용 (poison/bleed/burn → hp 추가 감소)
