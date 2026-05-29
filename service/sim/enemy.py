@@ -165,6 +165,12 @@ def enemy_from_dict(d: dict[str, object]) -> Enemy:
     if enemy_type == EnemyType.PHYSICAL:
         enemy_type = infer_enemy_type(race, name_val)
 
+    # ★ weakness_types 미지정 시 enemy_type 정합 default 유도 (wiki 009)
+    # 언데드→신성력/불, 냉기짐승→전격, 어둠→태양/빛 약점이 combat 1.5x에 반영
+    weakness_types = _to_str_list(d.get("weakness_types"))
+    if not weakness_types:
+        weakness_types = list(WEAKNESS_BY_TYPE.get(enemy_type, []))
+
     return Enemy(
         name=name_val,
         hp=_to_int(d.get("hp"), 30),
@@ -175,7 +181,7 @@ def enemy_from_dict(d: dict[str, object]) -> Enemy:
         race=race,
         abilities=_to_str_list(d.get("abilities")),
         weakness_races=_to_str_list(d.get("weakness_races")),
-        weakness_types=_to_str_list(d.get("weakness_types")),
+        weakness_types=weakness_types,
         essence_drop=essence_drop,
         is_hostile=is_hostile,
         enemy_type=enemy_type,
