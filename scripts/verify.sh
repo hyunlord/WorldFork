@@ -17,11 +17,19 @@ DETAILS=""
 
 cd "$(dirname "$0")/.."
 
-# [1/6] Build (10점)
+# [0/6] ensure_services (★ gate 전 인프라 헬스체크·자동 기동)
+# 9B(8083) / frontend(4000) down 시 자동 start → Eval Smoke / Browser E2E가
+# 인프라 미가동으로 점수 잃는 구조적 SKIP_VERIFY 상시화 제거.
+# SKIP_ENSURE=1로 우회 (CI 등).
 echo ""
 echo "════════════════════════════════════════════════"
 echo "Layer 1 Ship Gate (Tier 2 D11 — 6단계, Mechanical E2E)"
 echo "════════════════════════════════════════════════"
+echo ""
+echo "[0/6] ensure_services..."
+bash "$(dirname "$0")/ensure_services.sh" 2>&1 | sed 's/^/  /'
+
+# [1/6] Build (10점)
 echo ""
 echo "[1/6] Build..."
 BUILD_SCORE=0
