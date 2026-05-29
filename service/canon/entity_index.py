@@ -49,6 +49,7 @@ class EntityIndex:
         self._deep_by_name: dict[str, EntityRef] = {}   # space + "의" 제거
         self._source_monster_map: dict[str, list[dict[str, object]]] = {}
         self._role_map: dict[str, list[dict[str, object]]] = {}
+        self._race_ability_map: dict[str, dict[str, object]] = {}
         self._build(facts)
 
     def _build(self, facts: CanonFacts) -> None:
@@ -89,6 +90,9 @@ class EntityIndex:
             self._by_name[r.name] = ref
             self._norm_by_name[_normalize(r.name)] = ref
             self._deep_by_name[_normalize_deep(r.name)] = ref
+            at = r.ability_tiers
+            if at.text:
+                self._race_ability_map[r.name] = at.model_dump()
 
         for m in facts.mechanisms:
             ref = EntityRef("mechanism", m.name, _summarize_mechanism(m))
@@ -199,6 +203,24 @@ class EntityIndex:
             return None
         role_val = raw.get("role")
         return str(role_val) if isinstance(role_val, str) and role_val else None
+
+    def get_race_ability_tiers(self, race_name: str) -> dict[str, object] | None:
+        """race name 정합 ability_tiers (★ 46243d5).
+
+        return: {"text": str, "parsed": [...]} 또는 None.
+        exact → fuzzy(race entity) 순.
+        """
+        if not race_name or not race_name.strip():
+            return None
+        s = race_name.strip()
+        at = self._race_ability_map.get(s)
+        if at is not None:
+            return at
+        # fuzzy — race entity_type만 채택
+        ref = self.fuzzy_lookup(s)
+        if ref is not None and ref.entity_type == "race":
+            return self._race_ability_map.get(ref.name)
+        return None
 
     def get_primary_essence_for_monster(self, monster_name: str) -> dict[str, object] | None:
         """source_monster 정합 essence 중 대표 1개 반환.

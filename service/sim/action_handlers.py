@@ -1239,10 +1239,19 @@ async def handle_dialogue(ctx: ActionContext) -> ActionResult:
 
     role_hint = ROLE_TONE_HINTS.get(npc_role or "", "")
 
+    # ★ I-G1 race — actor character → race → ability_tiers context
+    race_ability_hint = ""
+    if index is not None and raw_char:
+        npc_race = raw_char.get("race")
+        if isinstance(npc_race, str) and npc_race:
+            race_at = index.get_race_ability_tiers(npc_race)
+            if race_at and isinstance(race_at, dict):
+                race_ability_hint = str(race_at.get("text", ""))
+
     if is_deep_dialogue(ctx.user_input):
         narrative = await asyncio.to_thread(
             compose_dialogue_narrative, name, npc_role, npc_bg,
-            ctx.user_input, role_hint,
+            ctx.user_input, role_hint, race_ability_hint,
         )
         if not narrative:
             role_suffix = f" ({npc_role})" if npc_role else ""

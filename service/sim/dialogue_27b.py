@@ -31,10 +31,12 @@ def compose_dialogue_narrative(
     npc_background: str | None,
     user_input: str,
     role_tone_hint: str = "",
+    race_ability_hint: str = "",
 ) -> str:
     """27B NPC 대화 narrative 생성 (sync). 실패 시 빈 문자열 반환.
 
     role_tone_hint — taxonomy role 정합 어조 (★ I-E2 정합).
+    race_ability_hint — 종족 ability_tiers 특성 (★ I-G1 정합).
     """
     try:
         client = get_qwen36_27b_q3()
@@ -43,6 +45,8 @@ def compose_dialogue_narrative(
             info_lines.append(f"역할: {npc_role}")
         if role_tone_hint:
             info_lines.append(f"어조: {role_tone_hint}")
+        if race_ability_hint:
+            info_lines.append(f"종족 특성: {race_ability_hint}")
         if npc_background:
             info_lines.append(f"배경: {npc_background[:200]}")
 
