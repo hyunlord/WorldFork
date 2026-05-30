@@ -8,6 +8,7 @@ from service.api.schemas.freeform_action import ExtractedEntities
 from service.sim.equipment import EquipmentSet
 from service.sim.player_state import (
     EssenceSlot,
+    compute_total_attack_elements,
     compute_total_resistances,
     compute_total_stats,
     slot_from_dict,
@@ -57,6 +58,11 @@ class ActionContext:
     def total_resistances(self) -> dict[str, int]:
         """★ I-G1 — 흡수 정수의 resistances 합산."""
         return compute_total_resistances(self.essence_slots)
+
+    @property
+    def essence_attack_elements(self) -> list[str]:
+        """★ 흡수 정수의 공격 element 합집합 (source_monster 정합)."""
+        return compute_total_attack_elements(self.essence_slots)
 
 
 @dataclass

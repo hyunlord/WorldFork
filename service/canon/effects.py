@@ -136,6 +136,34 @@ def get_enemy_attack_element(enemy_type: str) -> str:
     return ENEMY_ELEMENT_MAP.get(enemy_type.strip().lower(), "물리")
 
 
+# source_monster 이름 keyword → 공격 element (★ weakness vocabulary 정합).
+# 정밀 keyword — 오탐 회피: '불행'→불 / '고뇌'→뇌 / '광대'→광 차단.
+# 13deef0 weakness(신성력/불/전격/빛) + 냉기/독 정합.
+_SOURCE_ELEMENT_KEYWORDS: Final[list[tuple[tuple[str, ...], str]]] = [
+    (("화염", "불꽃", "용암", "마그마", "작열", "화룡", "염화"), "불"),
+    (("서리", "얼음", "빙결", "냉기", "한기", "설원", "동결"), "냉기"),
+    (("전격", "번개", "낙뢰", "뇌전", "감전", "벼락"), "전격"),
+    (("신성", "성스러", "성광", "성수", "성기사"), "신성력"),
+    (("빛", "광휘", "태양", "여명"), "빛"),
+    (("맹독", "독액", "독성", "산성", "마비독", "맹독성"), "독"),
+]
+
+
+def get_essence_attack_element(source_monster: str | None) -> str | None:
+    """정수 source_monster(★ bbad9ab) 이름 → 공격 element.
+
+    흡수 시 monster의 속성을 공격 element로 획득 (★ 불 정수 → 불 공격 → undead 약점).
+    매칭 X 시 None (물리 기본은 무기 element가 담당).
+    """
+    if not source_monster or not source_monster.strip():
+        return None
+    name = source_monster.strip()
+    for keywords, element in _SOURCE_ELEMENT_KEYWORDS:
+        if any(kw in name for kw in keywords):
+            return element
+    return None
+
+
 def apply_resistance(
     damage: int,
     element: str,
@@ -315,6 +343,14 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
     grade_raw = essence_data.get("grade")
     slot_grade = int(grade_raw) if isinstance(grade_raw, int) else None
 
+    # ★ 정수 공격 element — source_monster 속성 (불/냉기/전격/신성력/빛/독)
+    source_raw = essence_data.get("source_monster")
+    attack_elements: list[str] = []
+    if isinstance(source_raw, str):
+        element = get_essence_attack_element(source_raw)
+        if element:
+            attack_elements.append(element)
+
     name_raw = essence_data.get("name", "")
     return EssenceSlot(
         essence_name=str(name_raw),
@@ -323,6 +359,7 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
         grade=slot_grade,
         resistances=resistances,
         etc_abilities=etc_abilities,
+        attack_elements=attack_elements,
     )
 
 

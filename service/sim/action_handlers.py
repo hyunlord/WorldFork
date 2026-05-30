@@ -537,26 +537,25 @@ def _compute_player_defense(ctx: ActionContext) -> int:
 
 
 def _get_attack_elements(ctx: ActionContext) -> list[str]:
-    """ctx.equipment 무기 이름에서 attack element list 추출.
+    """attack element list — 무기명 + 흡수 정수 결합 (★ 순서 유지 dedup).
 
-    default ["물리"]. 특수 무기명 keyword → element 추가.
+    default ["물리"]. 무기명 keyword + 정수 source_monster element 합산.
     """
     elements: list[str] = ["물리"]
-    if ctx.equipment is None:
-        return elements
-    weapon = ctx.equipment.weapon
-    if weapon is None:
-        return elements
-    name = weapon.name
-    if any(kw in name for kw in ("성스러운", "신성")):
-        elements.append("신성력")
-    if any(kw in name for kw in ("화염", "불")):
-        elements.append("불")
-    if any(kw in name for kw in ("전격", "번개", "전기")):
-        elements.append("전격")
-    if any(kw in name for kw in ("태양", "빛")):
-        elements.append("빛")
-    return elements
+    weapon = ctx.equipment.weapon if ctx.equipment is not None else None
+    if weapon is not None:
+        name = weapon.name
+        if any(kw in name for kw in ("성스러운", "신성")):
+            elements.append("신성력")
+        if any(kw in name for kw in ("화염", "불")):
+            elements.append("불")
+        if any(kw in name for kw in ("전격", "번개", "전기")):
+            elements.append("전격")
+        if any(kw in name for kw in ("태양", "빛")):
+            elements.append("빛")
+    # ★ 흡수 정수 공격 element 결합 (source_monster 정합)
+    elements.extend(ctx.essence_attack_elements)
+    return list(dict.fromkeys(elements))  # 순서 유지 중복 제거
 
 
 def _build_attack_narrative(
@@ -963,6 +962,9 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
             if slot.etc_abilities:
                 etc_text = ", ".join(slot.etc_abilities)
                 msg_lines.append(f"「특성 발현: {etc_text}」")
+            # ★ 정수 공격 element 부여 (source_monster 속성)
+            for el in slot.attack_elements:
+                msg_lines.append(f"「{el} 속성 공격을 사용할 수 있습니다.」")
 
     if slot_dict is None:
         from service.sim.player_state import EssenceSlot

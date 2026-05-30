@@ -14,6 +14,7 @@ class EssenceSlot:
 
     ★ I-G1 — resistances: 저항 type별 누적 (★ ee5d7d7 parsed)
     ★ I-G1 — etc_abilities: 미분류 ability log (★ stat 영향 X)
+    ★ attack_elements: source_monster 속성 공격 element (★ 불/냉기/전격 등)
     """
 
     essence_name: str
@@ -22,6 +23,7 @@ class EssenceSlot:
     grade: int | None = None
     resistances: dict[str, int] = field(default_factory=dict)
     etc_abilities: list[str] = field(default_factory=list)
+    attack_elements: list[str] = field(default_factory=list)
 
 
 def slot_to_dict(s: EssenceSlot) -> dict[str, object]:
@@ -51,6 +53,9 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
     etc_raw = d.get("etc_abilities", [])
     etc_list = [str(s) for s in etc_raw] if isinstance(etc_raw, list) else []
 
+    ae_raw = d.get("attack_elements", [])
+    attack_elements = [str(s) for s in ae_raw] if isinstance(ae_raw, list) else []
+
     return EssenceSlot(
         essence_name=str(d.get("essence_name", "")),
         stat_bundle=stats,
@@ -58,6 +63,7 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
         grade=grade,
         resistances=resistances,
         etc_abilities=etc_list,
+        attack_elements=attack_elements,
     )
 
 
@@ -77,6 +83,18 @@ def compute_total_resistances(slots: list[EssenceSlot]) -> dict[str, int]:
         for rtype, value in slot.resistances.items():
             total[rtype] = total.get(rtype, 0) + value
     return total
+
+
+def compute_total_attack_elements(slots: list[EssenceSlot]) -> list[str]:
+    """흡수 정수들의 attack_elements 합집합 (★ 순서 유지 dedup)."""
+    elements: list[str] = []
+    seen: set[str] = set()
+    for slot in slots:
+        for el in slot.attack_elements:
+            if el not in seen:
+                seen.add(el)
+                elements.append(el)
+    return elements
 
 
 def compute_total_skills(slots: list[EssenceSlot]) -> list[str]:
