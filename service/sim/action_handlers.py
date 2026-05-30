@@ -642,7 +642,8 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
     if registry:
         item_pool = registry.all_items()
     enemies, player_log = execute_player_attack(
-        enemies, target_idx, player_attack, ctx.user_input, attack_elements, player_agility
+        enemies, target_idx, player_attack, ctx.user_input, attack_elements, player_agility,
+        attack_sensitivities=ctx.total_sensitivities,
     )
 
     # Step 2: 죽은 enemy 정리 + drop

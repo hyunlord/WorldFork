@@ -118,6 +118,32 @@ def compute_damage_multiplier(
     return 1.0
 
 
+# 감응도 1당 element 위력 +2% (★ canon "속성 위력 보정")
+SENSITIVITY_SCALE: float = 0.02
+
+
+def apply_sensitivity_bonus(
+    base_element_damage: int,
+    attack_elements: list[str] | None,
+    sensitivities: dict[str, int] | None,
+) -> int:
+    """공격 element 감응도 → 데미지 위력 보정.
+
+    attack_elements 중 물리 외 element의 최대 감응도로 보정:
+      damage × (1 + sensitivity × SENSITIVITY_SCALE).
+    물리 단독(감응도 무관) 또는 감응도 0 → 보정 없음.
+    """
+    if not attack_elements or not sensitivities or base_element_damage <= 0:
+        return base_element_damage
+    best = max(
+        (sensitivities.get(el, 0) for el in attack_elements if el != "물리"),
+        default=0,
+    )
+    if best <= 0:
+        return base_element_damage
+    return max(1, int(base_element_damage * (1.0 + best * SENSITIVITY_SCALE)))
+
+
 def execute_player_attack(
     enemies: list[Enemy],
     target_idx: int,
@@ -126,6 +152,7 @@ def execute_player_attack(
     attack_elements: list[str] | None = None,
     player_agility: int = 0,
     rand_func: Callable[[], float] = random.random,
+    attack_sensitivities: dict[str, int] | None = None,
 ) -> tuple[list[Enemy], CombatTurnLog]:
     """플레이어가 target_idx 번 enemy를 공격."""
     if target_idx >= len(enemies):
@@ -158,6 +185,9 @@ def execute_player_attack(
         )
 
     damage = max(1, int(base * multiplier))
+
+    # ★ 감응도 — element 공격 위력 보정 (물리 단독 시 무관)
+    damage = apply_sensitivity_bonus(damage, attack_elements, attack_sensitivities)
 
     # 치명타 check — 면역 X 시에만 (★ ep_0018 유연성 정합)
     is_critical = compute_critical_hit(player_agility, rand_func=rand_func)

@@ -10,6 +10,7 @@ from service.sim.player_state import (
     EssenceSlot,
     compute_total_attack_elements,
     compute_total_resistances,
+    compute_total_sensitivities,
     compute_total_stats,
     slot_from_dict,
 )
@@ -63,6 +64,11 @@ class ActionContext:
     def essence_attack_elements(self) -> list[str]:
         """★ 흡수 정수의 공격 element 합집합 (source_monster 정합)."""
         return compute_total_attack_elements(self.essence_slots)
+
+    @property
+    def total_sensitivities(self) -> dict[str, int]:
+        """★ 흡수 정수의 element 감응도 합산 (공격 element 위력 보정)."""
+        return compute_total_sensitivities(self.essence_slots)
 
 
 @dataclass

@@ -24,6 +24,7 @@ class EssenceSlot:
     resistances: dict[str, int] = field(default_factory=dict)
     etc_abilities: list[str] = field(default_factory=list)
     attack_elements: list[str] = field(default_factory=list)
+    sensitivities: dict[str, int] = field(default_factory=dict)
 
 
 def slot_to_dict(s: EssenceSlot) -> dict[str, object]:
@@ -56,6 +57,13 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
     ae_raw = d.get("attack_elements", [])
     attack_elements = [str(s) for s in ae_raw] if isinstance(ae_raw, list) else []
 
+    sens_raw = d.get("sensitivities", {})
+    sensitivities: dict[str, int] = {}
+    if isinstance(sens_raw, dict):
+        for k, v in sens_raw.items():
+            if isinstance(k, str) and isinstance(v, int):
+                sensitivities[k] = v
+
     return EssenceSlot(
         essence_name=str(d.get("essence_name", "")),
         stat_bundle=stats,
@@ -64,6 +72,7 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
         resistances=resistances,
         etc_abilities=etc_list,
         attack_elements=attack_elements,
+        sensitivities=sensitivities,
     )
 
 
@@ -82,6 +91,15 @@ def compute_total_resistances(slots: list[EssenceSlot]) -> dict[str, int]:
     for slot in slots:
         for rtype, value in slot.resistances.items():
             total[rtype] = total.get(rtype, 0) + value
+    return total
+
+
+def compute_total_sensitivities(slots: list[EssenceSlot]) -> dict[str, int]:
+    """흡수 정수들의 element 감응도 합산 (★ 공격 element 위력 보정)."""
+    total: dict[str, int] = {}
+    for slot in slots:
+        for element, value in slot.sensitivities.items():
+            total[element] = total.get(element, 0) + value
     return total
 
 

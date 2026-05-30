@@ -39,10 +39,16 @@ def test_classify_dex() -> None:
 def test_classify_resistance() -> None:
     assert classify_ability("독 내성") == ("resistance", "독")
     assert classify_ability("독내성") == ("resistance", "독")
-    assert classify_ability("냉기 감응도") == ("resistance", "냉기")
     assert classify_ability("냉기응축") == ("resistance", "냉기")
     assert classify_ability("오한") == ("resistance", "냉기")
     assert classify_ability("고통내성") == ("resistance", "고통")
+
+
+def test_classify_sensitivity() -> None:
+    """★ 감응도는 공격 element 계수 — resistance 아님 (canon 정합)."""
+    assert classify_ability("냉기 감응도") == ("sensitivity", "냉기")
+    assert classify_ability("화염 감응도") == ("sensitivity", "불")
+    assert classify_ability("모든 속성 감응도") == ("sensitivity", "")
 
 
 def test_classify_etc() -> None:

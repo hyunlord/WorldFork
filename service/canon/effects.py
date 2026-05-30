@@ -94,16 +94,36 @@ _DEX_KEYWORDS: Final[frozenset[str]] = frozenset([
 ])
 
 
-def classify_ability(name: str) -> tuple[str, str | None]:
-    """ability name → (category, resistance_type).
+# 감응도 element keyword → element (★ canon: "속성 위력 보정" 공격 계수 — 저항 X)
+_SENSITIVITY_ELEMENT: Final[list[tuple[str, str]]] = [
+    ("화염", "불"), ("불", "불"),
+    ("냉기", "냉기"), ("서리", "냉기"), ("빙", "냉기"),
+    ("전격", "전격"), ("번개", "전격"),
+    ("신성", "신성력"),
+    ("빛", "빛"), ("태양", "빛"),
+    ("독", "독"),
+]
 
-    category: "attack" | "dex" | "resistance" | "etc"
-    resistance_type: 저항 시 "독"/"냉기"/.., 그 외 None
+
+def classify_ability(name: str) -> tuple[str, str | None]:
+    """ability name → (category, type).
+
+    category: "attack" | "dex" | "resistance" | "sensitivity" | "etc"
+    type: resistance/sensitivity 시 element ("독"/"냉기"/..), 그 외 None
+
+    ★ 감응도(canon "속성 위력 보정" 공격 계수)는 resistance보다 우선 —
+      "냉기 감응도"가 resistance(냉기)로 오분류되지 않도록.
     """
     s = name.strip()
     if not s:
         return ("etc", None)
-    # 저항 우선 (가장 specific, 긴 keyword 먼저 — list 순서 정합)
+    # 감응도 우선 (★ 공격 element 계수 — 저항과 구분)
+    if "감응" in s:
+        for kw, element in _SENSITIVITY_ELEMENT:
+            if kw in s:
+                return ("sensitivity", element)
+        return ("sensitivity", "")  # element 미상 (예: 모든 속성)
+    # 저항 (가장 specific, 긴 keyword 먼저 — list 순서 정합)
     for kw, rtype in _RESISTANCE_KEYWORDS:
         if kw in s:
             return ("resistance", rtype)
@@ -219,10 +239,33 @@ def apply_parsed_abilities(
             stat_bundle["agility"] = stat_bundle.get("agility", 0) + value
         elif category == "resistance" and rtype:
             resistances[rtype] = resistances.get(rtype, 0) + value
+        elif category == "sensitivity":
+            continue  # ★ 감응도는 parse_sensitivities에서 별도 처리 (중복 방지)
         else:
             etc_logs.append(f"{name}({tier})")
 
     return stat_bundle, resistances, etc_logs
+
+
+def parse_sensitivities(parsed: list[dict[str, object]]) -> dict[str, int]:
+    """parsed list → element 감응도 dict (★ 공격 element 위력 보정).
+
+    canon: "감응도 스탯 — 속성 위력 보정" / "냉기 피해 계수인 냉기 감응도".
+    element 미상(모든 속성)은 제외 — combat은 특정 element 매칭 필요.
+    """
+    sensitivities: dict[str, int] = {}
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+        name_raw = entry.get("name")
+        tier_raw = entry.get("tier")
+        if not isinstance(name_raw, str) or not name_raw.strip():
+            continue
+        tier = str(tier_raw) if isinstance(tier_raw, str) else "중"
+        category, element = classify_ability(name_raw)
+        if category == "sensitivity" and element:
+            sensitivities[element] = sensitivities.get(element, 0) + TIER_VALUE.get(tier, 2)
+    return sensitivities
 
 
 # ── regex patterns ────────────────────────────────────────────────────────────
@@ -351,6 +394,13 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
         if element:
             attack_elements.append(element)
 
+    # ★ 감응도 — element 위력 보정 (parsed "X 감응도")
+    sensitivities: dict[str, int] = {}
+    if isinstance(abilities_raw, dict):
+        parsed_s = abilities_raw.get("parsed")
+        if isinstance(parsed_s, list) and parsed_s:
+            sensitivities = parse_sensitivities(parsed_s)
+
     name_raw = essence_data.get("name", "")
     return EssenceSlot(
         essence_name=str(name_raw),
@@ -360,6 +410,7 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
         resistances=resistances,
         etc_abilities=etc_abilities,
         attack_elements=attack_elements,
+        sensitivities=sensitivities,
     )
 
 
