@@ -68,7 +68,8 @@ async def run_check(
                 return False, failures
             print("  ✅ loaded")
 
-            print("[2/5] Waiting for '새 게임' link...")
+            print("[2/5] '새 게임' → /character → '미궁으로' → /game...")
+            # '새 게임' 링크 (/ → /character)
             try:
                 link = await page.wait_for_selector(
                     "a:has-text('새 게임')",
@@ -78,14 +79,34 @@ async def run_check(
                 if not link:
                     failures.append("'새 게임' 링크 X")
                     return False, failures
-                print("  ✅ link visible")
                 await link.click()
+                await page.wait_for_url("**/character", timeout=10000)
+                print("  ✅ /character 진입")
             except Exception as e:
-                failures.append(f"'새 게임' 링크 대기 실패: {e}")
+                failures.append(f"'새 게임' → /character 실패: {e}")
+                return False, failures
+
+            # 캐릭터 생성 — 기본값(bjorn + barbarian) 유효, '미궁으로' 클릭
+            # createCharacter(backend) → router.push('/game')
+            try:
+                start_btn = await page.wait_for_selector(
+                    "button:has-text('미궁으로')",
+                    timeout=10000,
+                    state="visible",
+                )
+                if not start_btn:
+                    failures.append("'미궁으로' 버튼 X")
+                    return False, failures
+                await start_btn.click()
+                await page.wait_for_url("**/game", timeout=20000)
+                print("  ✅ /game 진입 (캐릭터 생성 완료)")
+            except Exception as e:
+                failures.append(f"'미궁으로' → /game 실패: {e} (★ backend 8090 확인)")
                 return False, failures
 
             print("[3/5] Waiting for game input (JS hydration)...")
             try:
+                # /game 진입 확정 후 — InputBar의 단일 text input 대기
                 await page.wait_for_selector(
                     "input",
                     timeout=15000,

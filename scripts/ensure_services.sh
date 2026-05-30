@@ -5,15 +5,17 @@
 # 인프라 미가동 때문에 점수를 잃는 구조적 문제 해결.
 #
 # 설계 원칙:
-# - 자동 기동 대상: 9B(8083) llama-server, frontend(4000) next dev
-# - 검토만(자동 start X): backend(8090) uvicorn, 27B(8081) docker sglang
+# - 자동 기동 대상: 9B(8083) llama-server, backend(8090) uvicorn, frontend(4000) next dev
+# - 검토만(자동 start X): 27B(8081) docker sglang (root 권한)
+# - backend는 /health(실제 FastAPI)로 판별 — http.server 잔재 오판 방지
 # - 실패 시 경고만 — gate 강제 중단 X (해당 단계만 점수 영향)
 # - 멱등: 이미 UP이면 skip
 #
 # 환경 변수:
-#   SKIP_ENSURE=1   → 전체 skip
-#   ENSURE_9B=0     → 9B 자동 기동 skip
-#   ENSURE_FE=0     → frontend 자동 기동 skip
+#   SKIP_ENSURE=1     → 전체 skip
+#   ENSURE_9B=0       → 9B 자동 기동 skip
+#   ENSURE_BACKEND=0  → backend 자동 기동 skip
+#   ENSURE_FE=0       → frontend 자동 기동 skip
 
 set -uo pipefail
 
@@ -112,13 +114,39 @@ ensure_frontend() {
 }
 
 
-# ─── backend(8090) / 27B(8081) — 검토만 ───
-review_managed() {
-    if _check "$PORT_BACKEND" "/health" || _check "$PORT_BACKEND" "/"; then
-        echo "[ensure] backend (8090) ✅ UP"
-    else
-        echo "[ensure] backend (8090) ⚠️  DOWN — uvicorn 수동 기동 필요 (자동 start X)"
+# ─── backend (8090) uvicorn ───
+# ★ /health(실제 FastAPI)로 판별 — GET /만 받는 http.server 잔재 오판 방지.
+#   8090을 http.server 잔재가 점유 시 narrow kill 후 uvicorn 기동.
+ensure_backend() {
+    if [ "${ENSURE_BACKEND:-1}" != "1" ]; then
+        echo "[ensure] backend (8090) skip (ENSURE_BACKEND=0)"
+        return 0
     fi
+    if _check "$PORT_BACKEND" "/health"; then
+        echo "[ensure] backend (8090) ✅ 이미 UP"
+        return 0
+    fi
+    # /health 미응답인데 포트 점유 시 — http.server 잔재 narrow kill
+    # (★ 'http.server ... 8090' 만 매칭 — 실제 'uvicorn service.api.app'는 불일치)
+    if pgrep -f "http.server.*${PORT_BACKEND}" >/dev/null 2>&1; then
+        echo "[ensure] backend (8090) ⚠️  http.server 잔재 점유 → kill"
+        pkill -f "http.server.*${PORT_BACKEND}" 2>/dev/null || true
+        sleep 1
+    fi
+    echo "[ensure] backend (8090) DOWN → uvicorn 자동 start..."
+    (
+        cd "$REPO_ROOT" || exit 1
+        nohup .venv/bin/uvicorn service.api.app:app \
+            --host 0.0.0.0 --port "$PORT_BACKEND" \
+            > /tmp/uvicorn_backend.log 2>&1 &
+        disown
+    )
+    _wait_health "backend" "$PORT_BACKEND" "/health" "$LLM_HEALTH_TIMEOUT"
+}
+
+
+# ─── 27B (8081) — 검토만 (docker sglang, root) ───
+review_27b() {
     if _check "$PORT_27B" "/v1/models"; then
         echo "[ensure] 27B (8081) ✅ UP"
     else
@@ -135,8 +163,9 @@ main() {
     echo "=== ensure_services — Ship Gate 전 인프라 헬스체크 ==="
     local warn=0
     ensure_9b || warn=1
+    ensure_backend || warn=1
     ensure_frontend || warn=1
-    review_managed
+    review_27b
     if [ "$warn" -eq 0 ]; then
         echo "[ensure] ✅ 자동 기동 대상 모두 UP"
     else
