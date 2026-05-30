@@ -1,9 +1,10 @@
-"""combat mechanism rules 추출 로직 단위 테스트."""
+"""mechanism rules 추출 로직 단위 테스트 (★ generalize: extract_mechanism_rules)."""
 
 from __future__ import annotations
 
-from scripts.extract_combat_rules import (
+from scripts.extract_mechanism_rules import (
     _MIN_DESC,
+    get_extract_system,
     has_rules,
     strip_thinking_tags,
 )
@@ -24,6 +25,22 @@ def test_strip_thinking_tags() -> None:
 
 def test_min_desc_constant() -> None:
     assert _MIN_DESC == 20
+
+
+def test_category_dispatch() -> None:
+    """★ generalize — category별 prompt 분기 (combat/magic/skill 상이)."""
+    combat = get_extract_system("combat")
+    magic = get_extract_system("magic")
+    skill = get_extract_system("skill")
+    assert combat != magic != skill
+    assert "전투" in combat
+    assert "마법" in magic and "element" in magic
+    assert "스킬" in skill
+
+
+def test_unknown_category_fallback() -> None:
+    """미지원 category → combat fallback."""
+    assert get_extract_system("unknown") == get_extract_system("combat")
 
 
 def test_ip_masking_applied_to_rule() -> None:
