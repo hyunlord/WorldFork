@@ -84,41 +84,48 @@ layer1:
 
 ## 2. Ship Gate
 
-### 2.1 5단계 검증 (자료의 패턴)
-
-자료의 `pnpm ship` 패턴 그대로 차용:
+### 2.1 6단계 검증 (★ 실제 운영 — Tier 2 D11, `scripts/verify.sh`)
 
 ```bash
-$ pnpm ship "feat: add character relationship tracking"
+$ ./scripts/verify.sh        # 또는 git push 시 pre-push 자동 실행
 
-[1/5] Build (next build / pnpm build)         ✅ 20/20
-[2/5] TypeScript (tsc --noEmit) + Python lint  ✅ 15/15
-[3/5] Unit Tests (pytest + vitest)             ✅ 20/20
-[4/5] Eval Smoke (10 items, cross-model)       ✅ 20/20
-[5/5] Verify Agent (cross-LLM full review)     ✅ 23/25
-                                              ─────────
-TOTAL                                            98/100 A
+[0/6] ensure_services         ✅ 9B/backend/frontend/27B 자동기동 (999be71)
+[1/6] Build                   ✅ 10/10   Python import
+[2/6] Lint + Type             ✅ 10/10   ruff 5 + mypy --strict 5
+[3/6] Unit Tests              ✅ 10/10   pytest tests/unit
+[4/6] Eval Smoke              ✅ 10/10   9B(8083) 게임 LLM 품질 95%+
+[5/6] E2E                     ✅ 10/10   Mechanical 5 + Browser 5
+[6/6] Verify Agent            ✅ 50/50   debate 3-stage (codex/27B/9B)
+                                       ─────────
+TOTAL                                    100/100 A
 
-✅ Ship gate passed. Committing...
-[main 32b89e2] feat: add character relationship tracking
-✅ Pushed to origin/main
+✅ Ship gate PASSED (95+) → push 진행
 ```
 
-### 2.2 점수 분배
+> ★ 위 배분은 실제 운영 gate (`scripts/verify.sh`) 기준.
+> 아래 2.2 표와 본 문서의 이전 bash 예시(`pnpm ship` 5단계, Verify 25/Smoke 20)는
+> 옛 design이며 실제와 다름 — 실제는 6단계 / Verify 50 / Smoke 10 / threshold 95.
+
+### 2.2 점수 분배 (★ 실제 운영)
 
 | 단계 | 점수 | 의미 |
 |---|---|---|
-| Build | 20 | Python 빌드 + Next.js build 성공 |
-| TypeScript + Python lint | 15 | strict mode, no `any`, ruff/mypy 통과 |
-| Unit Tests | 20 | pytest + vitest 모두 통과 |
-| Eval Smoke | 20 | 10 항목 cross-model eval, 95+ |
-| Verify Agent | 25 | Layer 1 전용 LLM 코드 리뷰 |
+| [0/6] ensure_services | — | 9B/backend/frontend/27B 헬스체크·자동기동 (999be71) |
+| [1/6] Build | 10 | Python import 검증 |
+| [2/6] Lint + Type | 10 | ruff 5 + mypy --strict 5 (+AutoFix 1cycle) |
+| [3/6] Unit Tests | 10 | pytest tests/unit |
+| [4/6] Eval Smoke | 10 | 9B(8083) 게임 LLM 품질 (95%+ → 10 / 80%+ → 5) |
+| [5/6] E2E | 10 | Mechanical(curl) 5 + Browser(playwright) 5 |
+| [6/6] Verify Agent | 50 | debate 3-stage cross-LLM (codex→27B→9B, 664a80e) |
 | **합계** | **100** | A 등급 = 95+ |
 
 등급:
 - A (95+): Ship 가능
 - B (80-94): Acceptable이지만 main에 push 안 됨
 - C (70-79): Needs work
+
+> 옛 배분(deprecated): Build 20 / Lint 15 / Unit 20 / Smoke 20 / Verify 25, 5단계.
+> Tier 2 D11에서 6단계(E2E 추가) + Verify 비중 확대(25→50) + Smoke 축소(20→10)로 개편.
 - F (<70): Reject
 
 ### 2.3 verify.sh 구현
@@ -318,7 +325,16 @@ echo "✅ Pushed to origin/main"
 
 ---
 
-## 3. Verify Agent (Layer 1 LLM 코드 리뷰)
+## 3. Verify Agent (Layer 1 LLM 코드 리뷰 — 50점)
+
+> ★ 현재 (664a80e~): codex single review → **debate 3-stage**.
+> - Drafter (codex/gpt-5.5, openai): git diff 직접 리뷰
+> - Challenger (27B, qwen, 8081): ★ 코드 격리 — commit 의도 + Drafter 요약만, 독립 반박
+> - Quality (9B, qwen, 8083): Drafter + Challenger 종합 → verdict
+> - Cross-Model: Drafter(openai) ≠ Challenger(qwen), 코드 author=claude → 3 stage 모두 claude 아님
+> - config: `harness.yaml debate_mode.enabled` (false 시 single review fallback)
+> - 코드: `core/verify/debate.py` (DebateJudge), `core/verify/layer1_review.py` (use_debate 통합)
+> 아래 3.1은 single review 시절 골격 — debate는 이를 Drafter 단계로 재사용.
 
 ### 3.1 구조
 

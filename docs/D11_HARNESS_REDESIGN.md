@@ -325,6 +325,11 @@ A 등급: 95+
 ★ "Made-but-Never-Used" 자동 차단
 ```
 
+> ★ 실제 채택 (위 제안과 차이 — `scripts/verify.sh` 기준):
+> Build 10 / Lint 10 / Unit 10 / Eval Smoke 10 / E2E 10(Mechanical 5 + Browser 5) / Verify Agent 50 = 100.
+> 위 제안의 VLM Visual 10은 미채택, Verify 비중은 30 제안 → 실제 50.
+> Verify Agent는 debate 3-stage(codex/27B/9B, 664a80e). 상세: HARNESS_LAYER1_DEV.md 2.2.
+
 ### 4.4 ★ 53 commits 재검증 디자인
 
 ```
