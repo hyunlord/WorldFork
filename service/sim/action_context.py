@@ -46,6 +46,8 @@ class ActionContext:
     portal_first_opened: bool = False
     # ★ race-effects — 종족 식별자 (combat trait 적용)
     race: str = "barbarian"
+    # ★ 감응도 소비 아이템 누적 (element → bonus) — essence 파생과 합산
+    player_sensitivities: dict[str, int] = field(default_factory=dict)
 
     @property
     def essence_slots(self) -> list[EssenceSlot]:
@@ -67,8 +69,11 @@ class ActionContext:
 
     @property
     def total_sensitivities(self) -> dict[str, int]:
-        """★ 흡수 정수의 element 감응도 합산 (공격 element 위력 보정)."""
-        return compute_total_sensitivities(self.essence_slots)
+        """★ element 감응도 합산 — 흡수 정수(essence) + 소비 아이템(player)."""
+        total = compute_total_sensitivities(self.essence_slots)
+        for element, value in self.player_sensitivities.items():
+            total[element] = total.get(element, 0) + value
+        return total
 
 
 @dataclass
@@ -108,3 +113,5 @@ class ActionResult:
     # exit:   {"action": "exit"}
     # ★ 6d-followup — 최초 포탈 개방 확정 (ep_0022: True 시 session에 flag set)
     portal_first_opened_set: bool = False
+    # ★ 감응도 소비 아이템 → player_sensitivities 증가 (element → bonus delta)
+    sensitivity_add: dict[str, int] = field(default_factory=dict)

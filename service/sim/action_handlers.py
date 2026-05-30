@@ -544,6 +544,9 @@ def _get_attack_elements(ctx: ActionContext) -> list[str]:
     elements: list[str] = ["물리"]
     weapon = ctx.equipment.weapon if ctx.equipment is not None else None
     if weapon is not None:
+        # ★ ItemRegistry 파싱 element (name+description 정합) 우선
+        if weapon.element:
+            elements.append(weapon.element)
         name = weapon.name
         if any(kw in name for kw in ("성스러운", "신성")):
             elements.append("신성력")
@@ -1085,6 +1088,20 @@ async def handle_use_item(ctx: ActionContext) -> ActionResult:
             fail_reason="not_in_inventory",
             time_advance=0,
         )
+    # ★ 감응도 소비 아이템 (빙정/순수한 불꽃) — element 감응도 영구 상승
+    registry = get_item_registry()
+    if registry is not None:
+        sens = registry.lookup_sensitivity_item(item)
+        if sens is not None:
+            return ActionResult(
+                narrative=(
+                    f"나는 {item}을(를) 사용했다."
+                    f"\n\n「{sens.element} 감응도가 +{sens.bonus} 영구 상승했습니다.」"
+                ),
+                inventory_remove=[item],
+                sensitivity_add={sens.element: sens.bonus},
+                time_advance=1,
+            )
     if "물약" in item:
         return ActionResult(
             narrative=(

@@ -20,6 +20,7 @@ class Equipment:
     defense_bonus: int = 0
     agility_bonus: int = 0
     abilities: list[str] = field(default_factory=list)
+    element: str = ""  # ★ 무기 속성 (불/냉기/전격/신성력/빛 — combat 약점 정합)
 
 
 @dataclass
@@ -49,6 +50,7 @@ def equipment_to_dict(e: Equipment) -> dict[str, object]:
         "defense_bonus": e.defense_bonus,
         "agility_bonus": e.agility_bonus,
         "abilities": list(e.abilities),
+        "element": e.element,
     }
 
 
@@ -66,6 +68,7 @@ def equipment_from_dict(d: dict[str, object]) -> Equipment:
     agility = _to_int(d.get("agility_bonus"))
     abilities_raw = d.get("abilities", [])
     abilities = [str(a) for a in abilities_raw] if isinstance(abilities_raw, list) else []
+    element = str(d.get("element", ""))
     return Equipment(
         name=name,
         slot=EquipmentSlot(slot_val),
@@ -73,6 +76,7 @@ def equipment_from_dict(d: dict[str, object]) -> Equipment:
         defense_bonus=defense,
         agility_bonus=agility,
         abilities=abilities,
+        element=element,
     )
 
 

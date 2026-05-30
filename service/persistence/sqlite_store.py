@@ -32,6 +32,8 @@ class SessionRow:
     soul_power: int = 10
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
+    # ★ 감응도 소비 아이템 누적 (element → bonus)
+    player_sensitivities: dict[str, int] = field(default_factory=dict)
     # ★ 7 — dungeon floor
     floor_number: int = 0
     # ★ 168h — dungeon clock
@@ -165,6 +167,10 @@ class SqliteStore:
                 "scenario_mode",
                 "ALTER TABLE sessions ADD COLUMN scenario_mode TEXT NOT NULL DEFAULT 'bjorn'",
             ),
+            (
+                "player_sensitivities",
+                "ALTER TABLE sessions ADD COLUMN player_sensitivities TEXT NOT NULL DEFAULT '{}'",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -183,8 +189,8 @@ class SqliteStore:
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
              absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon,
              stone_balance, rift_id, rift_sub_area, rift_is_variant, portal_first_opened,
-             time_elapsed, race, scenario_mode)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             time_elapsed, race, scenario_mode, player_sensitivities)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -210,7 +216,8 @@ class SqliteStore:
             portal_first_opened     = excluded.portal_first_opened,
             time_elapsed            = excluded.time_elapsed,
             race                    = excluded.race,
-            scenario_mode           = excluded.scenario_mode
+            scenario_mode           = excluded.scenario_mode,
+            player_sensitivities    = excluded.player_sensitivities
         """
         with self._connect() as conn:
             conn.execute(
@@ -243,6 +250,7 @@ class SqliteStore:
                     row.time_elapsed,
                     row.race,
                     row.scenario_mode,
+                    json.dumps(row.player_sensitivities, ensure_ascii=False),
                 ),
             )
 
@@ -266,6 +274,8 @@ class SqliteStore:
         absorbed_parsed = json.loads(absorbed_raw)
         defeated_raw = row["defeated_monster_types"] if "defeated_monster_types" in keys else "[]"
         defeated_parsed = json.loads(defeated_raw)
+        sens_raw = row["player_sensitivities"] if "player_sensitivities" in keys else "{}"
+        sens_parsed = json.loads(sens_raw)
 
         def _int_col(name: str, default: int) -> int:
             val = row[name] if name in keys else default
@@ -301,6 +311,10 @@ class SqliteStore:
             absorbed_essences=absorbed_parsed if isinstance(absorbed_parsed, list) else [],
             defeated_monster_types=(
                 defeated_parsed if isinstance(defeated_parsed, list) else []
+            ),
+            player_sensitivities=(
+                {str(k): int(v) for k, v in sens_parsed.items() if isinstance(v, int)}
+                if isinstance(sens_parsed, dict) else {}
             ),
             floor_number=_int_col("floor_number", 0),
             hours_in_dungeon=hours_in_dungeon,

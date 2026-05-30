@@ -155,6 +155,7 @@ def _build_context(req: FreeformActionRequest, state: SessionState | None) -> Ac
             rift_is_variant=state.rift_is_variant,
             portal_first_opened=state.portal_first_opened,
             race=state.race,
+            player_sensitivities=dict(state.player_sensitivities),
         )
     return ActionContext(
         current_hp=req.current_hp,

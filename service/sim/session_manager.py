@@ -42,6 +42,8 @@ class SessionState:
     soul_power: int = 10
     absorbed_essences: list[dict[str, object]] = field(default_factory=list)
     defeated_monster_types: list[str] = field(default_factory=list)
+    # ★ 감응도 소비 아이템 누적 (element → bonus) — 정수 외 영구 감응도
+    player_sensitivities: dict[str, int] = field(default_factory=dict)
     # ★ 7 — dungeon floor
     floor_number: int = 0
     # ★ 168h — dungeon clock
@@ -90,6 +92,7 @@ def _to_row(s: SessionState) -> SessionRow:
         soul_power=s.soul_power,
         absorbed_essences=list(s.absorbed_essences),
         defeated_monster_types=list(s.defeated_monster_types),
+        player_sensitivities=dict(s.player_sensitivities),
         floor_number=s.floor_number,
         hours_in_dungeon=s.hours_in_dungeon,
         stone_balance=s.stone_balance,
@@ -123,6 +126,7 @@ def _from_row(r: SessionRow) -> SessionState:
         soul_power=r.soul_power,
         absorbed_essences=list(r.absorbed_essences),
         defeated_monster_types=list(r.defeated_monster_types),
+        player_sensitivities=dict(r.player_sensitivities),
         floor_number=r.floor_number,
         hours_in_dungeon=r.hours_in_dungeon,
         stone_balance=r.stone_balance,
@@ -280,6 +284,12 @@ class SessionManager:
                 s for s in state.absorbed_essences
                 if s.get("essence_name") != result.essence_slot_remove
             ]
+        # ★ 감응도 소비 아이템 → player_sensitivities 누적
+        if result.sensitivity_add:
+            for element, bonus in result.sensitivity_add.items():
+                state.player_sensitivities[element] = (
+                    state.player_sensitivities.get(element, 0) + bonus
+                )
         # ★ 168h — hours_in_dungeon 누적 (floor_change 적용 전 현재 층 기준)
         if result.hours_in_dungeon_reset:
             state.hours_in_dungeon = 0.0

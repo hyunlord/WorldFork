@@ -49,6 +49,8 @@ class SessionStateResponse(BaseModel):
     soul_power: int
     absorbed_essences: list[dict[str, object]]
     defeated_monster_types: list[str]
+    # 감응도 소비 아이템 누적 (element → bonus)
+    player_sensitivities: dict[str, int]
     # dungeon floor / clock
     floor_number: int
     hours_in_dungeon: float
@@ -100,6 +102,7 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         soul_power=s.soul_power,
         absorbed_essences=list(s.absorbed_essences),
         defeated_monster_types=list(s.defeated_monster_types),
+        player_sensitivities=dict(s.player_sensitivities),
         floor_number=s.floor_number,
         hours_in_dungeon=s.hours_in_dungeon,
         stone_balance=s.stone_balance,
