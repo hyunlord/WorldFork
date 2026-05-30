@@ -75,7 +75,10 @@ async def test_attack_no_target() -> None:
 
 
 @pytest.mark.asyncio
-async def test_attack_damage_applied() -> None:
+async def test_attack_damage_applied(monkeypatch: pytest.MonkeyPatch) -> None:
+    # critical(5% 확률, ×2) 고정 해제 — flaky 방지 (hp 23 vs crit 16)
+    from service.sim import combat as _combat
+    monkeypatch.setattr(_combat, "compute_critical_hit", lambda *_a, **_k: False)
     ctx = _ctx_with_enemy(hp=30, defense=3)
     result = await handle_attack(ctx)
     # base attack 10, defense 3 → damage 7, hp 23
@@ -112,7 +115,10 @@ async def test_attack_no_drop_when_not_resolved() -> None:
 
 
 @pytest.mark.asyncio
-async def test_attack_weakness_multiplier() -> None:
+async def test_attack_weakness_multiplier(monkeypatch: pytest.MonkeyPatch) -> None:
+    # critical 고정 해제 — flaky 방지 (hp 85 vs crit 70)
+    from service.sim import combat as _combat
+    monkeypatch.setattr(_combat, "compute_critical_hit", lambda *_a, **_k: False)
     ctx = _ctx_with_enemy(
         hp=100, defense=0, weakness_races=["고블린"], user_input="고블린 약점 공격"
     )
