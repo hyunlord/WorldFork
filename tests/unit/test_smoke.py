@@ -67,6 +67,13 @@ class TestRunSmoke:
         assert result.passed == 0
         assert not result.attempts[0].mechanical_passed
 
+    def test_smoke_uses_temperature_zero(self) -> None:
+        """★ Smoke 9B 호출은 temperature 0 (greedy 결정적 — 비결정성 제거)."""
+        llm = _mock_llm("동굴 안은 어두컴컴하고 차가운 공기가 감돌았습니다.")
+        run_smoke(llm, categories=["korean_quality"], n=1)
+        assert llm.generate.call_args is not None
+        assert llm.generate.call_args.kwargs.get("temperature") == 0.0
+
     def test_pass_rate_calculation(self) -> None:
         result = SmokeResult()
         result.total = 10

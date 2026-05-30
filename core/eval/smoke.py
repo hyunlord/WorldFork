@@ -112,7 +112,9 @@ def _run_single(
     )
 
     try:
-        resp = llm.generate(prompt, max_tokens=256, temperature=0.3)
+        # ★ temperature 0 (greedy) — Smoke baseline 결정적화 (90%↔100% 비결정 제거).
+        #   게임 production 호출(intent/dialogue 등)은 별도 경로 — temp 유지.
+        resp = llm.generate(prompt, max_tokens=256, temperature=0.0)
         text = resp.text
     except Exception as e:
         return SmokeAttempt(
