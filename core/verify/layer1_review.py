@@ -22,6 +22,7 @@ from core.verify.anti_pattern_check import (
     check_anti_patterns,
     severity_score_penalty,
 )
+from core.verify.debate import DebateJudge, DebateVerdict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -89,14 +90,17 @@ class Layer1ReviewAgent:
         self,
         reviewer: LLMClient,
         forbidden_reviewers: tuple[str, ...] = ("claude-code", "claude_code", "claude"),
+        use_debate: bool = False,
     ) -> None:
         """
         Args:
-            reviewer: 검증 LLM
+            reviewer: 검증 LLM (★ Drafter)
             forbidden_reviewers: ★ Cross-Model 강제. 작성자와 같은 family X.
+            use_debate: ★ True 시 Drafter(reviewer) → Challenger(27B) → Quality(9B) 3-stage.
         """
         self._reviewer = reviewer
         self._forbidden = forbidden_reviewers
+        self._use_debate = use_debate
 
         # ★ Cross-Model 검증 (★ 자기 합리화 차단)
         if self._reviewer.model_name in self._forbidden:
@@ -104,6 +108,8 @@ class Layer1ReviewAgent:
                 f"Reviewer '{self._reviewer.model_name}' is in forbidden list "
                 f"{self._forbidden}. Cross-Model violation."
             )
+
+        self._debate: DebateJudge | None = DebateJudge() if use_debate else None
 
     def review(
         self,
@@ -194,6 +200,39 @@ class Layer1ReviewAgent:
             if any(m.anti_pattern.severity == "critical" for m in ap_matches):
                 verdict = "fail"
 
+        has_critical_ap = any(
+            m.anti_pattern.severity == "critical" for m in ap_matches
+        )
+
+        # 7. Debate (★ Drafter=codex score → Challenger 27B → Quality 9B)
+        #    토론은 drafter score를 상향 못 함. critical AP는 항상 fail 유지.
+        reviewer_model = self._reviewer.model_name
+        if self._debate is not None and not has_critical_ap:
+            commit_intent = self._git_commit_message(ref_new)
+            debate = self._debate.judge(
+                drafter_score=score,
+                drafter_summary=summary,
+                commit_intent=commit_intent,
+            )
+            score = debate.score
+            verdict = _debate_verdict_to_review(debate.verdict)
+            if debate.challenger.concerns:
+                for c in debate.challenger.concerns[:5]:
+                    issues.append(
+                        ReviewIssue(
+                            severity="minor",
+                            file="<challenger>",
+                            line=0,
+                            description=f"[Challenger] {c}",
+                            category="debate",
+                        )
+                    )
+            suffix = " | debate(27B/9B)"
+            if debate.error:
+                suffix += f" [fallback: {debate.error}]"
+            summary = (summary + suffix)[:600]
+            reviewer_model = "+".join(debate.models_used.values())
+
         cost = getattr(llm_response, "cost_usd", 0.0)
         return Layer1ReviewResult(
             score=score,
@@ -201,10 +240,21 @@ class Layer1ReviewAgent:
             issues=issues,
             summary=summary,
             anti_pattern_matches=ap_matches,
-            reviewer_model=self._reviewer.model_name,
+            reviewer_model=reviewer_model,
             raw_response=llm_response.text[:1000],
             cost_usd=float(cost),
         )
+
+    def _git_commit_message(self, ref: str) -> str:
+        """ref의 commit message — Challenger 의도 전달용 (코드 X)."""
+        try:
+            proc = subprocess.run(
+                ["git", "log", "-1", "--format=%B", ref],
+                capture_output=True, text=True, check=False, cwd=REPO_ROOT,
+            )
+            return proc.stdout.strip()
+        except (FileNotFoundError, OSError):
+            return ""
 
     def _call_reviewer(self, diff: str) -> Any:
         """LLM 호출 (★ 정보 격리)."""
@@ -234,3 +284,14 @@ class Layer1ReviewAgent:
             error=error,
             reviewer_model=self._reviewer.model_name,
         )
+
+
+def _debate_verdict_to_review(
+    verdict: DebateVerdict,
+) -> Literal["pass", "warn", "fail"]:
+    """DebateVerdict → Layer1ReviewResult verdict 형식."""
+    if verdict == DebateVerdict.PASS:
+        return "pass"
+    if verdict == DebateVerdict.WARN:
+        return "warn"
+    return "fail"

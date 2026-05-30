@@ -31,6 +31,19 @@ CODEX_TIMEOUT_SECONDS = 600.0  # 180s → 600s
 CODEX_MAX_RETRIES = 1          # timeout 발생 시 1회 retry
 
 
+def _debate_enabled() -> bool:
+    """config/harness.yaml debate_mode.enabled 읽기 (default True)."""
+    import yaml
+
+    cfg = Path(__file__).resolve().parents[1] / "config" / "harness.yaml"
+    try:
+        data = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
+        dm = data.get("debate_mode", {})
+        return bool(dm.get("enabled", True)) if isinstance(dm, dict) else True
+    except (OSError, yaml.YAMLError):
+        return True
+
+
 def _is_timeout_error(result: Layer1ReviewResult) -> bool:
     """LLM call failed: CLI timeout 에러 여부 판정."""
     return bool(result.error and "CLI timeout" in result.error)
@@ -71,14 +84,16 @@ def main() -> None:
         print("SCORE=0")
         sys.exit(1)
 
+    use_debate = _debate_enabled()
     try:
-        agent = Layer1ReviewAgent(reviewer=reviewer)
+        agent = Layer1ReviewAgent(reviewer=reviewer, use_debate=use_debate)
     except ValueError as e:
         print(f"  ❌ Cross-Model violation: {e}")
         print("SCORE=0")
         sys.exit(1)
 
-    print(f"  Reviewer: {reviewer.model_name} (★ Cross-Model OK)")
+    mode = "debate(codex→27B→9B)" if use_debate else "single review"
+    print(f"  Reviewer: {reviewer.model_name} (★ Cross-Model OK) — {mode}")
 
     result, is_flake = run_review_with_retry(agent)
     if is_flake:

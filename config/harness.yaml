@@ -8,3 +8,13 @@ ai_playtester:
     max_per_category: 5
     require_review: true
     review_within_days: 7
+
+# Verify Agent Debate Mode (HARNESS_CORE 672-914)
+# Drafter(codex) → Challenger(27B, 코드 격리) → Quality(9B, 종합) 3-stage.
+# enabled=false 시 codex single review (기존).
+debate_mode:
+  enabled: true
+  models:
+    drafter: codex       # openai (git diff 봄)
+    challenger: qwen_27b # qwen 8081 (코드 격리 — 의도만)
+    quality: qwen_9b     # qwen 8083 (종합)
