@@ -693,6 +693,7 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
             enemies, ctx.current_hp, ctx.max_hp, player_defense, player_status,
             player_race=player_race,
             player_resistances=ctx.total_resistances,
+            player_reflect=ctx.total_reflect,
         )
         hp_change = new_player_hp - ctx.current_hp
 
@@ -977,6 +978,10 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
                 msg_lines.append(
                     f"「자연 재생력 발현 — 매 턴 HP {slot.regen_per_turn} 회복.」"
                 )
+            # ★ 피해 반사 부여 (확률적 보복 tier)
+            if slot.reflect_ratio > 0:
+                pct = int(slot.reflect_ratio * 100)
+                msg_lines.append(f"「피해 반사 발현 — 받은 피해의 {pct}% 반사.」")
 
     if slot_dict is None:
         from service.sim.player_state import EssenceSlot

@@ -328,6 +328,29 @@ def extract_regen_per_turn(parsed: list[dict[str, object]]) -> int:
     return best
 
 
+_REFLECT_TIER: Final[dict[str, float]] = {
+    "최상": 0.25, "상": 0.20, "중": 0.15, "하": 0.10,
+}
+
+
+def extract_reflect_ratio(parsed: list[dict[str, object]]) -> float:
+    """parsed abilities → 피해 반사율 (★ '확률적 보복'/'반사' tier 최댓값).
+
+    enemy 공격 시 받은 피해의 일부를 반사 — 최상0.25/상0.20/중0.15/하0.10.
+    tier 미상 0.10. '반사'/'보복' 미포함 ability 무시. 중복은 최댓값.
+    """
+    best = 0.0
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name", ""))
+        if "반사" not in name and "보복" not in name:
+            continue
+        tier = str(entry.get("tier", ""))
+        best = max(best, _REFLECT_TIER.get(tier, 0.10))
+    return best
+
+
 # ── regex patterns ────────────────────────────────────────────────────────────
 # "민첩성+15" / "유연성-7" 형태
 _NUMERIC_PAT = re.compile(r"([가-힣\s]+?)([+-])(\d+)")
@@ -466,11 +489,13 @@ def essence_to_slot(
     # ★ 감응도 — element 위력 보정 (parsed "X 감응도")
     sensitivities: dict[str, int] = {}
     regen_per_turn = 0
+    reflect_ratio = 0.0
     if isinstance(abilities_raw, dict):
         parsed_s = abilities_raw.get("parsed")
         if isinstance(parsed_s, list) and parsed_s:
             sensitivities = parse_sensitivities(parsed_s)
             regen_per_turn = extract_regen_per_turn(parsed_s)  # ★ passive HP 재생
+            reflect_ratio = extract_reflect_ratio(parsed_s)  # ★ 피해 반사
 
     name_raw = essence_data.get("name", "")
     return EssenceSlot(
@@ -483,6 +508,7 @@ def essence_to_slot(
         attack_elements=attack_elements,
         sensitivities=sensitivities,
         regen_per_turn=regen_per_turn,
+        reflect_ratio=reflect_ratio,
     )
 
 

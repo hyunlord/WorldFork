@@ -26,6 +26,7 @@ class EssenceSlot:
     attack_elements: list[str] = field(default_factory=list)
     sensitivities: dict[str, int] = field(default_factory=dict)
     regen_per_turn: int = 0   # ★ 자연 재생력 tier → 매 턴 HP 재생 (passive)
+    reflect_ratio: float = 0.0   # ★ 확률적 보복 tier → 피해 반사율 (passive)
 
 
 def slot_to_dict(s: EssenceSlot) -> dict[str, object]:
@@ -68,6 +69,9 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
     regen_raw = d.get("regen_per_turn", 0)
     regen_per_turn = int(regen_raw) if isinstance(regen_raw, (int, float)) else 0
 
+    reflect_raw = d.get("reflect_ratio", 0.0)
+    reflect_ratio = float(reflect_raw) if isinstance(reflect_raw, (int, float)) else 0.0
+
     return EssenceSlot(
         essence_name=str(d.get("essence_name", "")),
         stat_bundle=stats,
@@ -78,6 +82,7 @@ def slot_from_dict(d: dict[str, object]) -> EssenceSlot:
         attack_elements=attack_elements,
         sensitivities=sensitivities,
         regen_per_turn=regen_per_turn,
+        reflect_ratio=reflect_ratio,
     )
 
 
@@ -123,6 +128,11 @@ def compute_total_attack_elements(slots: list[EssenceSlot]) -> list[str]:
 def compute_total_regen(slots: list[EssenceSlot]) -> int:
     """흡수 정수들의 passive HP 재생량 합산 (★ 매 턴 회복)."""
     return sum(slot.regen_per_turn for slot in slots)
+
+
+def compute_total_reflect(slots: list[EssenceSlot]) -> float:
+    """흡수 정수들의 피해 반사율 최댓값 (★ 합산 X — 과반사 방지)."""
+    return max((slot.reflect_ratio for slot in slots), default=0.0)
 
 
 def compute_total_skills(slots: list[EssenceSlot]) -> list[str]:

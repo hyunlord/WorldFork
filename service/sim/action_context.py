@@ -9,6 +9,7 @@ from service.sim.equipment import EquipmentSet
 from service.sim.player_state import (
     EssenceSlot,
     compute_total_attack_elements,
+    compute_total_reflect,
     compute_total_resistances,
     compute_total_sensitivities,
     compute_total_stats,
@@ -74,6 +75,11 @@ class ActionContext:
         for element, value in self.player_sensitivities.items():
             total[element] = total.get(element, 0) + value
         return total
+
+    @property
+    def total_reflect(self) -> float:
+        """★ 흡수 정수의 피해 반사율 (확률적 보복 등, 최댓값)."""
+        return compute_total_reflect(self.essence_slots)
 
 
 @dataclass

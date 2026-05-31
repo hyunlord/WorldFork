@@ -216,12 +216,14 @@ def execute_enemy_turn(
     player_status: list[StatusEffect],
     player_race: Race | None = None,
     player_resistances: dict[str, int] | None = None,
+    player_reflect: float = 0.0,
 ) -> tuple[list[Enemy], int, list[StatusEffect], list[CombatTurnLog]]:
     """살아 있는 enemy들이 플레이어를 공격.
 
     return: (enemies, new_player_hp, new_player_status, logs)
     player_race: race 회피 확률 적용용 (드워프 5%, 요정 10%)
     player_resistances: ★ I-G1 element 저항 dict — enemy element 정합 감산
+    player_reflect: ★ 피해 반사율 — 받은 피해의 일부를 공격 enemy에게 (확률적 보복)
     """
     from service.canon.effects import apply_resistance, get_enemy_attack_element
 
@@ -270,6 +272,11 @@ def execute_enemy_turn(
             final_damage, element, resistances
         )
         new_hp = max(0, new_hp - final_damage)
+        # ★ 피해 반사 — 받은 피해의 일부를 공격 enemy에게 (확률적 보복 passive)
+        reflected = 0
+        if player_reflect > 0 and final_damage > 0:
+            reflected = max(1, int(final_damage * player_reflect))
+            enemy.hp = max(0, enemy.hp - reflected)
         applied = extract_status_from_text(action.ability_name)
         new_status.extend(applied)
         logs.append(CombatTurnLog(
@@ -280,6 +287,7 @@ def execute_enemy_turn(
             status_applied=[s.type.value for s in applied],
             resist_reduced=resist_reduced,
             resist_element=element if resist_reduced > 0 else "",
+            notes=f"반사 {reflected}" if reflected > 0 else "",
         ))
 
     # status 적용 (poison/bleed/burn → hp 추가 감소)
