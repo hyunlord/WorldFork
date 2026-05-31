@@ -208,6 +208,21 @@ def execute_player_attack(
     )
 
 
+def _lookup_heal_ratio(ability_name: str) -> float:
+    """enemy 회복 ability → canon 회복 비율 (★ 조건부 회복 강도).
+
+    entity_index에서 동명 mechanism 회복 강도 lookup. 미초기화(test)/매칭 X 시
+    0.2 — 기존 max_hp//5 동작 보존.
+    """
+    from service.canon.context import get_entity_index
+
+    idx = get_entity_index()
+    if idx is None:
+        return 0.2
+    ratio = idx.lookup_mechanism_heal(ability_name)
+    return ratio if ratio > 0 else 0.2
+
+
 def execute_enemy_turn(
     enemies: list[Enemy],
     player_hp: int,
@@ -239,9 +254,9 @@ def execute_enemy_turn(
         if enemy is None or enemy.hp <= 0:
             continue
 
-        # 회복 ability
+        # 회복 ability — canon mechanism 강도로 회복량 정밀화 (★ 조건부 회복)
         if any(kw in action.ability_name for kw in ("복원", "회복", "재생")):
-            heal = max(5, enemy.max_hp // 5)
+            heal = max(5, int(enemy.max_hp * _lookup_heal_ratio(action.ability_name)))
             enemy.hp = min(enemy.max_hp, enemy.hp + heal)
             logs.append(CombatTurnLog(
                 actor=enemy.name,

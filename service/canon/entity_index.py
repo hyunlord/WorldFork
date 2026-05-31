@@ -178,6 +178,18 @@ class EntityIndex:
 
         return get_mechanism_element(raw)
 
+    def lookup_mechanism_heal(self, name: str) -> float:
+        """ability name과 동명 mechanism의 회복 강도 → max_hp 대비 비율 (★ enemy 조건부 회복).
+
+        enemy 회복 ability(광폭/회복(중) 등)의 canon 강도 반영. 매칭 X → 0.0.
+        """
+        raw = self._raw_mechanisms.get(name)
+        if raw is None:
+            return 0.0
+        from service.canon.effects import extract_conditional_heal
+
+        return extract_conditional_heal(raw)
+
     def get_raw_character(self, name: str) -> dict[str, object] | None:
         """character name/alias → raw dict (role/background 활용)."""
         return self._raw_characters.get(name)

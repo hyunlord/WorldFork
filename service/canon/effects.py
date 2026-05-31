@@ -351,6 +351,27 @@ def extract_reflect_ratio(parsed: list[dict[str, object]]) -> float:
     return best
 
 
+def extract_conditional_heal(mechanism: dict[str, object]) -> float:
+    """회복 mechanism rules → max_hp 대비 회복 비율 (★ enemy 조건부 회복 강도).
+
+    enemy_ai HP<30% 회복 우선(select_ability) 시 combat 회복량 정밀화에 사용.
+    완전 회복 1.0 / 최상급·대폭·빠르게 0.5 / 중 0.3 / 기본 0.2 / 회복 무관 0.0.
+    """
+    rules = mechanism.get("rules")
+    name = str(mechanism.get("name", ""))
+    parts = rules if isinstance(rules, list) else []
+    text = " ".join(str(r) for r in parts) + " " + name
+    if not any(k in text for k in ("회복", "재생", "복원")):
+        return 0.0
+    if "완전" in text:
+        return 1.0
+    if "최상" in text or "대폭" in text or "빠르게" in text:
+        return 0.5
+    if "(중)" in text or "중간" in text:
+        return 0.3
+    return 0.2
+
+
 # ── regex patterns ────────────────────────────────────────────────────────────
 # "민첩성+15" / "유연성-7" 형태
 _NUMERIC_PAT = re.compile(r"([가-힣\s]+?)([+-])(\d+)")
