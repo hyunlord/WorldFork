@@ -184,6 +184,46 @@ def get_essence_attack_element(source_monster: str | None) -> str | None:
     return None
 
 
+# rule bullet element 단어 → 표준 element (★ 13deef0 vocabulary 정합).
+_RULE_ELEMENT_NORM: Final[dict[str, str]] = {
+    "화염": "불", "불꽃": "불", "불": "불", "용암": "불", "작열": "불",
+    "냉기": "냉기", "서리": "냉기", "얼음": "냉기", "빙결": "냉기", "한기": "냉기",
+    "전격": "전격", "번개": "전격", "뇌전": "전격", "감전": "전격",
+    "신성력": "신성력", "신성": "신성력", "성스러운": "신성력",
+    "빛": "빛", "광휘": "빛", "태양": "빛", "여명": "빛",
+    "맹독": "독", "독성": "독", "독": "독",
+}
+# "속성" 문맥 없이 단독 매칭 허용 — 다의어('빛'/'불'/'독') 제외로 오탐 차단.
+_ELEMENT_STANDALONE: Final[tuple[str, ...]] = (
+    "화염", "냉기", "전격", "신성력", "맹독", "독성", "빙결", "용암",
+)
+_RULE_ELEMENT_RE: Final[re.Pattern[str]] = re.compile(r"([가-힣]+)\s*속성")
+
+
+def get_mechanism_element(mechanism: dict[str, object]) -> str:
+    """mechanism rules의 element bullet → 공격 element (★ 22de63d rules game 연결).
+
+    1순위 "X 속성" 명시 bullet, 2순위 명백한 element 명사 단독.
+    일반 문장('빛을 꺼트림')·미지원 element('땅/혼돈/수')는 빈 문자열 — 오탐 차단.
+    """
+    rules = mechanism.get("rules")
+    if not isinstance(rules, list):
+        return ""
+    for rule in rules:
+        if not isinstance(rule, str):
+            continue
+        match = _RULE_ELEMENT_RE.search(rule)
+        if match:
+            word = match.group(1)
+            for key in sorted(_RULE_ELEMENT_NORM, key=len, reverse=True):
+                if key in word:
+                    return _RULE_ELEMENT_NORM[key]
+        for key in _ELEMENT_STANDALONE:
+            if key in rule:
+                return _RULE_ELEMENT_NORM[key]
+    return ""
+
+
 def apply_resistance(
     damage: int,
     element: str,
@@ -340,13 +380,17 @@ def classify_skill(skill_name: str) -> str:
 # ── internal ──────────────────────────────────────────────────────────────────
 
 
-def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
+def essence_to_slot(
+    essence_data: dict[str, object],
+    extra_attack_elements: list[str] | None = None,
+) -> EssenceSlot:
     """canon essence dict → EssenceSlot (ep_0337/0556 정합).
 
     abilities text → stat bonus (positive).
     abilities parsed → stat_bundle + resistances + etc_abilities (★ I-G1).
     side_effects text → stat delta (may be negative).
     skills_granted → skills list.
+    extra_attack_elements → source_monster 매칭 외 보강 element (★ mechanism rules).
     """
     abilities_raw = essence_data.get("abilities", {})
     stat_bundle: dict[str, int] = {}
@@ -393,6 +437,11 @@ def essence_to_slot(essence_data: dict[str, object]) -> EssenceSlot:
         element = get_essence_attack_element(source_raw)
         if element:
             attack_elements.append(element)
+    # ★ mechanism element rules 보강 — 이름 keyword가 놓친 element (22de63d 연결)
+    if extra_attack_elements:
+        for el in extra_attack_elements:
+            if el and el not in attack_elements:
+                attack_elements.append(el)
 
     # ★ 감응도 — element 위력 보정 (parsed "X 감응도")
     sensitivities: dict[str, int] = {}

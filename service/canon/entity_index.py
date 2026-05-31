@@ -45,6 +45,7 @@ class EntityIndex:
         self._raw_essences: dict[str, dict[str, object]] = {}
         self._raw_characters: dict[str, dict[str, object]] = {}
         self._raw_locations: dict[str, dict[str, object]] = {}
+        self._raw_mechanisms: dict[str, dict[str, object]] = {}
         self._norm_by_name: dict[str, EntityRef] = {}   # space 제거
         self._deep_by_name: dict[str, EntityRef] = {}   # space + "의" 제거
         self._source_monster_map: dict[str, list[dict[str, object]]] = {}
@@ -99,6 +100,7 @@ class EntityIndex:
             self._by_name[m.name] = ref
             self._norm_by_name[_normalize(m.name)] = ref
             self._deep_by_name[_normalize_deep(m.name)] = ref
+            self._raw_mechanisms[m.name] = m.model_dump()
 
     def lookup_by_name(self, name: str) -> EntityRef | None:
         return self._by_name.get(name)
@@ -162,6 +164,19 @@ class EntityIndex:
     def get_raw_essence(self, name: str) -> dict[str, object] | None:
         """essence name → raw dict (abilities parse용)."""
         return self._raw_essences.get(name)
+
+    def lookup_mechanism_element(self, name: str) -> str:
+        """essence name과 동명 mechanism의 element rules → 공격 element (★ 22de63d).
+
+        흡수 시 source_monster 이름이 놓친 element를 mechanism rules로 보강.
+        매칭 X 또는 element rule 없음 → 빈 문자열.
+        """
+        raw = self._raw_mechanisms.get(name)
+        if raw is None:
+            return ""
+        from service.canon.effects import get_mechanism_element
+
+        return get_mechanism_element(raw)
 
     def get_raw_character(self, name: str) -> dict[str, object] | None:
         """character name/alias → raw dict (role/background 활용)."""

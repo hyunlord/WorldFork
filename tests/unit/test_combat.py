@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+import service.sim.combat as _combat
 from service.sim.combat import (
     cleanup_dead_enemies,
     execute_enemy_turn,
@@ -10,6 +13,12 @@ from service.sim.combat import (
 )
 from service.sim.enemy import Enemy
 from service.sim.status import StatusEffect, StatusType
+
+
+@pytest.fixture(autouse=True)
+def _no_crit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """5% crit 비결정성 제거 — 정확 데미지 단언 안정화 (★ 기존 누락 flaky)."""
+    monkeypatch.setattr(_combat, "compute_critical_hit", lambda *_a, **_k: False)
 
 
 def _goblin(hp: int = 30, defense: int = 3, attack: int = 8) -> Enemy:

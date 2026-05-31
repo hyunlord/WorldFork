@@ -953,7 +953,10 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
     if index is not None:
         raw = index.get_raw_essence(essence_name)
         if raw is not None and isinstance(raw, dict):
-            slot = essence_to_slot(raw)
+            # ★ element rules 보강 — 동명 mechanism element (22de63d 연결)
+            mech_element = index.lookup_mechanism_element(essence_name)
+            extra_elements = [mech_element] if mech_element else None
+            slot = essence_to_slot(raw, extra_attack_elements=extra_elements)
             slot_dict = slot_to_dict(slot)
             for stat, delta in slot.stat_bundle.items():
                 sign = "+" if delta >= 0 else ""
