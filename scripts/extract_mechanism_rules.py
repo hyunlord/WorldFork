@@ -85,14 +85,21 @@ JSON only. 키는 "rules" (문장 배열, 최대 5).
 _SKILL_SYSTEM = """스킬(skill) mechanism 규칙 추출 전문가.
 
 주어진 스킬 설명에서 규칙을 간결한 bullet 문장으로 추출한다.
-각 rule은 effect/trigger/cost 중 하나를 담는 짧은 문장.
+
+각 rule은 effect/trigger/cost/element 중 하나를 담는 짧은 문장:
+- effect 예: "단일 대상 절삭 피해", "3초간 이동 속도 증가"
+- trigger 예: "지속(패시브) 발동", "연계기로 발동", "능동 사용"
+- cost 예: "영혼력 소모", "쿨다운 존재", "체력 대가"
+- element 예: "화염 속성", "냉기 속성" (속성 스킬인 경우)
 
 규칙:
 - 설명에 명시/강하게 암시된 규칙만 — 무리한 추측 금지
-- 스킬 규칙이 없으면 rules 빈 배열
+- 스킬 규칙이 없으면 (장소/시간/개념/시스템 등) rules 빈 배열
+- 속성 스킬이면 element bullet 포함 (화염/냉기/전격/신성력/빛/독)
 - 고유명사는 일반 표현으로 (산출물은 IP 비식별)
 
 JSON only. 키는 "rules" (문장 배열, 최대 5).
+출력 예: {"rules": ["단일 대상 절삭 피해", "화염 속성", "영혼력 소모"]}
 """
 
 _SYSTEMS: Final[dict[str, str]] = {

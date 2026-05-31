@@ -35,7 +35,7 @@ def test_category_dispatch() -> None:
     assert combat != magic != skill
     assert "전투" in combat
     assert "마법" in magic and "element" in magic
-    assert "스킬" in skill
+    assert "스킬" in skill and "element" in skill  # ★ skill element 보강
 
 
 def test_unknown_category_fallback() -> None:
