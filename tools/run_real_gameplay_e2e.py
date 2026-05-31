@@ -44,12 +44,11 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session 연결(useGameState → /session/{id}/state)로 해제 — hard 전환
+    # ★ session 연결 + 성인식 마을(floor 0 → DungeonView/조우 숨김)로 전부 hard
     Check("scenario_origin_naming", 8, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
     Check("session_scenario_reflected", 7, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    # ★ DEMO_DUNGEON/ENCOUNTER 비주얼 placeholder 한스·실렌 잔존 — 비주얼 재검토 대기
-    Check("no_starting_party", 8, True, "시작 파티원 0 (실렌·한스 X — 비주얼 placeholder)"),
-    Check("chat_freeform_works", 7, False, "채팅 → freeform_action 200 (hard)"),
+    Check("no_starting_party", 8, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    Check("chat_freeform_works", 7, False, "채팅 → freeform_action 200"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 

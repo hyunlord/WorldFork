@@ -53,12 +53,15 @@ def test_no_bjorn_in_user_facing_files() -> None:
 
 
 def test_starting_narrative_uses_rascania() -> None:
-    """starting_narrative 라스카니아 정합."""
+    """starting_narrative IP 안전 — 원작(라프도니아) 노출 X.
+
+    ★ 성인식 narrative는 IP 중립 명칭(부족 성지/성년)이라 라스카니아 강제 불필요.
+      게임 화면 원작 명칭은 frontend 어댑터 unmaskIp가 담당.
+    """
     from service.canon.races import Race
     from service.canon.scenario import ScenarioMode, build_starting_narrative
 
     msg = build_starting_narrative(ScenarioMode.BJORN, Race.BARBARIAN)
-    assert "라스카니아" in msg
     assert "라프도니아" not in msg
 
 

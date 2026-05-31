@@ -253,6 +253,9 @@ export default function GamePage() {
     );
   }, [data]);
 
+  // ★ 성인식 마을(floor 0) — 던전맵/조우 미표시 (DEMO 한스 노출 X, 성인식 narrative 중심)
+  const inVillage = (data?.state.location?.floor ?? 0) === 0;
+
   const statusData = useMemo<StatusBarData>(() => {
     if (!data) {
       return {
@@ -360,19 +363,35 @@ export default function GamePage() {
     <div className="grid h-screen grid-rows-[50px_1fr_70px] overflow-hidden">
       <StatusBar data={statusData} />
 
-      <div className="grid grid-cols-[1.4fr_1fr] overflow-hidden">
-        <DungeonView data={DEMO_DUNGEON} />
+      <div
+        className={
+          inVillage
+            ? "overflow-hidden bg-bg-deep"
+            : "grid grid-cols-[1.4fr_1fr] overflow-hidden"
+        }
+      >
+        {/* ★ 던전맵은 floor 1+ 에서만 (성인식 마을 floor 0 미표시 — 비주얼 후속) */}
+        {!inVillage && <DungeonView data={DEMO_DUNGEON} />}
 
-        <div className="grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep">
+        <div
+          className={
+            inVillage
+              ? "grid grid-rows-[1fr_230px] overflow-hidden bg-bg-deep"
+              : "grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep"
+          }
+        >
           <NarrativePanel data={narrativeData} />
-          <EncounterPanel
-            data={DEMO_ENCOUNTER}
-            onAction={(id) => {
-              if (id === "talk" || id === "attack" || id === "rest") {
-                void execute({ action_type: id });
-              }
-            }}
-          />
+          {/* ★ 조우 패널은 던전에서만 (성인식 마을 미표시) */}
+          {!inVillage && (
+            <EncounterPanel
+              data={DEMO_ENCOUNTER}
+              onAction={(id) => {
+                if (id === "talk" || id === "attack" || id === "rest") {
+                  void execute({ action_type: id });
+                }
+              }}
+            />
+          )}
           <InventoryPanel data={inventoryData} />
         </div>
       </div>

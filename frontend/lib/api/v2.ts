@@ -130,6 +130,20 @@ function playerNameFor(scenario: string, race: string): string {
   return _SCENARIO_NAME[scenario] ?? _RACE_NAME[race] ?? "탐험가";
 }
 
+// ★ 게임 화면 원작 명칭 역변환 — 코드/데이터는 IP 안전(라스카니아), 게임 출력만 원작(라프도니아)
+const _UNMASK_IP: Record<string, string> = {
+  라스카니아: "라프도니아",
+  투르윈: "비요른",
+};
+
+function unmaskIp(text: string): string {
+  let result = text;
+  for (const [masked, original] of Object.entries(_UNMASK_IP)) {
+    result = result.split(masked).join(original);
+  }
+  return result;
+}
+
 export async function fetchSessionState(
   sessionId: string
 ): Promise<SessionStateResponse> {
@@ -165,7 +179,7 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
         is_dark_zone: false,
       },
       location: {
-        realm: s.location,
+        realm: unmaskIp(s.location),  // ★ 게임 화면 원작 명칭 (라프도니아)
         floor: s.floor_number ?? null,
         sub_area: null,
         rift_id: null,

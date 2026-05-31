@@ -11,10 +11,11 @@ def test_bjorn_narrative_has_shield() -> None:
     assert "방패" in msg
 
 
-def test_bjorn_narrative_has_dungeon() -> None:
-    """BJORN narrative — 미궁 포함."""
+def test_bjorn_narrative_coming_of_age() -> None:
+    """BJORN narrative — 성인식 성지 (★ ep_0002 — 던전 X, 성년식)."""
     msg = build_starting_narrative(ScenarioMode.BJORN, Race.BARBARIAN)
-    assert "미궁" in msg
+    assert "성지" in msg
+    assert "전사" in msg
 
 
 def test_bjorn_narrative_first_person() -> None:
@@ -35,7 +36,7 @@ def test_new_explorer_race_narratives() -> None:
     for race, keyword in expected.items():
         msg = build_starting_narrative(ScenarioMode.NEW_EXPLORER, race)
         assert keyword in msg, f"{race.value}: '{keyword}' missing"
-        assert "라스카니아" in msg, f"{race.value}: 위치 누락"
+        assert "성년" in msg, f"{race.value}: 성인식 누락"  # ★ 성년 의식 시작
         assert msg.startswith("나는"), f"{race.value}: 1인칭 아님"
 
 

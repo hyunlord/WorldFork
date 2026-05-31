@@ -24,7 +24,7 @@ def test_all_scenarios_have_config() -> None:
         cfg = SCENARIO_CONFIGS[mode]
         assert cfg.name_ko
         assert cfg.starting_location
-        assert cfg.starting_floor >= 1
+        assert cfg.starting_floor >= 0  # ★ 0 = 성인식 마을/성지 (ep_0002)
 
 
 def test_bjorn_fixed_race_barbarian() -> None:
@@ -47,9 +47,9 @@ def test_bjorn_location_ip_safe() -> None:
 
 
 def test_bjorn_canon_anchor() -> None:
-    """BJORN canon_anchor = ep_0003."""
+    """BJORN canon_anchor = ep_0002 (★ 성인식 — 부족 성지 성년식)."""
     cfg = SCENARIO_CONFIGS[ScenarioMode.BJORN]
-    assert cfg.canon_anchor == "ep_0003"
+    assert cfg.canon_anchor == "ep_0002"
 
 
 def test_resolve_bjorn_always_barbarian() -> None:
