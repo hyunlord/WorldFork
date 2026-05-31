@@ -308,6 +308,26 @@ def parse_sensitivities(parsed: list[dict[str, object]]) -> dict[str, int]:
     return sensitivities
 
 
+_REGEN_TIER: Final[dict[str, int]] = {"최상": 4, "상": 3, "중": 2, "하": 1}
+
+
+def extract_regen_per_turn(parsed: list[dict[str, object]]) -> int:
+    """parsed abilities → passive HP 재생량 (★ '자연 재생력' tier 최대값).
+
+    매 턴 회복 HP — 최상4/상3/중2/하1. tier 미상 시 1. '재생' 미포함 ability 무시.
+    중복 재생 능력은 최댓값 (합산 아님 — 과회복 방지).
+    """
+    best = 0
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+        if "재생" not in str(entry.get("name", "")):
+            continue
+        tier = str(entry.get("tier", ""))
+        best = max(best, _REGEN_TIER.get(tier, 1))
+    return best
+
+
 # ── regex patterns ────────────────────────────────────────────────────────────
 # "민첩성+15" / "유연성-7" 형태
 _NUMERIC_PAT = re.compile(r"([가-힣\s]+?)([+-])(\d+)")
@@ -445,10 +465,12 @@ def essence_to_slot(
 
     # ★ 감응도 — element 위력 보정 (parsed "X 감응도")
     sensitivities: dict[str, int] = {}
+    regen_per_turn = 0
     if isinstance(abilities_raw, dict):
         parsed_s = abilities_raw.get("parsed")
         if isinstance(parsed_s, list) and parsed_s:
             sensitivities = parse_sensitivities(parsed_s)
+            regen_per_turn = extract_regen_per_turn(parsed_s)  # ★ passive HP 재생
 
     name_raw = essence_data.get("name", "")
     return EssenceSlot(
@@ -460,6 +482,7 @@ def essence_to_slot(
         etc_abilities=etc_abilities,
         attack_elements=attack_elements,
         sensitivities=sensitivities,
+        regen_per_turn=regen_per_turn,
     )
 
 

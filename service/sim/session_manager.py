@@ -244,6 +244,15 @@ class SessionManager:
         state.current_hp = max(
             0, min(state.max_hp, state.current_hp + result.hp_change)
         )
+        # ★ passive HP 재생 — 흡수 정수 자연 재생력 (매 턴, 생존 시, max_hp 상한)
+        if 0 < state.current_hp < state.max_hp and state.absorbed_essences:
+            from service.sim.player_state import compute_total_regen, slot_from_dict
+
+            regen = compute_total_regen(
+                [slot_from_dict(d) for d in state.absorbed_essences]
+            )
+            if regen > 0:
+                state.current_hp = min(state.max_hp, state.current_hp + regen)
         if result.inventory_add:
             state.inventory.extend(result.inventory_add)
         if result.inventory_remove:

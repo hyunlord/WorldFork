@@ -972,6 +972,11 @@ async def handle_absorb_essence(ctx: ActionContext) -> ActionResult:
             # ★ 정수 공격 element 부여 (source_monster 속성)
             for el in slot.attack_elements:
                 msg_lines.append(f"「{el} 속성 공격을 사용할 수 있습니다.」")
+            # ★ passive HP 재생 부여 (자연 재생력 tier)
+            if slot.regen_per_turn > 0:
+                msg_lines.append(
+                    f"「자연 재생력 발현 — 매 턴 HP {slot.regen_per_turn} 회복.」"
+                )
 
     if slot_dict is None:
         from service.sim.player_state import EssenceSlot
