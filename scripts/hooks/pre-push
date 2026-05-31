@@ -32,30 +32,24 @@ VERIFY_EXIT=$?
 
 echo "$VERIFY_OUTPUT"
 
-# 점수 파싱
+# 점수 파싱 (★ 표시용 — verify.sh 동적 MAX, deferred 제외 반영)
 TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP 'TOTAL:\s*\K[0-9]+' | tail -1)
-if [ -z "$TOTAL" ]; then
-    TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP '총점:\s*\K[0-9]+' | tail -1)
-fi
-if [ -z "$TOTAL" ]; then
-    TOTAL=$(echo "$VERIFY_OUTPUT" | grep -oP '\b([0-9]+)/100\b' | grep -oP '^[0-9]+' | tail -1)
-fi
+MAX=$(echo "$VERIFY_OUTPUT" | grep -oP 'TOTAL:\s*[0-9]+/\K[0-9]+' | tail -1)
+MAX=${MAX:-100}
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Pre-push 점수: ${TOTAL:-?}/100  (gate: 95+)"
+echo "Pre-push 점수: ${TOTAL:-?}/${MAX}  (gate: verify.sh 동적 95%)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-if [ -z "$TOTAL" ]; then
-    echo "❌ 점수 파싱 실패 — verify.sh 출력 확인"
-    exit 1
-fi
-
-if [ "$TOTAL" -ge 95 ]; then
-    echo "✅ PASSED ($TOTAL/100) — push 진행"
+# ★ verify.sh가 최종 판정자 — 동적 MAX(deferred 제외) + hard gate(SHIP_BLOCKED)
+#   + threshold 95%를 모두 반영해 exit code 반환. pre-push는 그 결과를 신뢰한다.
+#   (TOTAL/100 고정 비교는 deferred 동적 MAX 도입 전 가정 — 일관성 버그였음)
+if [ "$VERIFY_EXIT" -eq 0 ]; then
+    echo "✅ PASSED ($TOTAL/$MAX — verify.sh PASSED) — push 진행"
     exit 0
 else
-    echo "❌ FAILED ($TOTAL/100 < 95) — push 차단"
+    echo "❌ FAILED ($TOTAL/$MAX — verify.sh FAILED) — push 차단"
     echo ""
     echo "   해결 방법:"
     echo "     scripts/verify.sh quick   # 상세 확인"

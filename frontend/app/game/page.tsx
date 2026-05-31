@@ -28,9 +28,6 @@ import {
   DEMO_DUNGEON,
   DEMO_ENCOUNTER,
   DEMO_ESSENCE,
-  DEMO_INVENTORY,
-  DEMO_NARRATIVE,
-  DEMO_PARTY,
 } from "@/lib/game/mockData";
 import { useFreeformAction } from "@/lib/hooks/useFreeformAction";
 import { useGameState } from "@/lib/hooks/useGameState";
@@ -73,7 +70,8 @@ function narrativeStringToData(text: string, turn: number): NarrativePanelData {
     .map((p) => ({ spans: paragraphToSpans(p) }));
   return {
     turn,
-    paragraphs: paragraphs.length > 0 ? paragraphs : DEMO_NARRATIVE.paragraphs,
+    // ★ DEMO fallback 금지 (harness 재설계) — 빈 응답은 빈 narrative (위장 X)
+    paragraphs,
   };
 }
 
@@ -155,7 +153,7 @@ function buildCharacterSheet(player: CharacterV2): CharacterSheetData {
 }
 
 function buildInventory(player: CharacterV2 | null): InventoryPanelData {
-  if (!player) return DEMO_INVENTORY;
+  if (!player) return { sections: [] };  // ★ DEMO fallback 금지 — state 없으면 빈
   const p = player as Record<string, unknown>;
   const eq = (p.equipment ?? {}) as Record<string, unknown>;
   const inv = (p.inventory ?? {}) as Record<string, unknown>;
@@ -203,9 +201,10 @@ function buildInventory(player: CharacterV2 | null): InventoryPanelData {
 }
 
 function buildParty(data: StateResponse | null): PartyPanelData {
-  if (!data) return DEMO_PARTY;
+  // ★ DEMO fallback 금지 (harness 재설계) — state 없거나 빈 party면 파티원 0 (위장 X)
+  if (!data) return { members: [] };
   const chars = Object.values(data.state.characters);
-  if (chars.length === 0) return DEMO_PARTY;
+  if (chars.length === 0) return { members: [] };
 
   const members: PartyMember[] = chars.map((c) => {
     const char = c as CharacterV2 & Record<string, unknown>;
@@ -242,7 +241,7 @@ export default function GamePage() {
 
   const [charOpen, setCharOpen] = useState(false);
   const [essenceOpen, setEssenceOpen] = useState(false);
-  const [turnCount, setTurnCount] = useState(DEMO_NARRATIVE.turn);
+  const [turnCount, setTurnCount] = useState(0);
 
   const player = useMemo<CharacterV2 | null>(() => {
     if (!data) return null;
@@ -321,7 +320,13 @@ export default function GamePage() {
     if (freeform.lastResponse) {
       return narrativeStringToData(freeform.lastResponse.narrative, turnCount);
     }
-    return DEMO_NARRATIVE;
+    // ★ DEMO fallback 금지 (harness 재설계) — 데모 스토리 대신 명시적 시작 안내
+    return {
+      turn: turnCount,
+      paragraphs: [
+        { spans: [{ kind: "plain", text: "행동을 입력해 모험을 시작하세요." }] },
+      ],
+    };
   }, [freeform.lastResponse, turnCount]);
 
   const handleShortcut = useCallback((key: string) => {

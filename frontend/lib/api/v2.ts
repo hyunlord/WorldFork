@@ -99,6 +99,84 @@ export async function resetState(): Promise<ResetResponse> {
   });
 }
 
+// ─── session-based state (★ harness 재설계 — v2_state_router global default 폐기) ───
+
+export interface SessionStateResponse {
+  session_id: string;
+  current_hp: number;
+  max_hp: number;
+  inventory: string[];
+  location: string;
+  turn_count: number;
+  floor_number: number;
+  hours_in_dungeon: number;
+  race: string;
+  scenario_mode: string;
+  absorbed_essences: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+// ★ 게임 화면 원작 명칭 (코드/문서 식별자만 투르윈/라스카니아 변환)
+const _SCENARIO_NAME: Record<string, string> = { bjorn: "비요른" };
+const _RACE_NAME: Record<string, string> = {
+  barbarian: "바바리안",
+  human: "인간 탐험가",
+  dwarf: "드워프 탐험가",
+  beastkin: "수인 탐험가",
+  fairy: "요정 탐험가",
+};
+
+function playerNameFor(scenario: string, race: string): string {
+  return _SCENARIO_NAME[scenario] ?? _RACE_NAME[race] ?? "탐험가";
+}
+
+export async function fetchSessionState(
+  sessionId: string
+): Promise<SessionStateResponse> {
+  return fetchJSON<SessionStateResponse>(
+    `${API_URL}/api/v2/session/${sessionId}/state`
+  );
+}
+
+/**
+ * SessionStateResponse(단일 플레이어 세션) → StateResponse(GameStateV2) 어댑터.
+ * ★ harness 재설계: v2_state_router global default(투르윈+실렌+던전) 폐기.
+ *   시작 파티원 0(자신만), 게임 화면 원작 명칭, session HP/위치 반영.
+ */
+export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
+  const name = playerNameFor(s.scenario_mode, s.race);
+  return {
+    state: {
+      characters: {
+        [name]: {
+          name,
+          race: s.race,
+          hp: s.current_hp,
+          hp_max: s.max_hp,
+          is_player: true,
+          inventory: { items: s.inventory.map((n) => ({ name: n })) },
+          absorbed_essences: s.absorbed_essences,
+        } as unknown as CharacterV2,
+      },
+      world: {
+        active_rifts: [],
+        party_members: [name],
+        hours_in_dungeon: s.hours_in_dungeon ?? 0,
+        is_dark_zone: false,
+      },
+      location: {
+        realm: s.location,
+        floor: s.floor_number ?? null,
+        sub_area: null,
+        rift_id: null,
+        visibility_meters: 0,
+        has_light: false,
+      },
+    },
+    turn: s.turn_count ?? 0,
+  };
+}
+
 // ─── Phase 7k: action endpoint ───
 
 export interface ActionRequest {
