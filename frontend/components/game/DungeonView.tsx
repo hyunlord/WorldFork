@@ -34,7 +34,7 @@ const LEGEND_LABEL_COLOR: Record<TileType, string> = {
 
 export function DungeonView({ data }: Props) {
   return (
-    <div className="relative flex flex-col overflow-hidden border-r border-border-rune bg-bg-canvas bg-[radial-gradient(circle_at_50%_50%,var(--color-tile-floor)_0%,var(--color-bg-canvas)_70%)]">
+    <div className="relative flex flex-col overflow-hidden border-r border-border-rune bg-bg-canvas/55">
       <span className="pointer-events-none absolute left-2 top-2 z-[3] font-serif text-2xl text-amber-dim opacity-40">
         ◆
       </span>

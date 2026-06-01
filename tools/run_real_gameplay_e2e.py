@@ -44,11 +44,12 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session 연결 + 성인식 마을(floor 0 → DungeonView/조우 숨김)로 전부 hard
-    Check("scenario_origin_naming", 8, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 7, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    Check("no_starting_party", 8, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
-    Check("chat_freeform_works", 7, False, "채팅 → freeform_action 200"),
+    # ★ session 연결 + 성인식 마을 + 배경 이미지 — 전부 hard (각 6점, 합 30)
+    Check("scenario_origin_naming", 6, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 6, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    Check("no_starting_party", 6, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    Check("chat_freeform_works", 6, False, "채팅 → freeform_action 200"),
+    Check("background_rendered", 6, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -92,12 +93,21 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["scenario_origin_naming"] = "투르윈" not in body
             results["no_starting_party"] = ("실렌" not in body) and ("한스" not in body)
             results["session_scenario_reflected"] = "120" in body
+            # ★ 배경 이미지 — ComfyUI PNG 렌더링 (성인식 마을 floor 0 → ui_main_bg)
+            bg_style = await page.locator(
+                '[data-testid="game-background"]'
+            ).first.get_attribute("style")
+            results["background_rendered"] = (
+                bg_style is not None and "ui_main_bg" in bg_style
+            )
 
             try:
                 inp = page.locator("input").first
                 await inp.click()
                 async with page.expect_response(
-                    lambda r: "/api/v2/freeform_action" in r.url, timeout=20000
+                    # ★ verify gate가 27B를 다중 호출(Mechanical/debate/chat)해 큐 적체 시
+                    #   freeform 응답이 느려질 수 있어 timeout 여유 (27B 13 t/s 대응)
+                    lambda r: "/api/v2/freeform_action" in r.url, timeout=60000
                 ):
                     await page.keyboard.type("주변을 살펴본다")
                     await page.keyboard.press("Enter")

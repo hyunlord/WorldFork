@@ -183,7 +183,8 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
         realm: unmaskIp(s.location),  // ★ 게임 화면 원작 명칭 (라프도니아)
         floor: s.floor_number ?? null,
         sub_area: null,
-        rift_id: null,
+        // ★ rift_id → 던전 배경 이미지 매핑 (ui_rift_{id})
+        rift_id: typeof s.rift_id === "string" ? s.rift_id : null,
         visibility_meters: 0,
         has_light: false,
       },

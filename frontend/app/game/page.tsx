@@ -253,6 +253,14 @@ function buildEncounter(
   };
 }
 
+// ★ 상황별 배경 이미지 (ComfyUI PNG) — ASCII 단절 해소 (비주얼 재검토)
+function bgImage(floor: number, riftId: string | null | undefined): string {
+  const base = "/assets/worldfork/";
+  if (floor === 0) return `${base}ui_main_bg.png`; // 성인식 마을/성지
+  if (riftId) return `${base}ui_rift_${riftId}.png`; // 던전 rift (bloody_castle 등)
+  return `${base}ui_gameplay_bg_crystal.png`; // 기본 던전
+}
+
 export default function GamePage() {
   const { data } = useGameState();
   const { execute, executing } = usePostAction();
@@ -280,6 +288,12 @@ export default function GamePage() {
   const encounterData = useMemo<EncounterPanelData>(
     () => buildEncounter(data?.state.encounters),
     [data],
+  );
+
+  // ★ 상황별 배경 이미지 (ComfyUI PNG — ASCII 단절 해소)
+  const bgUrl = bgImage(
+    data?.state.location?.floor ?? 0,
+    data?.state.location?.rift_id,
   );
 
   const statusData = useMemo<StatusBarData>(() => {
@@ -386,13 +400,17 @@ export default function GamePage() {
   );
 
   return (
-    <div className="grid h-screen grid-rows-[50px_1fr_70px] overflow-hidden">
+    <div
+      className="grid h-screen grid-rows-[50px_1fr_70px] overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${bgUrl})` }}
+      data-testid="game-background"
+    >
       <StatusBar data={statusData} />
 
       <div
         className={
           inVillage
-            ? "overflow-hidden bg-bg-deep"
+            ? "overflow-hidden bg-bg-deep/80"
             : "grid grid-cols-[1.4fr_1fr] overflow-hidden"
         }
       >
@@ -402,8 +420,8 @@ export default function GamePage() {
         <div
           className={
             inVillage
-              ? "grid grid-rows-[1fr_230px] overflow-hidden bg-bg-deep"
-              : "grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep"
+              ? "grid grid-rows-[1fr_230px] overflow-hidden bg-bg-deep/80"
+              : "grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep/80"
           }
         >
           <NarrativePanel data={narrativeData} />
