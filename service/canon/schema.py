@@ -144,7 +144,7 @@ class Race(BaseModel):
 MechanismCategory = Literal[
     "progression",  # 등급 / 성장
     "economy",      # 마석 / 거래
-    "time",         # 174h / 미궁 시간
+    "time",         # 168h / 미궁 시간 (7일 cycle)
     "combat",       # 전투 mechanic
     "social",       # 길드 / 관계
     "magic",        # 마법 / 정수 흡수
@@ -153,7 +153,7 @@ MechanismCategory = Literal[
 
 
 class Mechanism(BaseModel):
-    """본문 정합 mechanism (★ 등급 / 마석 / 174h / 정수 흡수 / 신성력)."""
+    """본문 정합 mechanism (★ 등급 / 마석 / 168h / 정수 흡수 / 신성력)."""
 
     name: str = Field(..., max_length=100)
     category: MechanismCategory
