@@ -6,8 +6,8 @@ from service.canon.scenario import ScenarioMode, build_starting_narrative
 
 
 def test_bjorn_narrative_has_shield() -> None:
-    """BJORN narrative — ep_0003 정합 방패 포함."""
-    msg = build_starting_narrative(ScenarioMode.BJORN, Race.BARBARIAN)
+    """BJORN 방패 선택 시 narrative 방패 포함 (★ ep_0003 — 무기 선택 동적)."""
+    msg = build_starting_narrative(ScenarioMode.BJORN, Race.BARBARIAN, "방패")
     assert "방패" in msg
 
 

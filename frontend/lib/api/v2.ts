@@ -171,6 +171,8 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
           is_player: true,
           inventory: { items: s.inventory.map((n) => ({ name: n })) },
           absorbed_essences: s.absorbed_essences,
+          // ★ 장착 장비 (★ equipRows 무기 표시 — manual play "무기 없음" 해소)
+          equipment: s.equipment,
           // ★ 진행 시스템 — statusData 키 정합 (영혼력/LV/정수 0 고정 해소)
           soul_power: s.soul_power,
           level: s.player_level,

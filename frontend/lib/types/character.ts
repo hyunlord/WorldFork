@@ -19,7 +19,29 @@ export interface RaceInfo {
 export interface CharacterCreateRequest {
   scenario_mode: ScenarioMode;
   race?: Race;
+  weapon?: string;
 }
+
+export interface WeaponInfo {
+  name: string;
+  description: string;
+}
+
+// 성인식 선택 무기 — backend service/canon/scenario.py COMING_OF_AGE_WEAPONS 정합
+export const COMING_OF_AGE_WEAPONS: WeaponInfo[] = [
+  { name: "한손 검", description: "균형 잡힌 한손 검 — 무난한 선택." },
+  { name: "양손 대검", description: "묵직한 양손 대검 — 한 방이 강하다." },
+  { name: "메이스", description: "타격용 둔기 — 둔중하나 확실하다." },
+  { name: "쇠곤봉", description: "단단한 쇠곤봉 — 다루기 쉽다." },
+  { name: "창", description: "긴 사거리의 창 — 거리를 벌린다." },
+  { name: "작살", description: "갈고리 달린 작살 — 끌어당긴다." },
+  { name: "양손 도끼", description: "위력적인 양손 도끼 — 묵직한 일격." },
+  { name: "도리깨", description: "사슬 달린 도리깨 — 변칙적이다." },
+  { name: "대형 망치", description: "강력한 대형 망치 — 가장 무겁다." },
+  { name: "방패", description: "되팔 때 가장 비싸다 — 그 누구도 고르지 않은 선택." },
+];
+
+export const DEFAULT_WEAPON = "방패";
 
 export interface CharacterCreateResponse {
   session_id: string;
@@ -34,6 +56,7 @@ export interface CharacterCreateResponse {
   race_traits: string[];
   scenario_description: string;
   starting_narrative: string;
+  starting_weapon: string;
 }
 
 // 5종 종족 정보 — backend service/canon/races.py 정합

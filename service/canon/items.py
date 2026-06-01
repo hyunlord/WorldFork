@@ -97,6 +97,22 @@ def classify_item_slot(name: str) -> EquipmentSlot | None:
     return None
 
 
+def build_weapon_equipment(
+    name: str, attack_bonus: int = 0, description: str = ""
+) -> Equipment:
+    """성인식 선택 무기 → Equipment (★ element=_parse_element, 4284fbc 정합).
+
+    방패도 무기 슬롯에 장착(★ ep_0002 — 비요른의 무기 선택이 방패). element는
+    무기명/설명으로 파싱 — 본문 무기는 평범(물리=""), element 무기 시 약점 반영.
+    """
+    return Equipment(
+        name=name,
+        slot=EquipmentSlot.WEAPON,
+        attack_bonus=attack_bonus,
+        element=_parse_element(name, description),
+    )
+
+
 def _parse_item_stats(description: str, slot: EquipmentSlot) -> tuple[int, int, int]:
     """description 텍스트에서 +N 수치를 추출. 없으면 slot 기본값 적용."""
     attack, defense, agility = 0, 0, 0

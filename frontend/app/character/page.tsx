@@ -6,14 +6,17 @@ import { useRouter } from "next/navigation";
 import { RaceDetailPanel } from "@/components/character/RaceDetailPanel";
 import { RaceSelector } from "@/components/character/RaceSelector";
 import { ScenarioSelector } from "@/components/character/ScenarioSelector";
+import { WeaponSelector } from "@/components/character/WeaponSelector";
 import { createCharacter } from "@/lib/api/character";
 import { setStoredSessionId } from "@/lib/session";
+import { DEFAULT_WEAPON } from "@/lib/types/character";
 import type { Race, ScenarioMode } from "@/lib/types/character";
 
 export default function CharacterPage() {
   const router = useRouter();
   const [scenario, setScenario] = useState<ScenarioMode>("bjorn");
   const [race, setRace] = useState<Race | null>("barbarian");
+  const [weapon, setWeapon] = useState<string>(DEFAULT_WEAPON);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +30,7 @@ export default function CharacterPage() {
       const resp = await createCharacter({
         scenario_mode: scenario,
         race: raceDisabled ? undefined : effectiveRace,
+        weapon: raceDisabled ? weapon : undefined,
       });
       setStoredSessionId(resp.session_id);
       router.push("/game");
@@ -51,6 +55,7 @@ export default function CharacterPage() {
         <ScenarioSelector value={scenario} onChange={setScenario} />
         <RaceSelector value={effectiveRace} onChange={setRace} disabled={raceDisabled} />
         <RaceDetailPanel race={effectiveRace} />
+        {raceDisabled && <WeaponSelector value={weapon} onChange={setWeapon} />}
 
         {error != null && (
           <div className="rounded border border-crimson/40 bg-crimson-dim/20 p-4 text-sm text-crimson">

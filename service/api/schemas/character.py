@@ -9,6 +9,9 @@ class CharacterConfigRequest(BaseModel):
     race: str | None = Field(default=None, description="종족 (new_explorer 전용, bjorn은 무시)")
     inventory: list[str] = Field(default_factory=list)
     location: str | None = Field(default=None, description="시작 위치 (None = 시나리오 기본값)")
+    weapon: str | None = Field(
+        default=None, description="성인식 선택 무기 (★ ep_0002 — None = 시나리오 기본)"
+    )
 
 
 class CharacterConfigResponse(BaseModel):
@@ -25,3 +28,5 @@ class CharacterConfigResponse(BaseModel):
     scenario_description: str
     # ★ phase-e-5: 시나리오 + 종족 정합 시작 narrative
     starting_narrative: str
+    # ★ 성인식 선택 무기 (★ ep_0002 — 시작 장착 무기)
+    starting_weapon: str

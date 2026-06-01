@@ -44,13 +44,14 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session 연결 + 성인식 마을 + 배경 + 진행 시스템 — 전부 hard (각 5점, 합 30)
-    Check("scenario_origin_naming", 5, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 5, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    Check("no_starting_party", 5, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 선택 — 전부 hard (합 30)
+    Check("scenario_origin_naming", 4, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 4, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    Check("no_starting_party", 4, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
-    Check("background_rendered", 5, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
-    Check("progression_displayed", 5, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    Check("background_rendered", 4, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    Check("progression_displayed", 4, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    Check("weapon_choice_reflected", 5, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -81,6 +82,17 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             assert link is not None
             await link.click()
             await page.wait_for_url("**/character", timeout=10000)
+            # ★ 성인식 무기 선택 (★ ep_0002) — 양손 도끼 (방패 default 아님 → 반영 검증)
+            try:
+                weapon_btn = await page.wait_for_selector(
+                    '[data-testid="weapon-option-양손 도끼"]',
+                    timeout=8000,
+                    state="visible",
+                )
+                if weapon_btn is not None:
+                    await weapon_btn.click()
+            except Exception:
+                pass  # WeaponSelector 미표시 시 default 방패 진행
             btn = await page.wait_for_selector(
                 "button:has-text('미궁으로')", timeout=10000, state="visible"
             )
@@ -101,6 +113,9 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["background_rendered"] = (
                 bg_style is not None and "ui_main_bg" in bg_style
             )
+            # ★ 성인식 무기 선택 반영 (★ ep_0002) — 선택 무기(양손 도끼)가 장착/소지 표시.
+            #   방패 default 아닌 무기 선택 → 어댑터 equipment + inventory 반영 검증.
+            results["weapon_choice_reflected"] = "양손 도끼" in body
             # ★ 진행 시스템 — 어댑터 연결 (영혼력/LV, 0 고정 해소).
             #   어댑터 누락 시 soul_power undefined → Number(?? 0) → "0".
             #   연결 시 바바리안 soul_power_base = 10. level은 누락이어도

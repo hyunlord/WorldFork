@@ -8,11 +8,17 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+from service.canon.items import build_weapon_equipment
 from service.canon.races import Race, get_race_config
-from service.canon.scenario import SCENARIO_CONFIGS, ScenarioMode, resolve_race_for_scenario
+from service.canon.scenario import (
+    SCENARIO_CONFIGS,
+    ScenarioMode,
+    find_coming_of_age_weapon,
+    resolve_race_for_scenario,
+)
 from service.persistence.sqlite_store import SessionRow, SqliteStore, TurnRow
 from service.sim.action_context import ActionResult
-from service.sim.equipment import DEFAULT_EQUIPMENT_DICT
+from service.sim.equipment import DEFAULT_EQUIPMENT_DICT, equipment_to_dict
 
 ACTIVE_TIMEOUT = timedelta(hours=1)
 
@@ -160,6 +166,7 @@ class SessionManager:
         inventory: list[str] | None = None,
         location: str | None = None,
         *,
+        weapon: str | None = None,
         current_hp: int | None = None,
         max_hp: int | None = None,
     ) -> SessionState:
@@ -171,17 +178,30 @@ class SessionManager:
         use_hp = current_hp if current_hp is not None else race_cfg.hp_base
         use_max_hp = max_hp if max_hp is not None else race_cfg.hp_base
         use_location = location if location is not None else scenario_cfg.starting_location
-        # inventory 우선순위:
-        # 1. 명시적 전달값 (테스트 / custom 시나리오)
-        # 2. scenario.starting_inventory (BJORN → 방패)
-        # 3. race.starting_inventory_default (NEW_EXPLORER → 종족 정합)
-        # 4. 빈 list
-        if inventory is not None:
+        # inventory + 시작 무기 우선순위 (★ ep_0002 성인식 무기 선택):
+        # 1. weapon 명시 (성인식 선택) → [weapon] (★ 방패 고정 해소)
+        # 2. inventory 명시 (테스트 / custom 시나리오)
+        # 3. scenario.starting_inventory (BJORN → 방패 default)
+        # 4. race.starting_inventory_default (NEW_EXPLORER → 종족 정합)
+        if weapon is not None:
+            use_inventory = [weapon]
+        elif inventory is not None:
             use_inventory = list(inventory)
         elif scenario_cfg.starting_inventory:
             use_inventory = list(scenario_cfg.starting_inventory)
         else:
             use_inventory = list(race_cfg.starting_inventory_default)
+        # ★ 선택 무기 장착 (★ equipment.weapon + element — 4284fbc 정합)
+        equipment_dict = dict(DEFAULT_EQUIPMENT_DICT)
+        if weapon is not None:
+            sw = find_coming_of_age_weapon(weapon)
+            equipment_dict["weapon"] = equipment_to_dict(
+                build_weapon_equipment(
+                    weapon,
+                    sw.attack_bonus if sw is not None else 0,
+                    sw.description if sw is not None else "",
+                )
+            )
         state = SessionState(
             session_id=_new_id(),
             current_hp=use_hp,
@@ -193,7 +213,7 @@ class SessionManager:
             created_at=now,
             last_active=now,
             status_effects=[],
-            equipment=dict(DEFAULT_EQUIPMENT_DICT),
+            equipment=equipment_dict,
             last_spawn_turn=-10,
             player_level=1,
             player_xp=0,

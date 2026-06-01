@@ -34,6 +34,45 @@ class ScenarioConfig:
     starting_narrative: str = ""
 
 
+@dataclass(frozen=True)
+class StartingWeapon:
+    """성인식 선택 무기 (★ 본문 ep_0002 — 부족장 앞 무기 선택)."""
+
+    name: str
+    attack_bonus: int
+    description: str
+
+
+# ★ 본문 ep_0002 무기 (★ "스스로에게 맞는 무기를 골라라" — 부족장, ep_0002:48)
+#   후보(ep_0002:422): 한손 검/양손 대검/메이스/쇠곤봉/창/작살/양손 도끼/도리깨/
+#   대형 망치. 비요른은 "그 누구도 고르지 않은 무기" = 방패(ep_0003 되팔기 비쌈).
+#   element는 build 시 _parse_element(name) — 본문 무기는 평범(물리), 시스템은 연결.
+COMING_OF_AGE_WEAPONS: tuple[StartingWeapon, ...] = (
+    StartingWeapon("한손 검", 4, "균형 잡힌 한손 검 — 무난한 선택."),
+    StartingWeapon("양손 대검", 6, "묵직한 양손 대검 — 한 방이 강하다."),
+    StartingWeapon("메이스", 5, "타격용 둔기 — 둔중하나 확실하다."),
+    StartingWeapon("쇠곤봉", 4, "단단한 쇠곤봉 — 다루기 쉽다."),
+    StartingWeapon("창", 5, "긴 사거리의 창 — 거리를 벌린다."),
+    StartingWeapon("작살", 4, "갈고리 달린 작살 — 끌어당긴다."),
+    StartingWeapon("양손 도끼", 6, "위력적인 양손 도끼 — 묵직한 일격."),
+    StartingWeapon("도리깨", 5, "사슬 달린 도리깨 — 변칙적이다."),
+    StartingWeapon("대형 망치", 7, "강력한 대형 망치 — 가장 무겁다."),
+    StartingWeapon(
+        "방패", 1, "되팔 때 가장 비싸다 — 그 누구도 고르지 않은 선택(ep_0003)."
+    ),
+)
+
+# ★ default 무기 (★ ep_0003 — 그 누구도 고르지 않은 방패, 되팔기 비쌈)
+DEFAULT_COMING_OF_AGE_WEAPON = "방패"
+
+_WEAPON_BY_NAME: dict[str, StartingWeapon] = {w.name: w for w in COMING_OF_AGE_WEAPONS}
+
+
+def find_coming_of_age_weapon(name: str) -> StartingWeapon | None:
+    """이름 → 성인식 무기 (★ 미등록 시 None — custom 무기 fallback)."""
+    return _WEAPON_BY_NAME.get(name)
+
+
 SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
     ScenarioMode.BJORN: ScenarioConfig(
         name_ko="바바리안으로 살아남기",
@@ -52,7 +91,7 @@ SCENARIO_CONFIGS: dict[ScenarioMode, ScenarioConfig] = {
             "나는 부족 성지에 서 있다. "
             "어두운 숲속 공터, 일렁이는 횃불 사이로 근육질 야만인들이 둘러섰다. "
             "부족장이 외친다 — 어린 전사들이여, 오늘 성지를 떠나 진정한 전사로 거듭나리라. "
-            "성년의 증표로 시작 무기를 골라야 한다. 내 손에는 방패 하나가 들려 있다."
+            "성년의 증표로 스스로에게 맞는 무기를 골라야 한다."
         ),
     ),
     ScenarioMode.NEW_EXPLORER: ScenarioConfig(
@@ -94,12 +133,33 @@ RACE_STARTING_NARRATIVES: dict[str, str] = {
 }
 
 
-def build_starting_narrative(mode: ScenarioMode, race: Race) -> str:
-    """시나리오 + 종족 정합 시작 narrative."""
+def _eul_reul(word: str) -> str:
+    """한국어 목적격 조사 — 받침 有 '을', 無 '를'."""
+    if not word:
+        return "를"
+    last = word[-1]
+    if not ("가" <= last <= "힣"):
+        return "를"
+    return "을" if (ord(last) - 0xAC00) % 28 != 0 else "를"
+
+
+def build_starting_narrative(
+    mode: ScenarioMode, race: Race, weapon: str | None = None
+) -> str:
+    """시나리오 + 종족 정합 시작 narrative (★ 선택 무기 동적 반영).
+
+    weapon 지정 시 성인식 무기 선택 결과를 narrative에 잇는다 (★ ep_0002 고증).
+    """
     cfg = SCENARIO_CONFIGS[mode]
-    if cfg.starting_narrative:
-        return cfg.starting_narrative
-    return RACE_STARTING_NARRATIVES.get(race.value, "")
+    base = (
+        cfg.starting_narrative
+        if cfg.starting_narrative
+        else RACE_STARTING_NARRATIVES.get(race.value, "")
+    )
+    if weapon:
+        josa = _eul_reul(weapon)
+        base = f"{base} 나는 {weapon}{josa} 골라 손에 쥐고 성지를 떠날 채비를 한다."
+    return base
 
 
 def resolve_race_for_scenario(
