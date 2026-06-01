@@ -14,6 +14,7 @@ import { StatusBar } from "@/components/game/StatusBar";
 import type {
   CharacterListRow,
   CharacterSheetData,
+  EncounterPanelData,
   EssenceSlot,
   InventoryPanelData,
   InventoryRow,
@@ -24,16 +25,13 @@ import type {
   PartyPanelData,
   StatusBarData,
 } from "@/components/game/types";
-import {
-  DEMO_DUNGEON,
-  DEMO_ENCOUNTER,
-  DEMO_ESSENCE,
-} from "@/lib/game/mockData";
+import { DEMO_DUNGEON, DEMO_ESSENCE } from "@/lib/game/mockData";
 import { useFreeformAction } from "@/lib/hooks/useFreeformAction";
 import { useGameState } from "@/lib/hooks/useGameState";
 import { useKeyboard } from "@/lib/hooks/useKeyboard";
 import { usePostAction } from "@/lib/hooks/usePostAction";
 import { RACES } from "@/lib/types/character";
+import { unmaskIp } from "@/lib/api/v2";
 import type { CharacterV2, StateResponse } from "@/lib/api/v2";
 
 const MAX_HOURS = 174;
@@ -233,6 +231,28 @@ function buildParty(data: StateResponse | null): PartyPanelData {
   return { members };
 }
 
+// ★ session encounters(전투 enemy) → EncounterPanel — 5종 mechanic 결과 시각화
+function buildEncounter(
+  encounters: Record<string, unknown>[] | undefined,
+): EncounterPanelData {
+  const actions = [
+    { id: "attack", label: "공격", key: "a" },
+    { id: "talk", label: "대화", key: "t" },
+    { id: "rest", label: "휴식", key: "." },
+  ];
+  if (!encounters || encounters.length === 0) return { targets: [], actions };
+  return {
+    targets: encounters.map((e, i) => ({
+      id: `enemy-${i}`,
+      ch: String((e.name as string | undefined) ?? "?").charAt(0) || "?",
+      name: unmaskIp(String(e.name ?? "적")),
+      tag: `적대 · HP ${e.hp ?? "?"}/${e.max_hp ?? "?"}`,
+      kind: "hostile" as const,
+    })),
+    actions,
+  };
+}
+
 export default function GamePage() {
   const { data } = useGameState();
   const { execute, executing } = usePostAction();
@@ -255,6 +275,12 @@ export default function GamePage() {
 
   // ★ 성인식 마을(floor 0) — 던전맵/조우 미표시 (DEMO 한스 노출 X, 성인식 narrative 중심)
   const inVillage = (data?.state.location?.floor ?? 0) === 0;
+
+  // ★ 전투 enemy — session encounters 실데이터 (5종 mechanic 결과 시각화)
+  const encounterData = useMemo<EncounterPanelData>(
+    () => buildEncounter(data?.state.encounters),
+    [data],
+  );
 
   const statusData = useMemo<StatusBarData>(() => {
     if (!data) {
@@ -384,7 +410,7 @@ export default function GamePage() {
           {/* ★ 조우 패널은 던전에서만 (성인식 마을 미표시) */}
           {!inVillage && (
             <EncounterPanel
-              data={DEMO_ENCOUNTER}
+              data={encounterData}
               onAction={(id) => {
                 if (id === "talk" || id === "attack" || id === "rest") {
                   void execute({ action_type: id });

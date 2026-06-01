@@ -42,6 +42,7 @@ export interface LocationV2 {
 
 export interface GameStateV2 {
   characters: Record<string, CharacterV2>;
+  encounters?: Record<string, unknown>[];  // ★ 전투 enemy state (session encounters)
   world: WorldStateV2;
   location: LocationV2;
 }
@@ -136,7 +137,7 @@ const _UNMASK_IP: Record<string, string> = {
   투르윈: "비요른",
 };
 
-function unmaskIp(text: string): string {
+export function unmaskIp(text: string): string {
   let result = text;
   for (const [masked, original] of Object.entries(_UNMASK_IP)) {
     result = result.split(masked).join(original);
@@ -186,6 +187,10 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
         visibility_meters: 0,
         has_light: false,
       },
+      // ★ 전투 enemy state — 5종 mechanic 결과(반사/조건부 회복 enemy HP) 시각화
+      encounters: Array.isArray(s.encounters)
+        ? (s.encounters as Record<string, unknown>[])
+        : [],
     },
     turn: s.turn_count ?? 0,
   };
