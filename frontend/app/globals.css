@@ -114,7 +114,9 @@ body {
   color: var(--color-text-bright);
   font-family: var(--font-sans);
   font-size: 14px;
-  overflow: hidden;
+  /* 가로만 차단 — 세로는 허용해 긴 페이지(character 무기 10종 등)가 스크롤되도록.
+     game/town(h-screen)·랜딩(min-h-screen)은 자체 overflow-hidden 컨테이너라 무관. */
+  overflow-x: hidden;
   position: relative;
 }
 

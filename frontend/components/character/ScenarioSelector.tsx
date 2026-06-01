@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScenarioMode } from "@/lib/types/character";
+import { unmaskIp } from "@/lib/api/v2";
 
 interface Props {
   value: ScenarioMode;
@@ -15,14 +16,14 @@ export function ScenarioSelector({ value, onChange }: Props) {
         <ScenarioOption
           mode="bjorn"
           title="비요른 시나리오"
-          description="바바리안 투르윈의 첫 미궁 도전. 종족 고정."
+          description={unmaskIp("바바리안 투르윈의 첫 미궁 도전. 종족 고정.")}
           selected={value === "bjorn"}
           onClick={() => { onChange("bjorn"); }}
         />
         <ScenarioOption
           mode="new_explorer"
           title="신규 탐험가"
-          description="자유 종족 선택. 라스카니아 차원광장에서 첫 진입."
+          description={unmaskIp("자유 종족 선택. 라스카니아 차원광장에서 첫 진입.")}
           selected={value === "new_explorer"}
           onClick={() => { onChange("new_explorer"); }}
         />

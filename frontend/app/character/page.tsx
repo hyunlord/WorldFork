@@ -11,6 +11,7 @@ import { createCharacter } from "@/lib/api/character";
 import { setStoredSessionId } from "@/lib/session";
 import { DEFAULT_WEAPON } from "@/lib/types/character";
 import type { Race, ScenarioMode } from "@/lib/types/character";
+import { unmaskIp } from "@/lib/api/v2";
 
 export default function CharacterPage() {
   const router = useRouter();
@@ -48,7 +49,7 @@ export default function CharacterPage() {
             캐릭터 생성
           </h1>
           <p className="font-narrative text-sm italic tracking-[0.15em] text-text-mute">
-            라스카니아 차원광장에 발을 들이기 전, 나는 누구인지 정해야 한다.
+            {unmaskIp("라스카니아 차원광장")}에 발을 들이기 전, 나는 누구인지 정해야 한다.
           </p>
         </header>
 

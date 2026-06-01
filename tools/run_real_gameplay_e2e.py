@@ -50,12 +50,13 @@ CHECKS: tuple[Check, ...] = (
     Check("session_scenario_reflected", 3, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
     Check("no_starting_party", 4, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
-    Check("background_rendered", 3, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    Check("background_rendered", 2, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 3, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
     Check("weapon_choice_reflected", 4, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
+    Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -86,6 +87,26 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             assert link is not None
             await link.click()
             await page.wait_for_url("**/character", timeout=10000)
+            # ★ character 스크롤 도달 (manual play 결함) — 작은 viewport에서 무기 10종으로
+            #   콘텐츠가 넘칠 때 생성 버튼까지 스크롤 가능한지. body overflow:hidden이면
+            #   scrollTo 무효(after==before)이면서 콘텐츠는 넘쳐(scrollHeight>clientHeight)
+            #   생성 버튼 도달 불가 = 게임 시작 차단.
+            await page.set_viewport_size({"width": 768, "height": 600})
+            await page.wait_for_timeout(300)
+            results["character_scrollable"] = await page.evaluate(
+                """() => {
+                    const el = document.scrollingElement || document.documentElement;
+                    const overflowing = el.scrollHeight > el.clientHeight + 1;
+                    if (!overflowing) return true;  // 콘텐츠가 한 화면 — 막힘 아님
+                    const before = el.scrollTop;
+                    el.scrollTo(0, el.scrollHeight);
+                    const moved = el.scrollTop > before;
+                    el.scrollTo(0, before);
+                    return moved;  // 넘치면 실제 스크롤 이동해야 통과
+                }"""
+            )
+            await page.set_viewport_size({"width": 1280, "height": 720})
+            await page.wait_for_timeout(200)
             # ★ 성인식 무기 선택 (★ ep_0002) — 양손 도끼 (방패 default 아님 → 반영 검증)
             try:
                 weapon_btn = await page.wait_for_selector(

@@ -6,6 +6,7 @@ import type {
   TownRunSummaryRow,
   TownViewData,
 } from "./types";
+import { unmaskIp } from "@/lib/api/v2";
 
 interface Props {
   data: TownViewData;
@@ -72,7 +73,7 @@ export function TownView({ data, onPoi }: Props) {
           <span className="mx-3 text-[0.7em] align-middle text-amber-dim">
             ◆
           </span>
-          {data.title}
+          {unmaskIp(data.title)}
           <span className="mx-3 text-[0.7em] align-middle text-amber-dim">
             ◆
           </span>

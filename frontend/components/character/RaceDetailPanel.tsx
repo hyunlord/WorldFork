@@ -2,6 +2,7 @@
 
 import type { Race } from "@/lib/types/character";
 import { RACES } from "@/lib/types/character";
+import { unmaskIp } from "@/lib/api/v2";
 
 interface Props {
   race: Race | null;
@@ -22,7 +23,7 @@ export function RaceDetailPanel({ race }: Props) {
     <div className="rounded border border-border-rune bg-bg-panel p-6 space-y-5">
       <div>
         <h3 className="font-serif text-xl tracking-[0.15em] text-amber">{info.nameKo}</h3>
-        <p className="mt-1 text-sm text-text-mid">{info.description}</p>
+        <p className="mt-1 text-sm text-text-mid">{unmaskIp(info.description)}</p>
       </div>
 
       <div className="grid grid-cols-4 gap-3 md:grid-cols-7">
