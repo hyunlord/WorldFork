@@ -171,6 +171,12 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
           is_player: true,
           inventory: { items: s.inventory.map((n) => ({ name: n })) },
           absorbed_essences: s.absorbed_essences,
+          // ★ 진행 시스템 — statusData 키 정합 (영혼력/LV/정수 0 고정 해소)
+          soul_power: s.soul_power,
+          level: s.player_level,
+          essences: s.absorbed_essences, // statusData essences 키 ↔ absorbed_essences
+          max_essences: s.max_essences,
+          xp: s.player_xp,
         } as unknown as CharacterV2,
       },
       world: {

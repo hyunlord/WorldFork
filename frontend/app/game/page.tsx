@@ -315,6 +315,9 @@ export default function GamePage() {
     const level = Number((player as Record<string, unknown> | null)?.level ?? 1);
     const essencesRaw = (player as Record<string, unknown> | null)?.essences;
     const essenceCount = Array.isArray(essencesRaw) ? essencesRaw.length : 0;
+    const maxEssences = Number(
+      (player as Record<string, unknown> | null)?.max_essences ?? level + 1,
+    );
     const sub = data.state.location.sub_area ?? "진입점";
     const floor = data.state.location.floor;
     return {
@@ -328,7 +331,7 @@ export default function GamePage() {
       soulPower,
       soulPowerMax,
       essenceCount,
-      essenceMax: level + 1,
+      essenceMax: maxEssences,
       playerLevel: level,
       floorNumber: floor ?? 0,
     };

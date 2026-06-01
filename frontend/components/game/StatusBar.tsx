@@ -109,7 +109,7 @@ export function StatusBar({ data, onMenu }: Props) {
             <span className="text-[0.7rem] uppercase tracking-[0.15em] text-text-mute">
               영혼력
             </span>
-            <span className="font-bold text-cyan">
+            <span className="font-bold text-cyan" data-testid="status-soul-power">
               {data.soulPower}
               {data.soulPowerMax != null && data.soulPowerMax > 0 && (
                 <span className="text-text-mute">/{data.soulPowerMax}</span>
@@ -127,7 +127,7 @@ export function StatusBar({ data, onMenu }: Props) {
             <span className="text-[0.7rem] uppercase tracking-[0.15em] text-text-mute">
               정수
             </span>
-            <span className="font-bold text-amber">
+            <span className="font-bold text-amber" data-testid="status-essence">
               {data.essenceCount ?? 0}
               <span className="text-text-mute">/{data.essenceMax}</span>
             </span>
@@ -143,7 +143,7 @@ export function StatusBar({ data, onMenu }: Props) {
             <span className="text-[0.7rem] uppercase tracking-[0.15em] text-text-mute">
               Lv
             </span>
-            <span className="font-bold text-text-bright">{data.playerLevel}</span>
+            <span className="font-bold text-text-bright" data-testid="status-level">{data.playerLevel}</span>
           </span>
         </>
       )}

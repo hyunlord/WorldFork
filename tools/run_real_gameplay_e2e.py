@@ -44,12 +44,13 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session 연결 + 성인식 마을 + 배경 이미지 — 전부 hard (각 6점, 합 30)
-    Check("scenario_origin_naming", 6, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 6, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    Check("no_starting_party", 6, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
-    Check("chat_freeform_works", 6, False, "채팅 → freeform_action 200"),
-    Check("background_rendered", 6, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    # ★ session 연결 + 성인식 마을 + 배경 + 진행 시스템 — 전부 hard (각 5점, 합 30)
+    Check("scenario_origin_naming", 5, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 5, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    Check("no_starting_party", 5, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
+    Check("background_rendered", 5, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    Check("progression_displayed", 5, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -100,6 +101,24 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["background_rendered"] = (
                 bg_style is not None and "ui_main_bg" in bg_style
             )
+            # ★ 진행 시스템 — 어댑터 연결 (영혼력/LV, 0 고정 해소).
+            #   어댑터 누락 시 soul_power undefined → Number(?? 0) → "0".
+            #   연결 시 바바리안 soul_power_base = 10. level은 누락이어도
+            #   default 1이라 영혼력 10이 어댑터 연결 핵심 지표.
+            try:
+                soul = (
+                    await page.locator(
+                        '[data-testid="status-soul-power"]'
+                    ).first.inner_text()
+                ).strip()
+                lv = (
+                    await page.locator(
+                        '[data-testid="status-level"]'
+                    ).first.inner_text()
+                ).strip()
+                results["progression_displayed"] = soul == "10" and lv == "1"
+            except Exception:
+                results["progression_displayed"] = False
 
             try:
                 inp = page.locator("input").first
