@@ -36,10 +36,12 @@ import { useKeyboard } from "@/lib/hooks/useKeyboard";
 import { usePostAction } from "@/lib/hooks/usePostAction";
 import { RACES } from "@/lib/types/character";
 import { parseDialogue, type ParsedDialogue } from "@/lib/game/dialogue";
+import { collectEssenceSkills, skillMeta } from "@/lib/game/skills";
 import { unmaskIp } from "@/lib/api/v2";
 import type { CharacterV2, StateResponse } from "@/lib/api/v2";
 
-const MAX_HOURS = 174;
+// 미궁 1층 cycle = 7일 = 168h (backend dungeon_clock.FLOOR_CYCLE_HOURS 정합)
+const MAX_HOURS = 168;
 
 // 정수 흡수 narrative pattern — action_handlers.py 정합
 const ESSENCE_RE = /「캐릭터의 영혼에 '([^']+)'이\(가\) 스며듭니다\.」/g;
@@ -108,10 +110,16 @@ function buildCharacterSheet(player: CharacterV2): CharacterSheetData {
     ? (raceTraitsRaw as string[])
     : (raceInfo?.traits ?? []);
 
-  const skillRows: CharacterListRow[] = traits.map((t) => ({
-    name: t,
-    value: "",
-  }));
+  // ★ 흡수 정수 magic·skill (active/passive) 우선 노출 + race trait
+  const essenceSkills = collectEssenceSkills(player as Record<string, unknown>);
+  const skillRows: CharacterListRow[] = [
+    ...essenceSkills.map((s) => ({
+      name: s.name,
+      meta: skillMeta(s),
+      value: s.kind === "active" ? "A" : "P",
+    })),
+    ...traits.map((t) => ({ name: t, value: "" })),
+  ];
 
   return {
     name: String(player.name ?? "탐험가"),

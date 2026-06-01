@@ -14,7 +14,7 @@ const base: StatusBarData = {
   essenceMax: 2,
   playerLevel: 3,
   hoursInDungeon: 0,
-  hoursMax: 174,
+  hoursMax: 168,
   locationLabel: "1층 · 진입점",
   timeOfDay: "밤",
   floorNumber: 0,
@@ -53,8 +53,10 @@ describe("StatusBar", () => {
   });
 
   it("hides cycle bar when floor=0", () => {
+    // floor 0은 CycleBar(잔여) 대신 평문 시간 표시 — "잔여" 레이블 부재로 판정
+    // ("168h"는 hoursMax=168과 동일해 floor 0 시간 텍스트에도 등장하므로 부적합)
     const { container } = render(<StatusBar data={base} />);
-    expect(container.textContent).not.toContain("168h");
+    expect(container.textContent).not.toContain("잔여");
   });
 
   it("shows amber time text when hoursLeft <= 24", () => {

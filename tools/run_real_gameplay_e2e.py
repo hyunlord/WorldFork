@@ -44,17 +44,18 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 선택 + 메뉴 — 전부 hard (합 30)
-    #   재검증 끊김 3(메뉴 지도/도움말) 추가에 맞춰 기존 4종 각 -1 재분배(30 유지).
+    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 + 메뉴 + 시간 — 전부 hard (합 30)
+    #   끊김 3(메뉴) / 끊김 4(시간 정합) 추가에 맞춰 background 등 재분배(30 유지).
     Check("scenario_origin_naming", 3, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
     Check("session_scenario_reflected", 3, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
     Check("no_starting_party", 4, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
-    Check("background_rendered", 4, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    Check("background_rendered", 3, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 3, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
     Check("weapon_choice_reflected", 4, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
+    Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -109,6 +110,9 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["scenario_origin_naming"] = "투르윈" not in body
             results["no_starting_party"] = ("실렌" not in body) and ("한스" not in body)
             results["session_scenario_reflected"] = "120" in body
+            # ★ 시간 한도 정합 (끊김 4) — 7일=168h (backend dungeon_clock 기준).
+            #   StatusBar 시간 표시에 168h 노출 + 옛 174h 불일치 부재 검증.
+            results["time_limit_consistent"] = ("168h" in body) and ("174h" not in body)
             # ★ 배경 이미지 — ComfyUI PNG 렌더링 (성인식 마을 floor 0 → ui_main_bg)
             bg_style = await page.locator(
                 '[data-testid="game-background"]'

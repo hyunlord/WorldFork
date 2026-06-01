@@ -19,7 +19,7 @@ export interface CharacterV2 {
   hp: number;
   hp_max: number;
   is_player: boolean;
-  // ★ 본 commit 본격 본격 — 본격 50+ field 본격 본격 본격 본격 본격
+  // 50+ stat/essence field는 인덱스 시그니처로 수용 (state_v2 Character 직렬화)
   [key: string]: unknown;
 }
 

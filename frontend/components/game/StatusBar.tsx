@@ -162,7 +162,7 @@ export function StatusBar({ data, onMenu }: Props) {
             <span className="font-mono font-bold text-text-bright">
               {data.hoursInDungeon ?? 0}h
               <span className="text-text-mute">
-                {" "}/ {data.hoursMax ?? 174}h
+                {" "}/ {data.hoursMax ?? 168}h
               </span>
             </span>
           </span>

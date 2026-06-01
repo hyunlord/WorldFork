@@ -356,7 +356,7 @@ export const DEMO_TOWN: TownViewData = {
     {
       header: "직전 RUN",
       rows: [
-        { label: "던전", value: "1층 · 174h" },
+        { label: "던전", value: "1층 · 168h" },
         { label: "처치", value: "고블린 ×4 / 약탈자 ×1", kind: "success" },
         { label: "수집", value: "마석 +180", kind: "gold" },
       ],
