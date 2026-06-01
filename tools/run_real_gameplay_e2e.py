@@ -44,14 +44,17 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 선택 — 전부 hard (합 30)
-    Check("scenario_origin_naming", 4, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 4, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 선택 + 메뉴 — 전부 hard (합 30)
+    #   재검증 끊김 3(메뉴 지도/도움말) 추가에 맞춰 기존 4종 각 -1 재분배(30 유지).
+    Check("scenario_origin_naming", 3, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 3, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
     Check("no_starting_party", 4, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
     Check("background_rendered", 4, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
-    Check("progression_displayed", 4, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
-    Check("weapon_choice_reflected", 5, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
+    Check("progression_displayed", 3, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    Check("weapon_choice_reflected", 4, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
+    Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
+    Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -134,6 +137,31 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["progression_displayed"] = soul == "10" and lv == "1"
             except Exception:
                 results["progression_displayed"] = False
+
+            # ★ 메뉴 지도/도움말 onClick → 패널 (재검증 끊김 3)
+            #   ≡ MENU 토글 → 항목 클릭 → 패널 표시. Esc로 닫아 chat 검증 비간섭.
+            try:
+                await page.click('[data-testid="menu-toggle"]')
+                await page.click('[data-testid="menu-map"]')
+                await page.wait_for_selector(
+                    '[data-testid="map-panel"]', timeout=5000, state="visible"
+                )
+                results["menu_map_works"] = True
+                await page.keyboard.press("Escape")
+                await page.wait_for_timeout(250)
+            except Exception:
+                results["menu_map_works"] = False
+            try:
+                await page.click('[data-testid="menu-toggle"]')
+                await page.click('[data-testid="menu-help"]')
+                await page.wait_for_selector(
+                    '[data-testid="help-panel"]', timeout=5000, state="visible"
+                )
+                results["menu_help_works"] = True
+                await page.keyboard.press("Escape")
+                await page.wait_for_timeout(250)
+            except Exception:
+                results["menu_help_works"] = False
 
             try:
                 inp = page.locator("input").first

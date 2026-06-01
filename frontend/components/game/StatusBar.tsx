@@ -201,6 +201,7 @@ export function StatusBar({ data, onMenu }: Props) {
       <button
         type="button"
         onClick={onMenu}
+        data-testid="menu-toggle"
         className="ml-auto cursor-pointer border border-border-rune bg-bg-elev px-3.5 py-1.5 font-mono text-[0.7rem] tracking-[0.15em] text-text-mid transition hover:border-amber hover:bg-amber/5 hover:text-amber hover:[box-shadow:0_0_12px_var(--torch-glow)]"
       >
         ≡ MENU

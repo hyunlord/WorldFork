@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CharacterSheetModal } from "@/components/game/CharacterSheetModal";
+import { DialogueView } from "@/components/game/DialogueView";
 import { DungeonView } from "@/components/game/DungeonView";
 import { EncounterPanel } from "@/components/game/EncounterPanel";
 import { EssenceDetailModal } from "@/components/game/EssenceDetailModal";
+import { GameMenu } from "@/components/game/GameMenu";
+import { HelpPanel } from "@/components/game/HelpPanel";
 import { InputBar, type InputBarHandle } from "@/components/game/InputBar";
 import { InventoryPanel } from "@/components/game/InventoryPanel";
+import { MapPanel } from "@/components/game/MapPanel";
 import { NarrativePanel } from "@/components/game/NarrativePanel";
 import { PartyPanel } from "@/components/game/PartyPanel";
 import { StatusBar } from "@/components/game/StatusBar";
@@ -31,6 +35,7 @@ import { useGameState } from "@/lib/hooks/useGameState";
 import { useKeyboard } from "@/lib/hooks/useKeyboard";
 import { usePostAction } from "@/lib/hooks/usePostAction";
 import { RACES } from "@/lib/types/character";
+import { parseDialogue, type ParsedDialogue } from "@/lib/game/dialogue";
 import { unmaskIp } from "@/lib/api/v2";
 import type { CharacterV2, StateResponse } from "@/lib/api/v2";
 
@@ -269,6 +274,10 @@ export default function GamePage() {
 
   const [charOpen, setCharOpen] = useState(false);
   const [essenceOpen, setEssenceOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [dialogueOpen, setDialogueOpen] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
 
   const player = useMemo<CharacterV2 | null>(() => {
@@ -375,6 +384,20 @@ export default function GamePage() {
     };
   }, [freeform.lastResponse, turnCount]);
 
+  // ★ NPC 대화(case A) — handle_dialogue narrative의 큰따옴표 발화 감지 → 전용 UI
+  const dialogueData = useMemo<ParsedDialogue>(
+    () =>
+      freeform.lastResponse
+        ? parseDialogue(freeform.lastResponse.narrative)
+        : { isDialogue: false, speaker: "대화 상대", segments: [] },
+    [freeform.lastResponse],
+  );
+
+  // 새 응답이 대화면 전용 UI 자동 표시 (turnCount = 응답 수신 트리거)
+  useEffect(() => {
+    if (turnCount > 0 && dialogueData.isDialogue) setDialogueOpen(true);
+  }, [turnCount, dialogueData.isDialogue]);
+
   const handleShortcut = useCallback((key: string) => {
     if (key === "c" || key === "p") setCharOpen(true);
   }, []);
@@ -408,7 +431,7 @@ export default function GamePage() {
       style={{ backgroundImage: `url(${bgUrl})` }}
       data-testid="game-background"
     >
-      <StatusBar data={statusData} />
+      <StatusBar data={statusData} onMenu={() => setMenuOpen((v) => !v)} />
 
       <div
         className={
@@ -450,6 +473,13 @@ export default function GamePage() {
         disabled={executing || freeform.loading}
       />
 
+      {/* ★ NPC 대화 전용 UI (case A) — narrative 큰따옴표 발화 → ui_dialogue 프레임 */}
+      <DialogueView
+        data={dialogueData}
+        open={dialogueOpen}
+        onClose={() => setDialogueOpen(false)}
+      />
+
       {freeform.error && (
         <div className="pointer-events-none absolute bottom-[80px] left-1/2 -translate-x-1/2 border border-crimson bg-bg-deep/90 px-4 py-2 font-mono text-xs text-crimson">
           {freeform.error}
@@ -477,6 +507,26 @@ export default function GamePage() {
         open={essenceOpen}
         onClose={() => setEssenceOpen(false)}
       />
+
+      {/* ★ 메뉴 — ≡ MENU onClick → 캐릭터 · 지도 · 도움말 */}
+      <GameMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onCharacter={() => setCharOpen(true)}
+        onMap={() => setMapOpen(true)}
+        onHelp={() => setHelpOpen(true)}
+      />
+
+      <MapPanel
+        open={mapOpen}
+        onClose={() => setMapOpen(false)}
+        floor={data?.state.location?.floor ?? null}
+        subArea={data?.state.location?.sub_area ?? null}
+        riftId={data?.state.location?.rift_id ?? null}
+        activeRifts={data?.state.world?.active_rifts ?? []}
+      />
+
+      <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
