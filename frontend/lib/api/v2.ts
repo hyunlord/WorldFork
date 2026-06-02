@@ -154,6 +154,30 @@ export async function fetchSessionState(
 }
 
 /**
+ * location 문자열("라스카니아 · 부족 성지") → realm/sub_area 분리.
+ * StatusBar가 realm 대신 sub_area를 위치명으로 쓰므로(0층·진입점 → 0층·부족 성지),
+ * " · " 뒤를 sub_area로 노출한다. 게임 화면 원작 명칭(unmaskIp) 적용.
+ */
+function locationFromString(
+  location: string,
+  floor: number | null | undefined,
+  riftId: unknown,
+): LocationV2 {
+  const full = unmaskIp(location);
+  const sep = full.indexOf(" · ");
+  const realm = sep >= 0 ? full.slice(0, sep) : full;
+  const subArea = sep >= 0 ? full.slice(sep + 3) : null;
+  return {
+    realm,
+    floor: floor ?? null,
+    sub_area: subArea,
+    rift_id: typeof riftId === "string" ? riftId : null,
+    visibility_meters: 0,
+    has_light: false,
+  };
+}
+
+/**
  * SessionStateResponse(단일 플레이어 세션) → StateResponse(GameStateV2) 어댑터.
  * ★ harness 재설계: v2_state_router global default(투르윈+실렌+던전) 폐기.
  *   시작 파티원 0(자신만), 게임 화면 원작 명칭, session HP/위치 반영.
@@ -187,15 +211,7 @@ export function sessionToStateResponse(s: SessionStateResponse): StateResponse {
         hours_in_dungeon: s.hours_in_dungeon ?? 0,
         is_dark_zone: false,
       },
-      location: {
-        realm: unmaskIp(s.location),  // ★ 게임 화면 원작 명칭 (라프도니아)
-        floor: s.floor_number ?? null,
-        sub_area: null,
-        // ★ rift_id → 던전 배경 이미지 매핑 (ui_rift_{id})
-        rift_id: typeof s.rift_id === "string" ? s.rift_id : null,
-        visibility_meters: 0,
-        has_light: false,
-      },
+      location: locationFromString(s.location, s.floor_number, s.rift_id),
       // ★ 전투 enemy state — 5종 mechanic 결과(반사/조건부 회복 enemy HP) 시각화
       encounters: Array.isArray(s.encounters)
         ? (s.encounters as Record<string, unknown>[])

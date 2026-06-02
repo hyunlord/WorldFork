@@ -44,7 +44,7 @@ from service.sim.xp_curve import (
     compute_xp_grant,
     soul_power_gain_on_level_up,
 )
-from service.util.korean import i_ga
+from service.util.korean import eul_reul, i_ga
 
 _Handler = Callable[[ActionContext], Awaitable[ActionResult]]
 
@@ -86,7 +86,7 @@ async def handle_explore(ctx: ActionContext) -> ActionResult:
         sub_locs = raw_loc.get("sub_locations")
         sub_list = sub_locs if isinstance(sub_locs, list) else []
 
-        narrative = f"나는 {ctx.location}을 천천히 살폈다."
+        narrative = f"나는 {ctx.location}{eul_reul(ctx.location)} 천천히 살폈다."
         if desc:
             narrative += f" {desc}"
         else:
@@ -96,7 +96,7 @@ async def handle_explore(ctx: ActionContext) -> ActionResult:
             narrative += f" 주변에 {sub_str} 위치가 눈에 들어왔다."
     else:
         narrative = (
-            f"나는 {ctx.location}을 천천히 살폈다."
+            f"나는 {ctx.location}{eul_reul(ctx.location)} 천천히 살폈다."
             " 익숙해진 눈이 어둠 속에서 세세한 것들을 포착했다."
         )
 

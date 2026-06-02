@@ -44,19 +44,23 @@ class Check:
 
 
 CHECKS: tuple[Check, ...] = (
-    # ★ session + 성인식 마을 + 배경 + 진행 + 무기 + 메뉴 + 시간 — 전부 hard (합 30)
-    #   끊김 3(메뉴) / 끊김 4(시간 정합) 추가에 맞춰 background 등 재분배(30 유지).
-    Check("scenario_origin_naming", 3, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 3, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    Check("no_starting_party", 4, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
-    Check("chat_freeform_works", 5, False, "채팅 → freeform_action 200"),
-    Check("background_rendered", 2, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
-    Check("progression_displayed", 3, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
-    Check("weapon_choice_reflected", 4, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
+    # ★ 화면 내용 검증 재설계 (합 30) — HTTP 200/렌더가 아니라 사용자가 보는 텍스트.
+    #   manual play 결함(성인식 미표시/IP 노출/데모 placeholder/추천 부재) 정면 검증.
+    Check("scenario_origin_naming", 2, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 2, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    Check("no_starting_party", 3, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    Check("chat_freeform_works", 5, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
+    Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
+    Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    Check("weapon_choice_reflected", 3, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
+    # ★ 신규 — manual play 결함 화면 내용 검증 (검증 갭 닫기)
+    Check("start_narrative_shown", 3, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
+    Check("no_demo_placeholder", 1, False, "placeholder 데모(한스·WASD) 부재"),
+    Check("suggested_actions_shown", 2, False, "추천 행동 버튼 노출 (placeholder만 X)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -131,6 +135,21 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["scenario_origin_naming"] = "투르윈" not in body
             results["no_starting_party"] = ("실렌" not in body) and ("한스" not in body)
             results["session_scenario_reflected"] = "120" in body
+            # ★ 첫 화면 성인식 narrative 노출 (createCharacter starting_narrative 표시).
+            #   BJORN 성인식 = 부족장 선언 → "부족장/성지/성년/전사" 중 하나 노출 +
+            #   generic 안내("행동을 입력해 모험을 시작하세요") 부재.
+            results["start_narrative_shown"] = (
+                any(kw in body for kw in ("부족장", "성지", "성년", "전사"))
+                and "행동을 입력해 모험을 시작하세요" not in body
+            )
+            # ★ placeholder 데모(한스·WASD) 부재 — session 정합 placeholder.
+            ph = await page.locator("input").first.get_attribute("placeholder")
+            results["no_demo_placeholder"] = (
+                ph is not None and "한스" not in ph and "WASD" not in ph
+            )
+            # ★ 추천 행동 버튼 노출 (placeholder 힌트만 X → 클릭 가능 3항목).
+            sa_count = await page.locator('[data-testid="suggested-action"]').count()
+            results["suggested_actions_shown"] = sa_count >= 3
             # ★ 시간 한도 정합 (끊김 4) — 7일=168h (backend dungeon_clock 기준).
             #   StatusBar 시간 표시에 168h 노출 + 옛 174h 불일치 부재 검증.
             results["time_limit_consistent"] = ("168h" in body) and ("174h" not in body)
@@ -198,9 +217,16 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 ):
                     await page.keyboard.type("주변을 살펴본다")
                     await page.keyboard.press("Enter")
-                results["chat_freeform_works"] = freeform["code"] == 200
+                # ★ 응답이 화면 NarrativePanel에 렌더되도록 대기 (TURN 증가)
+                await page.wait_for_timeout(1200)
+                post_body = await page.locator("body").inner_text()
+                # HTTP 200 + IP 미노출(narrative 본문 라스카니아 → 라프도니아 unmaskIp)
+                #  — HTTP 200만 보던 검증 갭을 화면 내용까지 확장.
+                results["chat_freeform_works"] = (
+                    freeform["code"] == 200 and "라스카니아" not in post_body
+                )
             except Exception:
-                results["chat_freeform_works"] = freeform["code"] == 200
+                results["chat_freeform_works"] = False
         finally:
             await browser.close()
 

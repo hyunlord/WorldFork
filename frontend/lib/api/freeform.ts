@@ -38,6 +38,7 @@ export interface FreeformActionResponse {
   fallback_reason: string | null;
   session_id: string | null;
   session_state: FreeformSessionSummary | null;
+  suggested_actions?: string[];
 }
 
 export interface FreeformActionRequest {

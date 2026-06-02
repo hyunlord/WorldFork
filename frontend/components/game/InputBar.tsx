@@ -29,8 +29,7 @@ export interface InputBarHandle {
   isFocused: () => boolean;
 }
 
-const DEFAULT_PLACEHOLDER =
-  "한스에게 다가가 인사한다  ·  WASD 무빙  ·  'a' 공격...";
+const DEFAULT_PLACEHOLDER = "무엇을 할지 자연어로 입력하세요...";
 
 const DEFAULT_SHORTCUTS: Shortcut[] = [
   { key: "i", label: "인벤토리" },

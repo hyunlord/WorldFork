@@ -8,7 +8,11 @@ import { RaceSelector } from "@/components/character/RaceSelector";
 import { ScenarioSelector } from "@/components/character/ScenarioSelector";
 import { WeaponSelector } from "@/components/character/WeaponSelector";
 import { createCharacter } from "@/lib/api/character";
-import { setStoredSessionId } from "@/lib/session";
+import {
+  clearStoredStartNarrative,
+  setStoredSessionId,
+  setStoredStartNarrative,
+} from "@/lib/session";
 import { DEFAULT_WEAPON } from "@/lib/types/character";
 import type { Race, ScenarioMode } from "@/lib/types/character";
 import { unmaskIp } from "@/lib/api/v2";
@@ -33,7 +37,14 @@ export default function CharacterPage() {
         race: raceDisabled ? undefined : effectiveRace,
         weapon: raceDisabled ? weapon : undefined,
       });
+      // ★ 새 세션으로 교체 — 옛 session_id 잔재(던전 상태) 덮어쓰기
       setStoredSessionId(resp.session_id);
+      // ★ 성인식 시작 narrative를 /game 첫 화면에서 표시 (generic 안내 대체)
+      if (resp.starting_narrative) {
+        setStoredStartNarrative(resp.starting_narrative);
+      } else {
+        clearStoredStartNarrative();
+      }
       router.push("/game");
     } catch (err) {
       setError(err instanceof Error ? err.message : "캐릭터 생성에 실패했다.");

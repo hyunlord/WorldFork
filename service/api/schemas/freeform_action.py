@@ -100,3 +100,5 @@ class FreeformActionResponse(BaseModel):
     fallback_reason: str | None = Field(default=None, max_length=200)
     session_id: str | None = Field(default=None)
     session_state: SessionSummary | None = Field(default=None)
+    # ★ 추천 행동 — frontend 추천 버튼(3항목). 현재 상황(전투/마을/던전) 정합.
+    suggested_actions: list[str] = Field(default_factory=list, max_length=5)

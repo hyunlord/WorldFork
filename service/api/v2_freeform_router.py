@@ -177,6 +177,21 @@ def _session_summary(state: SessionState) -> SessionSummary:
     )
 
 
+def _suggest_actions(state: SessionState | None) -> list[str]:
+    """현재 상황 정합 추천 행동 3항목 (frontend 추천 버튼).
+
+    전투 중 → 공격/대화/후퇴, 마을·성지(floor 0) → 둘러보기/대화/장비,
+    던전(floor 1+) → 탐색/전진/휴식. session 없으면 일반 탐색.
+    """
+    if state is None:
+        return ["주변을 살핀다", "앞으로 나아간다", "잠시 쉰다"]
+    if state.encounters:
+        return ["적을 공격한다", "대화를 시도한다", "뒤로 물러선다"]
+    if state.floor_number < 1:
+        return ["주변을 둘러본다", "부족장에게 말을 건다", "무기를 점검한다"]
+    return ["주변을 살핀다", "더 깊이 나아간다", "잠시 휴식한다"]
+
+
 @router.post("/freeform_action", response_model=FreeformActionResponse)
 async def freeform_action_endpoint(
     req: FreeformActionRequest,
@@ -286,6 +301,7 @@ async def freeform_action_endpoint(
                 ),
                 session_id=session_state.session_id if session_state else None,
                 session_state=_session_summary(session_state) if session_state else None,
+                suggested_actions=_suggest_actions(session_state),
             )
 
     try:
@@ -349,4 +365,5 @@ async def freeform_action_endpoint(
         fallback_reason=intent.reason,
         session_id=session_state.session_id if session_state else None,
         session_state=_session_summary(session_state) if session_state else None,
+        suggested_actions=_suggest_actions(session_state),
     )

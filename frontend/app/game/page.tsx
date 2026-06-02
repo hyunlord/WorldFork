@@ -15,6 +15,7 @@ import { MapPanel } from "@/components/game/MapPanel";
 import { NarrativePanel } from "@/components/game/NarrativePanel";
 import { PartyPanel } from "@/components/game/PartyPanel";
 import { StatusBar } from "@/components/game/StatusBar";
+import { SuggestedActions } from "@/components/game/SuggestedActions";
 import type {
   CharacterListRow,
   CharacterSheetData,
@@ -37,6 +38,7 @@ import { usePostAction } from "@/lib/hooks/usePostAction";
 import { RACES } from "@/lib/types/character";
 import { parseDialogue, type ParsedDialogue } from "@/lib/game/dialogue";
 import { collectEssenceSkills, skillMeta } from "@/lib/game/skills";
+import { getStoredStartNarrative } from "@/lib/session";
 import { unmaskIp } from "@/lib/api/v2";
 import type { CharacterV2, StateResponse } from "@/lib/api/v2";
 
@@ -68,7 +70,8 @@ function paragraphToSpans(text: string): NarrativeSpan[] {
 }
 
 function narrativeStringToData(text: string, turn: number): NarrativePanelData {
-  const paragraphs = text
+  // ★ 게임 화면 원작 명칭 — narrative 본문에도 unmaskIp (라스카니아 → 라프도니아)
+  const paragraphs = unmaskIp(text)
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p.length > 0)
@@ -287,6 +290,11 @@ export default function GamePage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [dialogueOpen, setDialogueOpen] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
+  // ★ 성인식 시작 narrative — hydration 안전 위해 effect로 localStorage 읽기
+  const [startNarrative, setStartNarrative] = useState<string | null>(null);
+  useEffect(() => {
+    setStartNarrative(getStoredStartNarrative());
+  }, []);
 
   const player = useMemo<CharacterV2 | null>(() => {
     if (!data) return null;
@@ -383,6 +391,10 @@ export default function GamePage() {
     if (freeform.lastResponse) {
       return narrativeStringToData(freeform.lastResponse.narrative, turnCount);
     }
+    // ★ 첫 턴 입력 전 — 성인식 시작 narrative(부족장 선언)를 첫 화면에 표시
+    if (startNarrative) {
+      return narrativeStringToData(startNarrative, turnCount);
+    }
     // ★ DEMO fallback 금지 (harness 재설계) — 데모 스토리 대신 명시적 시작 안내
     return {
       turn: turnCount,
@@ -390,7 +402,19 @@ export default function GamePage() {
         { spans: [{ kind: "plain", text: "행동을 입력해 모험을 시작하세요." }] },
       ],
     };
-  }, [freeform.lastResponse, turnCount]);
+  }, [freeform.lastResponse, turnCount, startNarrative]);
+
+  // ★ 추천 행동 버튼 — 응답의 suggested_actions, 첫 화면엔 마을/던전 기본 3항목
+  const suggestedActions = useMemo<string[]>(() => {
+    const fromResp = freeform.lastResponse?.suggested_actions;
+    if (fromResp && fromResp.length > 0) return fromResp;
+    if (!freeform.lastResponse) {
+      return inVillage
+        ? ["주변을 둘러본다", "부족장에게 말을 건다", "무기를 점검한다"]
+        : ["주변을 살핀다", "앞으로 나아간다", "잠시 쉰다"];
+    }
+    return [];
+  }, [freeform.lastResponse, inVillage]);
 
   // ★ NPC 대화(case A) — handle_dialogue narrative의 큰따옴표 발화 감지 → 전용 UI
   const dialogueData = useMemo<ParsedDialogue>(
@@ -478,6 +502,18 @@ export default function GamePage() {
         ref={inputRef}
         onSubmit={handleSubmit}
         onShortcut={handleShortcut}
+        disabled={executing || freeform.loading}
+        placeholder={
+          inVillage
+            ? "무엇을 할지 입력하세요  ·  예: 부족장에게 다가가 말을 건다"
+            : "무엇을 할지 입력하세요  ·  예: 주변을 살핀다"
+        }
+      />
+
+      {/* ★ 추천 행동 버튼 — placeholder 힌트 대신 클릭 가능한 3항목 */}
+      <SuggestedActions
+        actions={suggestedActions}
+        onSelect={handleSubmit}
         disabled={executing || freeform.loading}
       />
 
