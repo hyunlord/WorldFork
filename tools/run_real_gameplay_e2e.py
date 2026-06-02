@@ -52,7 +52,7 @@ CHECKS: tuple[Check, ...] = (
     Check("chat_freeform_works", 5, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
-    Check("weapon_choice_reflected", 2, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
+    Check("weapon_choice_reflected", 1, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
@@ -60,11 +60,13 @@ CHECKS: tuple[Check, ...] = (
     # ★ 화면 내용 검증 (검증 갭 닫기)
     Check("start_narrative_shown", 1, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
     Check("no_demo_placeholder", 1, False, "placeholder 데모(한스·WASD) 부재"),
-    Check("suggested_actions_shown", 2, False, "추천 행동 버튼 노출 (placeholder만 X)"),
+    Check("suggested_actions_shown", 1, False, "추천 행동 버튼 노출 (placeholder만 X)"),
     Check("dialogue_npc_works", 2, False, "NPC 대화 작동 (부족장 → '대화할 상대 없다' 부재)"),
-    # ★ 신규 — 히스토리 누적 + 주변 엔티티 (manual play 4)
+    # ★ 히스토리 누적 + 주변 엔티티 (manual play 4)
     Check("history_accumulates", 2, False, "narrative 히스토리 누적 (시작+행동 둘 다 잔존)"),
     Check("surroundings_shown", 2, False, "주변 엔티티 패널 (부족장 NPC 표시)"),
+    # ★ 신규 — 인물 초상 연결 (하이브리드 1단계)
+    Check("sheet_portrait_shown", 2, False, "캐릭터 시트 전신 일러스트 (ui_character)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -210,6 +212,21 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 await page.wait_for_timeout(250)
             except Exception:
                 results["menu_help_works"] = False
+            # ★ 캐릭터 시트 전신 일러스트 — 메뉴 캐릭터 → CharacterSheetModal
+            #   (바바리안이면 ui_character_bjorn 전신 노출, 현 FLUX 자산 활용)
+            try:
+                await page.click('[data-testid="menu-toggle"]')
+                await page.click('[data-testid="menu-character"]')
+                sheet = page.locator('[data-testid="sheet-portrait"]')
+                await sheet.first.wait_for(timeout=5000, state="visible")
+                src = await sheet.first.get_attribute("src")
+                results["sheet_portrait_shown"] = (
+                    src is not None and "ui_character" in src
+                )
+                await page.keyboard.press("Escape")
+                await page.wait_for_timeout(250)
+            except Exception:
+                results["sheet_portrait_shown"] = False
 
             try:
                 inp = page.locator("input").first

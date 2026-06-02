@@ -169,6 +169,8 @@ export interface CharacterListSection {
 export interface CharacterSheetData {
   name: string;
   portraitCh: string;
+  /** 전신 일러스트 경로(ui_character_*). 없으면 문자 portraitCh fallback. */
+  portraitImage?: string | null;
   subtitle: string;
   statSections: CharacterStatSection[];
   essenceSlots: EssenceSlot[];

@@ -16,6 +16,20 @@ describe("DialogueView", () => {
     expect(screen.getByTestId("dialogue-speech").textContent).toContain("어서 오게.");
   });
 
+  it("화자 초상 표시 (남성 기본 → other_male)", () => {
+    render(<DialogueView data={data} open onClose={() => {}} />);
+    const portrait = screen.getByTestId("dialogue-portrait");
+    expect(portrait.getAttribute("src")).toContain("ui_dialogue_other_male");
+  });
+
+  it("여성 단서 화자 → other_female 초상", () => {
+    const f = parseDialogue('실렌이 말했다. "조심해."');
+    render(<DialogueView data={f} open onClose={() => {}} />);
+    expect(
+      screen.getByTestId("dialogue-portrait").getAttribute("src"),
+    ).toContain("ui_dialogue_other_female");
+  });
+
   it("open=false면 렌더 안 함", () => {
     render(<DialogueView data={data} open={false} onClose={() => {}} />);
     expect(screen.queryByTestId("dialogue-view")).toBeNull();

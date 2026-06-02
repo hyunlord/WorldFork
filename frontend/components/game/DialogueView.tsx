@@ -13,6 +13,14 @@ interface Props {
 // ui_dialogue PNG (frontend/public/assets/worldfork) — 대화창 프레임 배경.
 const DIALOGUE_BG = "/assets/worldfork/ui_dialogue_message_stone.png";
 
+// 화자 성별 추정 → 초상(ui_dialogue_other_*). 단서 없으면 남성 기본.
+const FEMALE_HINTS = ["실렌", "여인", "소녀", "여성", "어머니", "딸", "아내", "마녀", "여사제"];
+
+function portraitForSpeaker(speaker: string): string {
+  const female = FEMALE_HINTS.some((h) => speaker.includes(h));
+  return `/assets/worldfork/ui_dialogue_other_${female ? "female" : "male"}.png`;
+}
+
 /**
  * NPC 대화 전용 UI — handle_dialogue narrative를 발화/지문 분리 표시.
  *
@@ -40,7 +48,16 @@ export function DialogueView({ data, open, onClose }: Props) {
         className="pointer-events-auto relative w-full max-w-[760px] animate-modal-in overflow-hidden border border-amber/50 bg-cover bg-center bg-no-repeat [box-shadow:0_16px_48px_rgba(0,0,0,0.7),0_0_24px_var(--torch-glow)]"
         style={{ backgroundImage: `url(${DIALOGUE_BG})` }}
       >
-        <div className="bg-[rgba(8,8,12,0.78)] px-7 py-5 backdrop-blur-[2px]">
+        <div className="flex gap-4 bg-[rgba(8,8,12,0.78)] px-7 py-5 backdrop-blur-[2px]">
+          {/* ★ 화자 초상 — 현 FLUX 일러스트(ui_dialogue_other_*) 활용 */}
+          <img
+            src={portraitForSpeaker(data.speaker)}
+            alt={data.speaker}
+            data-testid="dialogue-portrait"
+            className="h-[150px] w-[116px] shrink-0 self-start border border-amber/40 object-cover [box-shadow:0_0_14px_rgba(0,0,0,0.6)]"
+          />
+
+          <div className="flex-1">
           <div className="mb-3 flex items-center justify-between border-b border-amber/30 pb-2">
             <span
               className="font-serif text-[1.05rem] font-bold tracking-[0.05em] text-amber-bright [text-shadow:0_0_10px_var(--torch-glow)]"
@@ -79,6 +96,7 @@ export function DialogueView({ data, open, onClose }: Props) {
                 </p>
               ),
             )}
+          </div>
           </div>
         </div>
       </div>

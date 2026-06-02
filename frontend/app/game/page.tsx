@@ -89,6 +89,11 @@ function narrativeStringToData(text: string, turn: number): NarrativePanelData {
   };
 }
 
+// 종족 → 전신 일러스트(ui_character_*). 현 자산은 바바리안만 적합.
+const CHARACTER_FULLBODY: Record<string, string> = {
+  barbarian: "/assets/worldfork/ui_character_bjorn.png",
+};
+
 function buildCharacterSheet(player: CharacterV2): CharacterSheetData {
   const race = String(player.race ?? "unknown");
   const raceInfo = RACES.find((r) => r.id === race);
@@ -133,6 +138,9 @@ function buildCharacterSheet(player: CharacterV2): CharacterSheetData {
   return {
     name: String(player.name ?? "탐험가"),
     portraitCh: "@",
+    // ★ 전신 일러스트 — 현 자산은 바바리안(비요른)만 적합. 그 외 종족은
+    //   문자 fallback(전용 자산 생성은 후속). 신규 생성 X — 현 자산 활용.
+    portraitImage: CHARACTER_FULLBODY[race] ?? null,
     subtitle: `~ ${raceInfo?.nameKo ?? race} · ${grade}등급 ~`,
     statSections: [
       {

@@ -159,9 +159,19 @@ export function CharacterSheetModal({
 
         <header className="flex items-center justify-between border-b border-border-rune bg-bg-deep px-7 py-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-[52px] w-[52px] items-center justify-center border border-amber bg-bg-void font-mono text-2xl font-bold text-amber-bright [text-shadow:0_0_12px_var(--torch-glow)]">
-              {data.portraitCh}
-            </div>
+            {data.portraitImage ? (
+              // ★ 전신 일러스트(ui_character_*) — 현 FLUX 자산 활용
+              <img
+                src={data.portraitImage}
+                alt={data.name}
+                data-testid="sheet-portrait"
+                className="h-[64px] w-[52px] border border-amber bg-bg-void object-cover object-top [box-shadow:0_0_12px_var(--torch-glow)]"
+              />
+            ) : (
+              <div className="flex h-[52px] w-[52px] items-center justify-center border border-amber bg-bg-void font-mono text-2xl font-bold text-amber-bright [text-shadow:0_0_12px_var(--torch-glow)]">
+                {data.portraitCh}
+              </div>
+            )}
             <div className="flex flex-col gap-0.5">
               <span className="font-serif text-2xl font-bold tracking-[0.05em] text-text-bright">
                 {data.name}
