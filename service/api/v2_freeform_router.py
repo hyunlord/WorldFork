@@ -24,6 +24,7 @@ from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
+from service.sim.gm_narrator import GM_NARRATE_ACTIONS, compose_gm_narrative
 from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
@@ -255,6 +256,31 @@ async def freeform_action_endpoint(
                     status_code=502,
                     detail=f"action handler failed: {exc}",
                 ) from exc
+
+            # ★ GM 서사 레이어 (재설계 1단계) — 서사형 action은 handler가 수치를
+            #   확정하고, GM이 누적 히스토리 맥락으로 narrative를 주도한다.
+            #   같은 행동도 맥락 따라 다른 전개 → intent template 반복 해소.
+            #   GM 실패 시 handler template narrative로 fallback.
+            if session_state is not None and action_type in GM_NARRATE_ACTIONS:
+                recent = await mgr.get_recent_turns(session_state.session_id)
+                surroundings = (
+                    ", ".join(
+                        str(e.get("name"))
+                        for e in ctx.encounters
+                        if e.get("hostile") is False
+                    )
+                    or "특이사항 없음"
+                )
+                gm_text = await asyncio.to_thread(
+                    compose_gm_narrative,
+                    req.user_input,
+                    result.narrative,
+                    ctx.location,
+                    surroundings,
+                    recent,
+                )
+                if gm_text:
+                    result.narrative = gm_text
 
             resolved_path: Literal["intent", "fallback"] = "intent"
             final_narrative = result.narrative

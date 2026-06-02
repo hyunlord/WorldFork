@@ -268,6 +268,13 @@ class SessionManager:
         self._last_seen[session_id] = datetime.utcnow()
         return state
 
+    async def get_recent_turns(
+        self, session_id: str, n: int = 8
+    ) -> list[tuple[str, str]]:
+        """최근 n턴 (user_input, narrative) 시간순 — GM 누적 컨텍스트용."""
+        rows = await asyncio.to_thread(self._store.list_turns, session_id, 50)
+        return [(r.user_input, r.narrative) for r in rows[-n:]]
+
     async def apply_result(
         self,
         session_id: str,
