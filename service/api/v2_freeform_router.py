@@ -180,15 +180,24 @@ def _session_summary(state: SessionState) -> SessionSummary:
 def _suggest_actions(state: SessionState | None) -> list[str]:
     """현재 상황 정합 추천 행동 3항목 (frontend 추천 버튼).
 
-    전투 중 → 공격/대화/후퇴, 마을·성지(floor 0) → 둘러보기/대화/장비,
-    던전(floor 1+) → 탐색/전진/휴식. session 없으면 일반 탐색.
+    ★ encounters 정합 — 실재 대상만 추천(정적 추천 X). 적대 → 전투,
+    비적대 NPC 존재 → 그 NPC에게 말 걸기, 아무도 없으면 탐색 위주.
+    이로써 '부족장에게 말을 건다 → 대화할 상대가 없다' 막다른 응답 해소.
     """
     if state is None:
         return ["주변을 살핀다", "앞으로 나아간다", "잠시 쉰다"]
-    if state.encounters:
+
+    hostiles = [e for e in state.encounters if e.get("hostile")]
+    npcs = [e for e in state.encounters if e.get("hostile") is False]
+
+    if hostiles:
         return ["적을 공격한다", "대화를 시도한다", "뒤로 물러선다"]
+    if npcs:
+        npc_name = str(npcs[0].get("name") or "상대")
+        tail = "무기를 점검한다" if state.floor_number < 1 else "더 깊이 나아간다"
+        return [f"{npc_name}에게 말을 건다", "주변을 둘러본다", tail]
     if state.floor_number < 1:
-        return ["주변을 둘러본다", "부족장에게 말을 건다", "무기를 점검한다"]
+        return ["주변을 둘러본다", "무기를 점검한다", "길을 나선다"]
     return ["주변을 살핀다", "더 깊이 나아간다", "잠시 휴식한다"]
 
 

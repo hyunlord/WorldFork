@@ -1261,6 +1261,11 @@ async def handle_dialogue(ctx: ActionContext) -> ActionResult:
     npc_role = str(raw_char["role"]) if raw_char and raw_char.get("role") else None
     npc_bg = str(raw_char["background"]) if raw_char and raw_char.get("background") else None
 
+    # ★ '주인공'은 플레이어 역할 — NPC role로 부적절(부족장 등 seed NPC가
+    #   entity_index 부분매칭으로 주인공에 걸리면 "부족장 (주인공)" 오표시).
+    if npc_role == "주인공":
+        npc_role = None
+
     # ★ I-E2 — 메타 character dialogue 거부 (본문 외 entity)
     if npc_role == "메타":
         return ActionResult(

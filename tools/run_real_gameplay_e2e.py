@@ -48,19 +48,21 @@ CHECKS: tuple[Check, ...] = (
     #   manual play 결함(성인식 미표시/IP 노출/데모 placeholder/추천 부재) 정면 검증.
     Check("scenario_origin_naming", 2, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
     Check("session_scenario_reflected", 2, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
-    Check("no_starting_party", 3, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
+    Check("no_starting_party", 2, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
-    Check("weapon_choice_reflected", 3, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
+    Check("weapon_choice_reflected", 2, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
-    # ★ 신규 — manual play 결함 화면 내용 검증 (검증 갭 닫기)
-    Check("start_narrative_shown", 3, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
+    # ★ 화면 내용 검증 (검증 갭 닫기)
+    Check("start_narrative_shown", 2, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
     Check("no_demo_placeholder", 1, False, "placeholder 데모(한스·WASD) 부재"),
     Check("suggested_actions_shown", 2, False, "추천 행동 버튼 노출 (placeholder만 X)"),
+    # ★ 신규 — 게임 월드 상태(NPC seed) → 대화 작동 (막다른 응답 해소)
+    Check("dialogue_npc_works", 3, False, "NPC 대화 작동 (부족장 → '대화할 상대 없다' 부재)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -215,7 +217,8 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     #   freeform 응답이 느려질 수 있어 timeout 여유 (27B 13 t/s 대응)
                     lambda r: "/api/v2/freeform_action" in r.url, timeout=60000
                 ):
-                    await page.keyboard.type("주변을 살펴본다")
+                    # ★ NPC 대화 — 마을 부족장 seed로 '대화할 상대 없다' 부재 검증
+                    await page.keyboard.type("부족장에게 말을 건다")
                     await page.keyboard.press("Enter")
                 # ★ 응답이 화면 NarrativePanel에 렌더되도록 대기 (TURN 증가)
                 await page.wait_for_timeout(1200)
@@ -225,8 +228,11 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["chat_freeform_works"] = (
                     freeform["code"] == 200 and "라스카니아" not in post_body
                 )
+                # ★ NPC seed → 대화 작동 (막다른 '대화할 상대가 없다' 부재)
+                results["dialogue_npc_works"] = "대화할 상대가 없다" not in post_body
             except Exception:
                 results["chat_freeform_works"] = False
+                results["dialogue_npc_works"] = False
         finally:
             await browser.close()
 

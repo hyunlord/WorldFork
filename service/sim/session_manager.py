@@ -14,10 +14,12 @@ from service.canon.scenario import (
     SCENARIO_CONFIGS,
     ScenarioMode,
     find_coming_of_age_weapon,
+    get_coming_of_age_npc,
     resolve_race_for_scenario,
 )
 from service.persistence.sqlite_store import SessionRow, SqliteStore, TurnRow
 from service.sim.action_context import ActionResult
+from service.sim.enemy import Enemy, enemy_to_dict
 from service.sim.equipment import DEFAULT_EQUIPMENT_DICT, equipment_to_dict
 
 ACTIVE_TIMEOUT = timedelta(hours=1)
@@ -202,13 +204,31 @@ class SessionManager:
                     sw.description if sw is not None else "",
                 )
             )
+        # ★ 성인식 마을(floor 0) — 성년 의식 주재 NPC seed (대화 대상 + 추천 정합).
+        #   비적대 Enemy(is_hostile=False) → get_first_npc가 찾아 handle_dialogue 작동.
+        #   마을은 EncounterPanel 미표시(inVillage)라 '적대' 오표시 없음.
+        start_encounters: list[dict[str, object]] = []
+        if scenario_cfg.starting_floor == 0:
+            npc_name = get_coming_of_age_npc(resolved_race)
+            start_encounters = [
+                enemy_to_dict(
+                    Enemy(
+                        name=npc_name,
+                        hp=100,
+                        max_hp=100,
+                        attack=0,
+                        defense=0,
+                        is_hostile=False,
+                    )
+                )
+            ]
         state = SessionState(
             session_id=_new_id(),
             current_hp=use_hp,
             max_hp=use_max_hp,
             inventory=use_inventory,
             location=use_location,
-            encounters=[],
+            encounters=start_encounters,
             turn_count=0,
             created_at=now,
             last_active=now,

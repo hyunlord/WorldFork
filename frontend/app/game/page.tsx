@@ -14,6 +14,7 @@ import { InventoryPanel } from "@/components/game/InventoryPanel";
 import { MapPanel } from "@/components/game/MapPanel";
 import { NarrativePanel } from "@/components/game/NarrativePanel";
 import { PartyPanel } from "@/components/game/PartyPanel";
+import { LoadingIndicator } from "@/components/game/LoadingIndicator";
 import { StatusBar } from "@/components/game/StatusBar";
 import { SuggestedActions } from "@/components/game/SuggestedActions";
 import type {
@@ -510,12 +511,13 @@ export default function GamePage() {
         }
       />
 
-      {/* ★ 추천 행동 버튼 — placeholder 힌트 대신 클릭 가능한 3항목 */}
-      <SuggestedActions
-        actions={suggestedActions}
-        onSelect={handleSubmit}
-        disabled={executing || freeform.loading}
-      />
+      {/* ★ LLM 호출 중 로딩 표시 — GB10 10-16초 동안 멈춘 듯 보이던 것 해소 */}
+      <LoadingIndicator visible={freeform.loading || executing} />
+
+      {/* ★ 추천 행동 버튼 — 로딩 중엔 숨김(같은 자리, 로딩 우선) */}
+      {!(freeform.loading || executing) && (
+        <SuggestedActions actions={suggestedActions} onSelect={handleSubmit} />
+      )}
 
       {/* ★ NPC 대화 전용 UI (case A) — narrative 큰따옴표 발화 → ui_dialogue 프레임 */}
       <DialogueView

@@ -133,6 +133,22 @@ RACE_STARTING_NARRATIVES: dict[str, str] = {
 }
 
 
+# ★ 성년 의식 주재자 NPC (★ ep_0002 부족장 — 종족별 정합).
+#   성인식 마을(floor 0) 시작 시 encounters에 seed → 대화 대상 + 추천 정합.
+COMING_OF_AGE_NPC: dict[str, str] = {
+    "barbarian": "부족장",
+    "human": "마을 촌장",
+    "dwarf": "씨족 장로",
+    "beastkin": "숲의 장로",
+    "fairy": "정령 장로",
+}
+
+
+def get_coming_of_age_npc(race: Race) -> str:
+    """종족별 성년 의식 주재 NPC 이름 (★ 기본 부족장)."""
+    return COMING_OF_AGE_NPC.get(race.value, "부족장")
+
+
 def _eul_reul(word: str) -> str:
     """한국어 목적격 조사 — 받침 有 '을', 無 '를'."""
     if not word:
