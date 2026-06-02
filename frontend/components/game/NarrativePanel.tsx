@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import type { NarrativePanelData, NarrativeSpan } from "./types";
 
 interface Props {
@@ -54,8 +56,19 @@ function Span({ span, idx }: { span: NarrativeSpan; idx: number }) {
 }
 
 export function NarrativePanel({ data }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ★ 히스토리 누적 시 최신 narrative가 하단 — 새 paragraph마다 끝으로 스크롤
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [data.paragraphs.length]);
+
   return (
-    <div className="relative overflow-y-auto border-b border-border-rune bg-gradient-to-b from-bg-panel to-bg-deep px-7 py-6">
+    <div
+      ref={scrollRef}
+      className="relative overflow-y-auto border-b border-border-rune bg-gradient-to-b from-bg-panel to-bg-deep px-7 py-6"
+    >
       <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber to-transparent opacity-40" />
 
       <div className="mb-5 flex items-center gap-2.5 border-b border-border-rune pb-2.5 font-mono text-[0.65rem] uppercase tracking-[0.3em] text-amber">

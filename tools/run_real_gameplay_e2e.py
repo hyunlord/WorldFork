@@ -46,8 +46,8 @@ class Check:
 CHECKS: tuple[Check, ...] = (
     # ★ 화면 내용 검증 재설계 (합 30) — HTTP 200/렌더가 아니라 사용자가 보는 텍스트.
     #   manual play 결함(성인식 미표시/IP 노출/데모 placeholder/추천 부재) 정면 검증.
-    Check("scenario_origin_naming", 2, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
-    Check("session_scenario_reflected", 2, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
+    Check("scenario_origin_naming", 1, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
+    Check("session_scenario_reflected", 1, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
     Check("no_starting_party", 2, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 5, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
@@ -58,11 +58,13 @@ CHECKS: tuple[Check, ...] = (
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
     # ★ 화면 내용 검증 (검증 갭 닫기)
-    Check("start_narrative_shown", 2, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
+    Check("start_narrative_shown", 1, False, "첫 화면 성인식 narrative 노출 (generic 안내 X)"),
     Check("no_demo_placeholder", 1, False, "placeholder 데모(한스·WASD) 부재"),
     Check("suggested_actions_shown", 2, False, "추천 행동 버튼 노출 (placeholder만 X)"),
-    # ★ 신규 — 게임 월드 상태(NPC seed) → 대화 작동 (막다른 응답 해소)
-    Check("dialogue_npc_works", 3, False, "NPC 대화 작동 (부족장 → '대화할 상대 없다' 부재)"),
+    Check("dialogue_npc_works", 2, False, "NPC 대화 작동 (부족장 → '대화할 상대 없다' 부재)"),
+    # ★ 신규 — 히스토리 누적 + 주변 엔티티 (manual play 4)
+    Check("history_accumulates", 2, False, "narrative 히스토리 누적 (시작+행동 둘 다 잔존)"),
+    Check("surroundings_shown", 2, False, "주변 엔티티 패널 (부족장 NPC 표시)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -230,9 +232,24 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 )
                 # ★ NPC seed → 대화 작동 (막다른 '대화할 상대가 없다' 부재)
                 results["dialogue_npc_works"] = "대화할 상대가 없다" not in post_body
+                # ★ 히스토리 누적 — 시작 narrative(성년/전사)와 직전 행동(말을 건넸)이
+                #   둘 다 화면에 잔존(현재 turn만 렌더하던 흐름 단절 해소).
+                results["history_accumulates"] = (
+                    any(kw in post_body for kw in ("성년", "전사", "성지"))
+                    and "말을 건넸" in post_body
+                )
+                # ★ 주변 엔티티 패널 — 마을 부족장 NPC 표시(EncounterPanel 대안)
+                surr = page.locator('[data-testid="surroundings-panel"]')
+                if await surr.count() > 0:
+                    surr_text = await surr.first.inner_text()
+                    results["surroundings_shown"] = "부족장" in surr_text
+                else:
+                    results["surroundings_shown"] = False
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
+                results["history_accumulates"] = False
+                results["surroundings_shown"] = False
         finally:
             await browser.close()
 

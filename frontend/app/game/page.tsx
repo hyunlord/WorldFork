@@ -16,6 +16,10 @@ import { NarrativePanel } from "@/components/game/NarrativePanel";
 import { PartyPanel } from "@/components/game/PartyPanel";
 import { LoadingIndicator } from "@/components/game/LoadingIndicator";
 import { StatusBar } from "@/components/game/StatusBar";
+import {
+  SurroundingsPanel,
+  type SurroundingEntity,
+} from "@/components/game/SurroundingsPanel";
 import { SuggestedActions } from "@/components/game/SuggestedActions";
 import type {
   CharacterListRow,
@@ -24,6 +28,7 @@ import type {
   EssenceSlot,
   InventoryPanelData,
   InventoryRow,
+  NarrativeParagraph,
   NarrativePanelData,
   NarrativeSpan,
   PartyMember,
@@ -316,6 +321,21 @@ export default function GamePage() {
     [data],
   );
 
+  // ★ 주변 엔티티 — 마을의 비적대 NPC(부족장 seed) + 출구. 주변에 뭐가 있는지.
+  const surroundings = useMemo<SurroundingEntity[]>(() => {
+    const ents: SurroundingEntity[] = [];
+    for (const e of data?.state.encounters ?? []) {
+      const rec = e as Record<string, unknown>;
+      if (rec.hostile === false) {
+        ents.push({ kind: "npc", label: unmaskIp(String(rec.name ?? "인물")) });
+      }
+    }
+    if (inVillage) {
+      ents.push({ kind: "exit", label: "미궁으로 가는 길" });
+    }
+    return ents;
+  }, [data, inVillage]);
+
   // ★ 상황별 배경 이미지 (ComfyUI PNG — ASCII 단절 해소)
   const bgUrl = bgImage(
     data?.state.location?.floor ?? 0,
@@ -378,10 +398,17 @@ export default function GamePage() {
     [data],
   );
 
+  // ★ narrative 히스토리 — 흐름 단절 해소 (현재 turn만 X → 과거 누적).
+  //   session 정합: global recent_actions(옛 구조) 대신 freeform 응답을 누적.
+  const [history, setHistory] = useState<
+    { userInput: string; narrative: string }[]
+  >([]);
+
   const handleSubmit = useCallback(
     async (text: string) => {
       const resp = await freeform.submit(text);
       if (resp) {
+        setHistory((h) => [...h, { userInput: text, narrative: resp.narrative }]);
         setTurnCount((t) => t + 1);
       }
     },
@@ -389,21 +416,26 @@ export default function GamePage() {
   );
 
   const narrativeData = useMemo<NarrativePanelData>(() => {
-    if (freeform.lastResponse) {
-      return narrativeStringToData(freeform.lastResponse.narrative, turnCount);
-    }
-    // ★ 첫 턴 입력 전 — 성인식 시작 narrative(부족장 선언)를 첫 화면에 표시
+    const paragraphs: NarrativeParagraph[] = [];
+    // 성인식 시작 narrative(부족장 선언)를 첫 장면으로
     if (startNarrative) {
-      return narrativeStringToData(startNarrative, turnCount);
+      paragraphs.push(...narrativeStringToData(startNarrative, 0).paragraphs);
     }
-    // ★ DEMO fallback 금지 (harness 재설계) — 데모 스토리 대신 명시적 시작 안내
-    return {
-      turn: turnCount,
-      paragraphs: [
-        { spans: [{ kind: "plain", text: "행동을 입력해 모험을 시작하세요." }] },
-      ],
-    };
-  }, [freeform.lastResponse, turnCount, startNarrative]);
+    // 과거 행동 + narrative 누적 (행동은 whisper 구분선)
+    for (const entry of history) {
+      paragraphs.push({
+        spans: [{ kind: "whisper", text: `▸ ${entry.userInput}` }],
+      });
+      paragraphs.push(...narrativeStringToData(entry.narrative, 0).paragraphs);
+    }
+    if (paragraphs.length === 0) {
+      // ★ DEMO fallback 금지 — 데모 스토리 대신 명시적 시작 안내
+      paragraphs.push({
+        spans: [{ kind: "plain", text: "행동을 입력해 모험을 시작하세요." }],
+      });
+    }
+    return { turn: turnCount, paragraphs };
+  }, [history, turnCount, startNarrative]);
 
   // ★ 추천 행동 버튼 — 응답의 suggested_actions, 첫 화면엔 마을/던전 기본 3항목
   const suggestedActions = useMemo<string[]>(() => {
@@ -479,13 +511,18 @@ export default function GamePage() {
         <div
           className={
             inVillage
-              ? "grid grid-rows-[1fr_230px] overflow-hidden bg-bg-deep/80"
+              ? "grid grid-rows-[1fr_170px_230px] overflow-hidden bg-bg-deep/80"
               : "grid grid-rows-[1fr_220px_230px] overflow-hidden bg-bg-deep/80"
           }
         >
           <NarrativePanel data={narrativeData} />
-          {/* ★ 조우 패널은 던전에서만 (성인식 마을 미표시) */}
-          {!inVillage && (
+          {/* ★ 마을(inVillage)은 주변 엔티티 패널, 던전은 전투 조우 패널 */}
+          {inVillage ? (
+            <SurroundingsPanel
+              locationLabel={statusData.locationLabel}
+              entities={surroundings}
+            />
+          ) : (
             <EncounterPanel
               data={encounterData}
               onAction={(id) => {
