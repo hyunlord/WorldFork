@@ -148,6 +148,7 @@ def _post_apply_spawn(state: SessionState) -> str | None:
         spawn_table=spawn_table,
         rift_sub_area=state.rift_sub_area,
         rift_defs=rift_defs,
+        floor_number=state.floor_number,  # ★ 4단계 — 얕은 층 고증 게이팅
     )
     if not new_encounters:
         return None

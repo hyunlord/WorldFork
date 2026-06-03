@@ -121,6 +121,10 @@ _GM_SCHEMA: dict[str, Any] = {
     "required": ["narrative"],
 }
 
+# ★ 서빙 4단계 — GM 길이 튜닝: 3-4문장 서사는 80-160토큰이면 충분. 상한을 500에서
+#   160으로 낮춰 출력 길이 비례 벽시계를 단축(9B/27B 공통). 보스/챔버는 별도(유지).
+GM_MAX_TOKENS = 160
+
 
 def _build_gm_prompt(
     user_input: str,
@@ -176,7 +180,7 @@ def compose_gm_narrative(
         response = client.generate_json(
             prompt,
             schema=_GM_SCHEMA,
-            max_tokens=500,
+            max_tokens=GM_MAX_TOKENS,
             temperature=0.8,
         )
         result = str(response.parsed.get("narrative", ""))
@@ -208,7 +212,7 @@ async def stream_gm_narrative(
             user_input, mechanical_fact, location, surroundings,
             recent_turns, canon, story_phase,
         )
-        agen = client.astream(prompt, max_tokens=500, temperature=0.8)
+        agen = client.astream(prompt, max_tokens=GM_MAX_TOKENS, temperature=0.8)
     except Exception:
         return
     try:
