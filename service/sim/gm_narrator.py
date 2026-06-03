@@ -35,6 +35,10 @@ GM_NARRATE_ACTIONS: frozenset[PlayerActionType] = frozenset(
         #   확정하고, GM이 그 결과를 누적 맥락으로 묘사(같은 공격도 다른 서사).
         PlayerActionType.ATTACK,
         PlayerActionType.FLEE,
+        # ★ 서빙 2단계 — 던전 진입도 GM 주도. handle_enter_dungeon의 고정 한 줄
+        #   ('자정이 지났다...')을 mechanical fact로 받아, GM이 입성 전환을 서술
+        #   (포탈/통로/분위기). floor 수치 변경은 핸들러 — 마을/던전 단절 해소.
+        PlayerActionType.ENTER_DUNGEON,
     }
 )
 

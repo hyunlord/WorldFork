@@ -25,6 +25,7 @@ from service.canon.context import get_canon_facts, get_spawn_table
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
+from service.sim.encounter_narrative import compose_encounter_line
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.gm_narrator import (
@@ -119,13 +120,18 @@ def _build_tip_message(new_balance: int, prev_balance: int) -> str | None:
     )
 
 
-def _post_apply_spawn(state: SessionState) -> None:
-    """action 적용 후 encounter auto spawn check — state 인플레이스 갱신."""
+def _post_apply_spawn(state: SessionState) -> str | None:
+    """action 적용 후 encounter auto spawn check — state 인플레이스 갱신.
+
+    ★ 서빙 2단계: 새 적대 적이 스폰되면 등장 라인을 반환(호출자가 narrative에
+    이어 붙임) — 보스만 연출되고 일반 적은 조용히 출현하던 결함(진단 A) 해소.
+    비적대 NPC seed/스폰 없음 시 None.
+    """
     if state.encounters:
-        return
+        return None
     spawn_table = get_spawn_table()
     if spawn_table is None:
-        return
+        return None
     facts = get_canon_facts()
     loc_type = determine_location_type(state.location, facts)
     rift_defs = None
@@ -141,9 +147,18 @@ def _post_apply_spawn(state: SessionState) -> None:
         rift_sub_area=state.rift_sub_area,
         rift_defs=rift_defs,
     )
-    if new_encounters:
-        state.encounters = new_encounters
-        state.last_spawn_turn = state.turn_count
+    if not new_encounters:
+        return None
+    state.encounters = new_encounters
+    state.last_spawn_turn = state.turn_count
+    # ★ 첫 적대 적의 등장 라인 (0-토큰 mechanical — "적을 마주했다" 맥락).
+    hostile = next(
+        (e for e in new_encounters if e.get("hostile") or e.get("is_hostile")),
+        None,
+    )
+    if hostile is None:
+        return None
+    return compose_encounter_line(hostile, state.turn_count)
 
 
 def _build_context(req: FreeformActionRequest, state: SessionState | None) -> ActionContext:
@@ -457,7 +472,8 @@ async def _run_action_stream(
                 user_input=req.user_input,
                 resolved_path=resolved_path,
             )
-            _post_apply_spawn(session_state)
+            # ★ 서빙 2단계: 새 적 스폰 시 등장 라인을 GM 서사 뒤에 — 조용한 출현 해소.
+            encounter_msg = _post_apply_spawn(session_state)
             clock_msg = _post_apply_dungeon_clock(
                 session_state,
                 prev_hours,
@@ -465,6 +481,9 @@ async def _run_action_stream(
             )
             tip_msg = _build_tip_message(session_state.stone_balance, prev_stone)
             needs_save = False
+            if encounter_msg:
+                final_narrative = f"{final_narrative}\n\n{encounter_msg}"
+                needs_save = True
             if clock_msg:
                 final_narrative = f"{final_narrative}\n\n{clock_msg}"
                 needs_save = True
@@ -545,7 +564,7 @@ async def _run_action_stream(
             user_input=req.user_input,
             resolved_path=resolved_path_fb,
         )
-        _post_apply_spawn(session_state)
+        encounter_msg_fb = _post_apply_spawn(session_state)
         clock_msg_fb = _post_apply_dungeon_clock(
             session_state,
             prev_hours_fb,
@@ -553,8 +572,12 @@ async def _run_action_stream(
         )
         tip_msg_fb = _build_tip_message(session_state.stone_balance, prev_stone_fb)
         needs_save_fb = False
+        if encounter_msg_fb:
+            final_narrative_fb = f"{final_narrative_fb}\n\n{encounter_msg_fb}"
+            needs_save_fb = True
         if clock_msg_fb:
-            final_narrative_fb = f"{narrative}\n\n{clock_msg_fb}"
+            # ★ final_narrative_fb 기준으로 체이닝(encounter_msg_fb 보존)
+            final_narrative_fb = f"{final_narrative_fb}\n\n{clock_msg_fb}"
             needs_save_fb = True
         if tip_msg_fb:
             final_narrative_fb = f"{final_narrative_fb}\n\n{tip_msg_fb}"

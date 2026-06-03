@@ -74,8 +74,10 @@ CHECKS: tuple[Check, ...] = (
     Check("streaming_progressive", 1, False, "SSE 토큰 점진 노출 (단일 blob X — 체감 즉효)"),
     # ★ 상태 진전 (2단계): 행동이 스토리 단계를 전진시킴
     Check("story_phase_advances", 2, False, "부족장 대화 → 단계 전진(추천 무기 선택으로 변화)"),
-    # ★ 신규 — 던전 진입 안정 (intent 정확도): departure → 던전 진입 + 마을 NPC 미잔존
-    Check("dungeon_entry_stable", 2, False, "departure → 던전 진입(1층) + 부족장 미잔존"),
+    # ★ 던전 진입 안정 (intent 정확도): departure → 던전 진입 + 마을 NPC 미잔존
+    Check("dungeon_entry_stable", 1, False, "departure → 던전 진입(1층) + 부족장 미잔존"),
+    # ★ 서빙 2단계 — 던전 진입 GM 서사: 고정 한 줄 X, GM 토큰 점진 전환 서사
+    Check("dungeon_entry_narrated", 1, False, "던전 진입 GM 서사 (고정 한 줄 X — 입성 전환)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -231,8 +233,8 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
 
             try:
                 inp = page.locator("input").first
-                # ★ 서빙 1단계 — SSE 스트림에서 본 token 이벤트 최대치(점진 노출 증거)
-                stream_info = {"max_tokens": 0}
+                # ★ 서빙 1단계 — SSE token 이벤트(점진 노출 증거): 전체 최대치 + 직전 턴
+                stream_info = {"max_tokens": 0, "last_tokens": 0}
 
                 async def _turn(text: str) -> str:
                     # 한 행동 제출 → SSE 스트림 파싱 → canonical narrative 반환.
@@ -277,6 +279,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     stream_info["max_tokens"] = max(
                         stream_info["max_tokens"], tokens
                     )
+                    stream_info["last_tokens"] = tokens
                     return narrative
 
                 # ★ 같은 행동 2회 — GM 누적 맥락이면 서로 다른 narrative.
@@ -332,13 +335,24 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 #   '미궁으로 향한다' → floor 0→1: 위치 '1층' 표시 + 마을 SurroundingsPanel
                 #   사라짐(부족장 등 마을 NPC 미잔존 — encounters는 단위 검증, 화면은 패널).
                 #   ('부족장' 텍스트는 히스토리 narrative에 남으므로 패널 기준으로 판정)
-                await _turn("미궁으로 향한다")
+                entry_narr = await _turn("미궁으로 향한다")
                 await page.wait_for_timeout(1500)
                 dungeon_body = await page.locator("body").inner_text()
                 surr_gone = (
                     await page.locator('[data-testid="surroundings-panel"]').count() == 0
                 )
                 results["dungeon_entry_stable"] = "1층" in dungeon_body and surr_gone
+                # ★ 서빙 2단계 — 진입 GM 서사: ENTER_DUNGEON이 GM_NARRATE_ACTIONS에
+                #   편입돼 고정 한 줄 대신 GM 입성 전환을 토큰 점진 생성. 진입 턴이
+                #   3+ token 스트림 + 옛 고정 한 줄과 불일치 = GM 주도(결정적).
+                #   (일반 조우 등장 라인은 spawn rate 0.30 확률이라 RNG flaky 회피 —
+                #    결선은 test_post_apply_spawn_encounter로 결정적 검증.)
+                _fixed_entry = "자정이 지났다. 나는 던전 1층 입구 앞에 섰다. 새 달의 시작이다."
+                results["dungeon_entry_narrated"] = (
+                    stream_info["last_tokens"] >= 3
+                    and entry_narr.strip() != _fixed_entry
+                    and len(entry_narr) > 15
+                )
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
@@ -350,6 +364,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["story_phase_advances"] = False
                 results["surroundings_shown"] = False
                 results["dungeon_entry_stable"] = False
+                results["dungeon_entry_narrated"] = False
         finally:
             await browser.close()
 
