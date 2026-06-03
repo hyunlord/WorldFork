@@ -320,6 +320,10 @@ class SessionManager:
             state.encounters = list(result.encounters_update)
         elif result.encounter_resolved:
             state.encounters = []
+        elif result.floor_change is not None and result.floor_change != 0:
+            # ★ 층 이동(마을→던전 등) 시 이전 층 encounters 무효 — 마을 NPC(부족장)가
+            #   던전에 잔존하던 결함 해소. 새 층 적은 _post_apply_spawn이 생성.
+            state.encounters = []
         if result.status_update is not None:
             state.status_effects = list(result.status_update)
         if result.equipment_update is not None:

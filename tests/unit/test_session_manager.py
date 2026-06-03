@@ -167,3 +167,45 @@ class TestGetOrCreate:
         state = run(mgr.get_or_create("no-such-id", current_hp=70))
         assert state.current_hp == 70
         assert state.session_id != "no-such-id"
+
+
+class TestFloorChangeEncounters:
+    """층 이동 시 이전 encounters 비움 — 마을 NPC(부족장) 던전 잔존 해소."""
+
+    def test_floor_change_clears_town_encounters(self, tmp_path: Path) -> None:
+        from service.canon.scenario import ScenarioMode
+
+        mgr = _make_manager(tmp_path)
+        # 성인식 마을 — 부족장 NPC seed
+        state = run(mgr.create_session(scenario_mode=ScenarioMode.BJORN))
+        assert any("부족장" in str(e.get("name", "")) for e in state.encounters)
+
+        # 던전 진입(floor_change=1) → 이전 마을 encounters 무효
+        result = ActionResult(
+            narrative="던전 1층에 들어섰다.",
+            location="던전 1층",
+            floor_change=1,
+        )
+        state = run(
+            mgr.apply_result(
+                state.session_id, result, user_input="미궁으로", resolved_path="intent"
+            )
+        )
+        assert state.floor_number == 1
+        assert not any(
+            "부족장" in str(e.get("name", "")) for e in state.encounters
+        )
+
+    def test_no_floor_change_keeps_encounters(self, tmp_path: Path) -> None:
+        from service.canon.scenario import ScenarioMode
+
+        mgr = _make_manager(tmp_path)
+        state = run(mgr.create_session(scenario_mode=ScenarioMode.BJORN))
+        # 층 이동 없는 행동(대화 등) → encounters 유지
+        result = ActionResult(narrative="부족장과 대화했다.", time_advance=1)
+        state = run(
+            mgr.apply_result(
+                state.session_id, result, user_input="대화", resolved_path="intent"
+            )
+        )
+        assert any("부족장" in str(e.get("name", "")) for e in state.encounters)
