@@ -17,8 +17,10 @@ Phase A.3-b 추가:
 import json
 import re
 import time
+from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
 import requests
 
 from .client import (
@@ -169,6 +171,51 @@ class LocalLLMClient(LLMClient):
             output_tokens=int(usage.get("completion_tokens", 0)),
             raw={"data": data, "base_url": self._base_url},
         )
+
+    async def astream(
+        self,
+        prompt: Prompt,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """평문 narrative 토큰 스트리밍 (OpenAI-compat ``stream: true``).
+
+        SGLang/llama-server가 SSE chunk(`delta.content`)를 점진 전달 → 호출자가
+        토큰을 즉시 노출(체감 지연 제거). ``_build_payload``를 재사용하므로
+        thinking-off·max_tokens·temperature 기본값이 그대로 적용된다.
+        reasoning_content는 별도 필드라 thinking-off 시 content stream은 깨끗하다.
+        JSON schema 강제는 적용하지 않는다(평문 — narrative 자유).
+        """
+        payload = self._build_payload(prompt, **kwargs)
+        payload["stream"] = True
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with client.stream(
+                "POST",
+                f"{self._base_url}/v1/chat/completions",
+                json=payload,
+            ) as resp:
+                if resp.status_code != 200:
+                    body = (await resp.aread()).decode("utf-8", "replace")
+                    raise LLMError(
+                        f"Local LLM stream HTTP {resp.status_code} "
+                        f"[{self._key}]: {body[:500]}"
+                    )
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:"):].strip()
+                    if not data or data == "[DONE]":
+                        if data == "[DONE]":
+                            break
+                        continue
+                    try:
+                        obj = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = obj.get("choices") or [{}]
+                    delta = choices[0].get("delta") or {}
+                    piece = delta.get("content")
+                    if piece:
+                        yield piece
 
     def generate_json(
         self,

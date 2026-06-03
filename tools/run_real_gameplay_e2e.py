@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 from dataclasses import dataclass
 
@@ -68,7 +69,9 @@ CHECKS: tuple[Check, ...] = (
     # ★ 인물 초상 연결 (하이브리드 1단계)
     Check("sheet_portrait_shown", 1, False, "캐릭터 시트 전신 일러스트 (ui_character)"),
     # ★ GM 루프 (게임 진행 엔진 1단계): 같은 행동 → 다른 응답
-    Check("meaningful_progression", 3, False, "같은 행동 2회 → 다른 narrative (GM 맥락)"),
+    Check("meaningful_progression", 2, False, "같은 행동 2회 → 다른 narrative (GM 맥락)"),
+    # ★ 서빙 1단계 — SSE 스트리밍: GM narrative가 토큰 점진(통째 blob X)
+    Check("streaming_progressive", 1, False, "SSE 토큰 점진 노출 (단일 blob X — 체감 즉효)"),
     # ★ 상태 진전 (2단계): 행동이 스토리 단계를 전진시킴
     Check("story_phase_advances", 2, False, "부족장 대화 → 단계 전진(추천 무기 선택으로 변화)"),
     # ★ 신규 — 던전 진입 안정 (intent 정확도): departure → 던전 진입 + 마을 NPC 미잔존
@@ -228,25 +231,53 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
 
             try:
                 inp = page.locator("input").first
+                # ★ 서빙 1단계 — SSE 스트림에서 본 token 이벤트 최대치(점진 노출 증거)
+                stream_info = {"max_tokens": 0}
 
                 async def _turn(text: str) -> str:
-                    # 한 행동 제출 → freeform 응답 narrative 반환 (GM 27B 대비 여유 timeout)
+                    # 한 행동 제출 → SSE 스트림 파싱 → canonical narrative 반환.
+                    #   frontend는 /freeform_action/stream을 호출(토큰 점진). E2E는 응답
+                    #   본문(SSE)을 받아 event:token 수 + event:complete narrative를 추출.
                     await inp.click()
                     async with page.expect_response(
                         # ★ verify gate가 27B를 다중 호출(Mechanical/Browser/debate +
                         #   E2E GM)해 큐 적체 시 GM 응답이 크게 느려질 수 있어 timeout
                         #   여유(정상 28s/turn, 최악 큐 적체 대비). meaningful flaky 방지.
-                        lambda r: "/api/v2/freeform_action" in r.url, timeout=240000
+                        lambda r: "/api/v2/freeform_action/stream" in r.url,
+                        timeout=240000,
                     ) as ri:
                         await page.keyboard.type(text)
                         await page.keyboard.press("Enter")
                     resp = await ri.value
                     freeform["code"] = resp.status
                     try:
-                        body = await resp.json()
-                        return str(body.get("narrative", ""))
+                        raw = await resp.text()
                     except Exception:
                         return ""
+                    # SSE 파싱 — event:token 누적(점진 증거) + event:complete narrative
+                    narrative = ""
+                    tokens = 0
+                    event = ""
+                    for line in raw.splitlines():
+                        if line.startswith("event:"):
+                            event = line[len("event:"):].strip()
+                        elif line.startswith("data:"):
+                            data = line[len("data:"):].strip()
+                            if not data:
+                                continue
+                            if event == "token":
+                                tokens += 1
+                            elif event == "complete":
+                                try:
+                                    narrative = str(
+                                        json.loads(data).get("narrative", "")
+                                    )
+                                except Exception:
+                                    pass
+                    stream_info["max_tokens"] = max(
+                        stream_info["max_tokens"], tokens
+                    )
+                    return narrative
 
                 # ★ 같은 행동 2회 — GM 누적 맥락이면 서로 다른 narrative.
                 narr_a = await _turn("부족장에게 말을 건다")
@@ -254,6 +285,9 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 narr_b = await _turn("부족장에게 말을 건다")
                 await page.wait_for_timeout(1200)
                 post_body = await page.locator("body").inner_text()
+                # ★ SSE 토큰 점진 — GM narrative가 여러 token 이벤트로 흘렀는가(단일 blob X).
+                #   3+ token = 점진 노출 작동(체감 ~0.2초 시작). 단일/0 = 스트리밍 단절.
+                results["streaming_progressive"] = stream_info["max_tokens"] >= 3
 
                 results["chat_freeform_works"] = (
                     freeform["code"] == 200 and "라스카니아" not in post_body
@@ -309,6 +343,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
                 results["meaningful_progression"] = False
+                results["streaming_progressive"] = False
                 results["history_accumulates"] = False
                 results["story_phase_advances"] = False
                 results["weapon_choice_reflected"] = False

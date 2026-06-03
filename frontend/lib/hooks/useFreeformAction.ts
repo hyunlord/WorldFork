@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import {
-  postFreeformAction,
+  streamFreeformAction,
   type FreeformActionResponse,
 } from "@/lib/api/freeform";
 import {
@@ -15,6 +15,8 @@ export interface UseFreeformActionResult {
   loading: boolean;
   error: string | null;
   lastResponse: FreeformActionResponse | null;
+  /** 스트리밍 중 누적 narrative 미리보기 (완료 시 "" 로 비움) */
+  streamingText: string;
   submit: (
     userInput: string,
     rationale?: string,
@@ -34,6 +36,7 @@ export function useFreeformAction(): UseFreeformActionResult {
   const [error, setError] = useState<string | null>(null);
   const [lastResponse, setLastResponse] =
     useState<FreeformActionResponse | null>(null);
+  const [streamingText, setStreamingText] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   const submit = useCallback(
@@ -47,26 +50,49 @@ export function useFreeformAction(): UseFreeformActionResult {
 
       setLoading(true);
       setError(null);
+      setStreamingText("");
+      let streamErr: string | null = null;
       try {
         const sessionId = getStoredSessionId();
-        const resp = await postFreeformAction(
+        const resp = await streamFreeformAction(
           {
             user_input: userInput,
             rationale,
             ...(sessionId !== null ? { session_id: sessionId } : {}),
           },
+          {
+            // ★ 토큰 점진 노출 — ~0.2초 시작(통째 대기 제거)
+            onToken: (text) => {
+              if (!controller.signal.aborted) {
+                setStreamingText((prev) => prev + text);
+              }
+            },
+            onError: (detail) => {
+              streamErr = detail;
+            },
+          },
           { signal: controller.signal },
         );
         if (controller.signal.aborted) return null;
-        if (resp.session_id !== null) {
+        if (streamErr !== null) {
+          setError(streamErr);
+          setStreamingText("");
+          return null;
+        }
+        if (resp !== null && resp.session_id !== null) {
           setStoredSessionId(resp.session_id);
         }
-        setLastResponse(resp);
+        if (resp !== null) {
+          setLastResponse(resp);
+        }
+        // 완료 — 미리보기는 비우고, 호출자가 canonical narrative를 히스토리에 누적
+        setStreamingText("");
         return resp;
       } catch (e) {
         if (controller.signal.aborted) return null;
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);
+        setStreamingText("");
         return null;
       } finally {
         if (!controller.signal.aborted) {
@@ -82,7 +108,8 @@ export function useFreeformAction(): UseFreeformActionResult {
     setLoading(false);
     setError(null);
     setLastResponse(null);
+    setStreamingText("");
   }, []);
 
-  return { loading, error, lastResponse, submit, reset };
+  return { loading, error, lastResponse, streamingText, submit, reset };
 }

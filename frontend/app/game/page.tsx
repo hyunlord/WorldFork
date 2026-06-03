@@ -411,11 +411,16 @@ export default function GamePage() {
   const [history, setHistory] = useState<
     { userInput: string; narrative: string }[]
   >([]);
+  // ★ 스트리밍 중인 행동(미리보기 whisper 라벨용) — 완료 시 비움
+  const [pendingInput, setPendingInput] = useState<string | null>(null);
 
   const handleSubmit = useCallback(
     async (text: string) => {
+      setPendingInput(text);
       const resp = await freeform.submit(text);
+      setPendingInput(null);
       if (resp) {
+        // ★ canonical narrative(시스템/clock/tip 포함)를 히스토리에 확정 누적
         setHistory((h) => [...h, { userInput: text, narrative: resp.narrative }]);
         setTurnCount((t) => t + 1);
         // ★ 행동 결과로 바뀐 state(floor/위치/encounters/HP/단계)를 화면에 반영.
@@ -439,6 +444,16 @@ export default function GamePage() {
       });
       paragraphs.push(...narrativeStringToData(entry.narrative, 0).paragraphs);
     }
+    // ★ 스트리밍 중인 턴 미리보기 — 토큰 점진 노출(~0.2초 시작, 통째 대기 X).
+    //   완료 시 freeform.streamingText는 ""로 비워지고 위 history에 확정 누적된다.
+    if (pendingInput !== null && freeform.streamingText.length > 0) {
+      paragraphs.push({
+        spans: [{ kind: "whisper", text: `▸ ${pendingInput}` }],
+      });
+      paragraphs.push(
+        ...narrativeStringToData(freeform.streamingText, 0).paragraphs,
+      );
+    }
     if (paragraphs.length === 0) {
       // ★ DEMO fallback 금지 — 데모 스토리 대신 명시적 시작 안내
       paragraphs.push({
@@ -446,7 +461,7 @@ export default function GamePage() {
       });
     }
     return { turn: turnCount, paragraphs };
-  }, [history, turnCount, startNarrative]);
+  }, [history, turnCount, startNarrative, pendingInput, freeform.streamingText]);
 
   // ★ 추천 행동 버튼 — 응답의 suggested_actions, 첫 화면엔 마을/던전 기본 3항목
   const suggestedActions = useMemo<string[]>(() => {
@@ -559,8 +574,14 @@ export default function GamePage() {
         }
       />
 
-      {/* ★ LLM 호출 중 로딩 표시 — GB10 10-16초 동안 멈춘 듯 보이던 것 해소 */}
-      <LoadingIndicator visible={freeform.loading || executing} />
+      {/* ★ LLM 호출 중 로딩 표시 — 첫 토큰 도착(스트리밍 시작) 전까지만.
+          토큰이 흐르기 시작하면 표시를 거두고 narrative 점진 노출에 화면을 내준다. */}
+      <LoadingIndicator
+        visible={
+          (freeform.loading || executing) &&
+          freeform.streamingText.length === 0
+        }
+      />
 
       {/* ★ 추천 행동 버튼 — 로딩 중엔 숨김(같은 자리, 로딩 우선) */}
       {!(freeform.loading || executing) && (

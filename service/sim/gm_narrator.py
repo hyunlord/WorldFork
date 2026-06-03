@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from core.llm.client import Prompt
@@ -70,6 +71,34 @@ _GM_SCHEMA: dict[str, Any] = {
 }
 
 
+def _build_gm_prompt(
+    user_input: str,
+    mechanical_fact: str,
+    location: str,
+    surroundings: str,
+    recent_turns: list[tuple[str, str]],
+    canon: str = "",
+    story_phase: str = "",
+) -> Prompt:
+    """계약형 GM 프롬프트 구성 (compose/stream 공용 — 동일 맥락 보장)."""
+    recent = recent_turns[-8:]
+    history = (
+        "\n".join(f"- 행동: {u}\n  결과: {n}" for u, n in recent)
+        if recent
+        else "(없음 — 첫 행동)"
+    )
+    system = _GM_SYSTEM.format(canon=canon or "(추가 세계 정보 없음)")
+    user = _GM_USER.format(
+        history=history,
+        phase=story_phase or "(진행 중)",
+        location=location or "알 수 없는 곳",
+        surroundings=surroundings or "특이사항 없음",
+        fact=mechanical_fact or "(특별한 변화 없음)",
+        action=user_input,
+    )
+    return Prompt(system=system, user=user)
+
+
 def compose_gm_narrative(
     user_input: str,
     mechanical_fact: str,
@@ -87,22 +116,10 @@ def compose_gm_narrative(
     """
     try:
         client = get_qwen36_27b_q3()
-        recent = recent_turns[-8:]
-        history = (
-            "\n".join(f"- 행동: {u}\n  결과: {n}" for u, n in recent)
-            if recent
-            else "(없음 — 첫 행동)"
+        prompt = _build_gm_prompt(
+            user_input, mechanical_fact, location, surroundings,
+            recent_turns, canon, story_phase,
         )
-        system = _GM_SYSTEM.format(canon=canon or "(추가 세계 정보 없음)")
-        user = _GM_USER.format(
-            history=history,
-            phase=story_phase or "(진행 중)",
-            location=location or "알 수 없는 곳",
-            surroundings=surroundings or "특이사항 없음",
-            fact=mechanical_fact or "(특별한 변화 없음)",
-            action=user_input,
-        )
-        prompt = Prompt(system=system, user=user)
         response = client.generate_json(
             prompt,
             schema=_GM_SCHEMA,
@@ -113,3 +130,34 @@ def compose_gm_narrative(
         return result if len(result) >= 20 else ""
     except Exception:
         return ""
+
+
+async def stream_gm_narrative(
+    user_input: str,
+    mechanical_fact: str,
+    location: str,
+    surroundings: str,
+    recent_turns: list[tuple[str, str]],
+    canon: str = "",
+    story_phase: str = "",
+) -> AsyncIterator[str]:
+    """누적 맥락 GM narrative 토큰 스트리밍 (평문). 실패 시 무출력.
+
+    compose_gm_narrative와 동일 프롬프트(동일 맥락)이되 평문으로 점진 생성한다.
+    JSON 래핑을 빼 토큰을 즉시 노출 — 호출자가 누적해 최종 narrative로 쓴다.
+    스트림 시작/도중 오류는 삼켜 무출력으로 끝낸다(호출자가 handler로 fallback).
+    """
+    try:
+        client = get_qwen36_27b_q3()
+        prompt = _build_gm_prompt(
+            user_input, mechanical_fact, location, surroundings,
+            recent_turns, canon, story_phase,
+        )
+        agen = client.astream(prompt, max_tokens=500, temperature=0.8)
+    except Exception:
+        return
+    try:
+        async for piece in agen:
+            yield piece
+    except Exception:
+        return

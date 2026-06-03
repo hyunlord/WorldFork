@@ -8,9 +8,12 @@ fallback path: 27B free-form (변경 없음).
 from __future__ import annotations
 
 import asyncio
-from typing import Literal
+import json
+from collections.abc import AsyncIterator
+from typing import Literal, cast
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from service.api.schemas.freeform_action import (
     FreeformActionRequest,
@@ -24,7 +27,11 @@ from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
 from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
-from service.sim.gm_narrator import GM_NARRATE_ACTIONS, compose_gm_narrative
+from service.sim.gm_narrator import (
+    GM_NARRATE_ACTIONS,
+    compose_gm_narrative,
+    stream_gm_narrative,
+)
 from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
@@ -279,17 +286,22 @@ async def _handle_weapon_choice(
     )
 
 
-@router.post("/freeform_action", response_model=FreeformActionResponse)
-async def freeform_action_endpoint(
-    req: FreeformActionRequest,
-) -> FreeformActionResponse:
-    """자연어 input → intent dispatch 또는 free-form fallback.
+# ("token", str) — narrative 토큰 점진 / ("complete", FreeformActionResponse) — 최종
+_StreamEvent = tuple[str, object]
 
-    Step 1: 9B classifier 호출
-    Step 2: confidence ≥ INTENT_THRESHOLD + matched_action 존재 시
-            ActionContext 빌드 → dispatch_action → StateDelta 반환
-    Step 3: 위 미충족 시 27B free-form fallback
-    Step 4: session_id 존재 시 결과를 세션 상태에 반영
+
+async def _run_action_stream(
+    req: FreeformActionRequest,
+) -> AsyncIterator[_StreamEvent]:
+    """자연어 input 처리 코어 — 토큰 스트리밍 + 최종 응답을 이벤트로 산출.
+
+    JSON 엔드포인트와 SSE 엔드포인트가 이 단일 코어를 공유한다(동작 정합 보장).
+    GM 서사형 intent 경로는 27B 토큰을 ('token', delta)로 점진 전달하고,
+    마지막에 ('complete', FreeformActionResponse)로 canonical 응답(시스템/clock/tip
+    포함)을 1회 산출한다. 그 외 경로(무기 선택·fallback)는 complete만 산출한다.
+
+    Step 1: 9B classifier → Step 2: intent dispatch → Step 3: free-form fallback
+    Step 4: session 반영. (직전 단일 함수와 동일 로직 — 흐름만 generator로 전환)
     """
     # 세션 조회 (session_id 있을 때만)
     session_state: SessionState | None = None
@@ -326,7 +338,9 @@ async def freeform_action_endpoint(
     ):
         chosen = match_weapon_in_text(req.user_input)
         if chosen is not None:
-            return await _handle_weapon_choice(req, session_state, chosen, ctx)
+            resp = await _handle_weapon_choice(req, session_state, chosen, ctx)
+            yield ("complete", resp)
+            return
 
     # ★ departure 단계 던전 진입 보조 (intent 정확도) — 무기 선택 후 departure는
     #   던전 향하는 단계라 '미궁/던전' 류 입력은 진입 의도. 9B가 enter_dungeon으로
@@ -351,110 +365,118 @@ async def freeform_action_endpoint(
         )
     )
 
+    action_type: PlayerActionType | None = None
     if action_value is not None:
         try:
             action_type = PlayerActionType(action_value)
         except ValueError:
-            pass
-        else:
-            try:
-                result = await dispatch_action(action_type, ctx)
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"action handler failed: {exc}",
-                ) from exc
+            action_type = None
 
-            # ★ GM 서사 레이어 (재설계 1단계) — 서사형 action은 handler가 수치를
-            #   확정하고, GM이 누적 히스토리 맥락으로 narrative를 주도한다.
-            #   같은 행동도 맥락 따라 다른 전개 → intent template 반복 해소.
-            #   GM 실패 시 handler template narrative로 fallback.
-            npc_name = next(
-                (
-                    str(e.get("name"))
-                    for e in ctx.encounters
-                    if e.get("hostile") is False
-                ),
-                None,
+    if action_type is not None:
+        try:
+            result = await dispatch_action(action_type, ctx)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"action handler failed: {exc}",
+            ) from exc
+
+        # ★ GM 서사 레이어 (재설계 1단계) — 서사형 action은 handler가 수치를
+        #   확정하고, GM이 누적 히스토리 맥락으로 narrative를 주도한다.
+        #   같은 행동도 맥락 따라 다른 전개 → intent template 반복 해소.
+        #   서빙 1단계(스트리밍): GM 토큰을 점진 전달(체감 지연 제거).
+        #   GM 실패/단문 시 handler template narrative로 fallback.
+        npc_name = next(
+            (
+                str(e.get("name"))
+                for e in ctx.encounters
+                if e.get("hostile") is False
+            ),
+            None,
+        )
+        if session_state is not None and action_type in GM_NARRATE_ACTIONS:
+            recent = await mgr.get_recent_turns(session_state.session_id)
+            # 전투 시 적 상태(이름/HP)를 GM 컨텍스트에 — 약점/위기 묘사 정합.
+            hostile_state = [
+                f"{e.get('name')}(HP {e.get('hp')}/{e.get('max_hp')})"
+                for e in ctx.encounters
+                if e.get("hostile")
+            ]
+            surroundings = (
+                ", ".join(hostile_state)
+                if hostile_state
+                else (npc_name or "특이사항 없음")
             )
-            if session_state is not None and action_type in GM_NARRATE_ACTIONS:
-                recent = await mgr.get_recent_turns(session_state.session_id)
-                # 전투 시 적 상태(이름/HP)를 GM 컨텍스트에 — 약점/위기 묘사 정합.
-                hostile_state = [
-                    f"{e.get('name')}(HP {e.get('hp')}/{e.get('max_hp')})"
-                    for e in ctx.encounters
-                    if e.get("hostile")
+            pieces: list[str] = []
+            async for delta in stream_gm_narrative(
+                req.user_input,
+                result.narrative,
+                ctx.location,
+                surroundings,
+                recent,
+                "",
+                PHASE_LABEL.get(session_state.story_phase, ""),
+            ):
+                pieces.append(delta)
+                yield ("token", delta)
+            gm_text = "".join(pieces).strip()
+            if len(gm_text) >= 20:
+                # ★ 「」 시스템 메시지(EXP/처치/HP 경고 등)는 mechanical fact —
+                #   GM 서사 뒤에 보존(정확 수치 손실 방지, 04 정합).
+                system_lines = [
+                    ln
+                    for ln in result.narrative.split("\n")
+                    if ln.strip().startswith("「")
                 ]
-                surroundings = (
-                    ", ".join(hostile_state)
-                    if hostile_state
-                    else (npc_name or "특이사항 없음")
+                result.narrative = (
+                    gm_text + "\n\n" + "\n".join(system_lines)
+                    if system_lines
+                    else gm_text
                 )
-                gm_text = await asyncio.to_thread(
-                    compose_gm_narrative,
-                    req.user_input,
-                    result.narrative,
-                    ctx.location,
-                    surroundings,
-                    recent,
-                    "",
-                    PHASE_LABEL.get(session_state.story_phase, ""),
-                )
-                if gm_text:
-                    # ★ 「」 시스템 메시지(EXP/처치/HP 경고 등)는 mechanical fact —
-                    #   GM 서사 뒤에 보존(정확 수치 손실 방지, 04 정합).
-                    system_lines = [
-                        ln
-                        for ln in result.narrative.split("\n")
-                        if ln.strip().startswith("「")
-                    ]
-                    result.narrative = (
-                        gm_text + "\n\n" + "\n".join(system_lines)
-                        if system_lines
-                        else gm_text
-                    )
 
-            # ★ 스토리 전진 (Rule Engine — 07 정합): 행동 결과로 단계/플래그 전진.
-            #   GM은 읽기만, 여기서만 세계 상태를 바꾼다.
-            if session_state is not None:
-                new_phase, new_flags = advance_story(
-                    session_state.story_phase,
-                    session_state.story_flags,
-                    action_type,
-                    npc_name,
-                )
-                session_state.story_phase = new_phase
-                session_state.story_flags = new_flags
+        # ★ 스토리 전진 (Rule Engine — 07 정합): 행동 결과로 단계/플래그 전진.
+        #   GM은 읽기만, 여기서만 세계 상태를 바꾼다.
+        if session_state is not None:
+            new_phase, new_flags = advance_story(
+                session_state.story_phase,
+                session_state.story_flags,
+                action_type,
+                npc_name,
+            )
+            session_state.story_phase = new_phase
+            session_state.story_flags = new_flags
 
-            resolved_path: Literal["intent", "fallback"] = "intent"
-            final_narrative = result.narrative
-            if session_state is not None:
-                prev_hours = session_state.hours_in_dungeon
-                prev_stone = session_state.stone_balance
-                session_state = await mgr.apply_result(
-                    session_state.session_id,
-                    result,
-                    user_input=req.user_input,
-                    resolved_path=resolved_path,
-                )
-                _post_apply_spawn(session_state)
-                clock_msg = _post_apply_dungeon_clock(
-                    session_state,
-                    prev_hours,
-                    last_advance_min=int(round(result.time_advance * 60)),
-                )
-                tip_msg = _build_tip_message(session_state.stone_balance, prev_stone)
-                needs_save = False
-                if clock_msg:
-                    final_narrative = f"{final_narrative}\n\n{clock_msg}"
-                    needs_save = True
-                if tip_msg:
-                    final_narrative = f"{final_narrative}\n\n{tip_msg}"
-                    needs_save = True
-                if needs_save:
-                    await mgr.save_state(session_state)
+        resolved_path: Literal["intent", "fallback"] = "intent"
+        final_narrative = result.narrative
+        if session_state is not None:
+            prev_hours = session_state.hours_in_dungeon
+            prev_stone = session_state.stone_balance
+            session_state = await mgr.apply_result(
+                session_state.session_id,
+                result,
+                user_input=req.user_input,
+                resolved_path=resolved_path,
+            )
+            _post_apply_spawn(session_state)
+            clock_msg = _post_apply_dungeon_clock(
+                session_state,
+                prev_hours,
+                last_advance_min=int(round(result.time_advance * 60)),
+            )
+            tip_msg = _build_tip_message(session_state.stone_balance, prev_stone)
+            needs_save = False
+            if clock_msg:
+                final_narrative = f"{final_narrative}\n\n{clock_msg}"
+                needs_save = True
+            if tip_msg:
+                final_narrative = f"{final_narrative}\n\n{tip_msg}"
+                needs_save = True
+            if needs_save:
+                await mgr.save_state(session_state)
 
-            return FreeformActionResponse(
+        yield (
+            "complete",
+            FreeformActionResponse(
                 resolved_path=resolved_path,
                 matched_action=action_type.value,
                 confidence=intent.confidence,
@@ -479,9 +501,13 @@ async def freeform_action_endpoint(
                     stone_change=result.stone_change,
                 ),
                 session_id=session_state.session_id if session_state else None,
-                session_state=_session_summary(session_state) if session_state else None,
+                session_state=(
+                    _session_summary(session_state) if session_state else None
+                ),
                 suggested_actions=_suggest_actions(session_state),
-            )
+            ),
+        )
+        return
 
     try:
         narrative, state_delta = await asyncio.to_thread(
@@ -536,13 +562,79 @@ async def freeform_action_endpoint(
         if needs_save_fb:
             await mgr.save_state(session_state)
 
-    return FreeformActionResponse(
-        resolved_path=resolved_path_fb,
-        confidence=intent.confidence,
-        narrative=final_narrative_fb,
-        state_delta=state_delta,
-        fallback_reason=intent.reason,
-        session_id=session_state.session_id if session_state else None,
-        session_state=_session_summary(session_state) if session_state else None,
-        suggested_actions=_suggest_actions(session_state),
+    yield (
+        "complete",
+        FreeformActionResponse(
+            resolved_path=resolved_path_fb,
+            confidence=intent.confidence,
+            narrative=final_narrative_fb,
+            state_delta=state_delta,
+            fallback_reason=intent.reason,
+            session_id=session_state.session_id if session_state else None,
+            session_state=(
+                _session_summary(session_state) if session_state else None
+            ),
+            suggested_actions=_suggest_actions(session_state),
+        ),
+    )
+
+
+@router.post("/freeform_action", response_model=FreeformActionResponse)
+async def freeform_action_endpoint(
+    req: FreeformActionRequest,
+) -> FreeformActionResponse:
+    """자연어 input → intent dispatch 또는 free-form fallback (full JSON).
+
+    스트리밍 코어(_run_action_stream)를 소진해 최종 응답만 반환 — 토큰 이벤트는
+    버린다. 비스트리밍 클라이언트/기존 테스트 호환 경로(동작 불변).
+    """
+    final: FreeformActionResponse | None = None
+    async for kind, payload in _run_action_stream(req):
+        if kind == "complete":
+            final = cast(FreeformActionResponse, payload)
+    if final is None:
+        raise HTTPException(status_code=500, detail="no response produced")
+    return final
+
+
+def _sse(event: str, data: dict[str, object]) -> str:
+    """SSE 1 이벤트 프레임 (event + data, 한글 그대로)."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/freeform_action/stream")
+async def freeform_action_stream_endpoint(
+    req: FreeformActionRequest,
+) -> StreamingResponse:
+    """자연어 input → SSE 토큰 점진 노출 (서빙 1단계 — 체감 지연 제거).
+
+    event: token  — narrative 토큰 delta ({"text": ...}), 점진 노출용
+    event: complete — canonical FreeformActionResponse(시스템/clock/tip 포함)
+    event: error  — 처리 실패 ({"detail": ...})
+
+    프론트는 token으로 미리보기를 그리고, complete의 narrative로 확정(상태 권위는
+    complete). GM 비대상/무기선택/fallback은 token 없이 complete만 온다.
+    """
+
+    async def _gen() -> AsyncIterator[str]:
+        try:
+            async for kind, payload in _run_action_stream(req):
+                if kind == "token":
+                    yield _sse("token", {"text": cast(str, payload)})
+                else:
+                    resp = cast(FreeformActionResponse, payload)
+                    yield _sse("complete", resp.model_dump())
+        except HTTPException as exc:
+            yield _sse("error", {"detail": str(exc.detail)})
+        except Exception as exc:  # noqa: BLE001 — 스트림 중 오류도 클라이언트에 전달
+            yield _sse("error", {"detail": str(exc)})
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # nginx/proxy 버퍼링 방지(즉시 flush)
+        },
     )
