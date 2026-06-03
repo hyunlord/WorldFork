@@ -139,11 +139,12 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["scenario_origin_naming"] = "투르윈" not in body
             results["no_starting_party"] = ("실렌" not in body) and ("한스" not in body)
             results["session_scenario_reflected"] = "120" in body
-            # ★ 첫 화면 성인식 narrative 노출 (createCharacter starting_narrative 표시).
-            #   BJORN 성인식 = 부족장 선언 → "부족장/성지/성년/전사" 중 하나 노출 +
+            # ★ 첫 화면 도입부 + 성인식 narrative 노출 (4단계 — ep_0001 빙의 발단).
+            #   게임 빙의 발단('빙의'/'게임') + 성인식(부족장/성지/성년/전사) 둘 다 +
             #   generic 안내("행동을 입력해 모험을 시작하세요") 부재.
             results["start_narrative_shown"] = (
-                any(kw in body for kw in ("부족장", "성지", "성년", "전사"))
+                ("빙의" in body or "게임" in body)
+                and any(kw in body for kw in ("부족장", "성지", "성년", "전사"))
                 and "행동을 입력해 모험을 시작하세요" not in body
             )
             # ★ placeholder 데모(한스·WASD) 부재 — session 정합 placeholder.
@@ -232,7 +233,10 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     # 한 행동 제출 → freeform 응답 narrative 반환 (GM 27B 대비 여유 timeout)
                     await inp.click()
                     async with page.expect_response(
-                        lambda r: "/api/v2/freeform_action" in r.url, timeout=120000
+                        # ★ verify gate가 27B를 다중 호출(Mechanical/Browser/debate +
+                        #   E2E GM)해 큐 적체 시 GM 응답이 크게 느려질 수 있어 timeout
+                        #   여유(정상 28s/turn, 최악 큐 적체 대비). meaningful flaky 방지.
+                        lambda r: "/api/v2/freeform_action" in r.url, timeout=240000
                     ) as ri:
                         await page.keyboard.type(text)
                         await page.keyboard.press("Enter")
