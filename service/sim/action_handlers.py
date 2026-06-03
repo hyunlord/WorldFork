@@ -726,17 +726,10 @@ async def handle_attack(ctx: ActionContext) -> ActionResult:
             level_up = True
             new_level = computed
 
-    # Step 6: narrative — 27B 시도 후 template fallback
+    # Step 6: narrative — template(전투 사실/수치). 서사는 router GM 레이어(5단계)가
+    #   누적 맥락으로 주도한다(같은 공격도 다른 서사). 단발 compose_combat 27B 제거 —
+    #   히스토리 없는 단발은 반복 위험. GM이 이 template을 '확정 결과'로 받아 서술.
     narrative = _build_attack_narrative(player_log, enemy_logs, essence_drops, all_resolved)
-    try:
-        from service.sim.freeform_handler import compose_combat_narrative
-        richer = await asyncio.to_thread(
-            compose_combat_narrative, player_log, enemy_logs, essence_drops
-        )
-        if richer:
-            narrative = richer
-    except Exception:
-        pass
 
     # 도주 연출 추가
     for fn in flee_narratives:

@@ -30,6 +30,10 @@ GM_NARRATE_ACTIONS: frozenset[PlayerActionType] = frozenset(
         PlayerActionType.LIBRARY_SEARCH,
         PlayerActionType.WAIT_IN_VILLAGE,
         PlayerActionType.REST_AND_NIGHT_WATCH,
+        # ★ 5단계 — 전투도 GM 주도. 수치(데미지/HP/치명타/약점)는 handle_attack이
+        #   확정하고, GM이 그 결과를 누적 맥락으로 묘사(같은 공격도 다른 서사).
+        PlayerActionType.ATTACK,
+        PlayerActionType.FLEE,
     }
 )
 

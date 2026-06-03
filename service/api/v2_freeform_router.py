@@ -358,7 +358,17 @@ async def freeform_action_endpoint(
             )
             if session_state is not None and action_type in GM_NARRATE_ACTIONS:
                 recent = await mgr.get_recent_turns(session_state.session_id)
-                surroundings = npc_name or "특이사항 없음"
+                # 전투 시 적 상태(이름/HP)를 GM 컨텍스트에 — 약점/위기 묘사 정합.
+                hostile_state = [
+                    f"{e.get('name')}(HP {e.get('hp')}/{e.get('max_hp')})"
+                    for e in ctx.encounters
+                    if e.get("hostile")
+                ]
+                surroundings = (
+                    ", ".join(hostile_state)
+                    if hostile_state
+                    else (npc_name or "특이사항 없음")
+                )
                 gm_text = await asyncio.to_thread(
                     compose_gm_narrative,
                     req.user_input,
@@ -370,7 +380,18 @@ async def freeform_action_endpoint(
                     PHASE_LABEL.get(session_state.story_phase, ""),
                 )
                 if gm_text:
-                    result.narrative = gm_text
+                    # ★ 「」 시스템 메시지(EXP/처치/HP 경고 등)는 mechanical fact —
+                    #   GM 서사 뒤에 보존(정확 수치 손실 방지, 04 정합).
+                    system_lines = [
+                        ln
+                        for ln in result.narrative.split("\n")
+                        if ln.strip().startswith("「")
+                    ]
+                    result.narrative = (
+                        gm_text + "\n\n" + "\n".join(system_lines)
+                        if system_lines
+                        else gm_text
+                    )
 
             # ★ 스토리 전진 (Rule Engine — 07 정합): 행동 결과로 단계/플래그 전진.
             #   GM은 읽기만, 여기서만 세계 상태를 바꾼다.

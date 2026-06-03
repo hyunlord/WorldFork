@@ -9,11 +9,14 @@ from service.sim.types import PlayerActionType
 
 
 def test_gm_narrate_actions_scope() -> None:
-    # 서사형(탐색/대화/대기)은 포함, 수치/전투(공격/상점)는 제외
+    # 서사형(탐색/대화/대기) + 전투(5단계 확대)는 GM 서사, 수치/상점은 handler 유지
     assert PlayerActionType.EXPLORE in GM_NARRATE_ACTIONS
     assert PlayerActionType.DIALOGUE in GM_NARRATE_ACTIONS
     assert PlayerActionType.WAIT in GM_NARRATE_ACTIONS
-    assert PlayerActionType.ATTACK not in GM_NARRATE_ACTIONS
+    # ★ 5단계 — 전투도 GM 주도 (수치는 handle_attack, 서사는 GM)
+    assert PlayerActionType.ATTACK in GM_NARRATE_ACTIONS
+    assert PlayerActionType.FLEE in GM_NARRATE_ACTIONS
+    # 상점/장착 등 순수 수치 action은 GM 비대상
     assert PlayerActionType.SHOP_BUY not in GM_NARRATE_ACTIONS
 
 
