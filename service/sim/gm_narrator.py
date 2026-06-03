@@ -14,7 +14,11 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import get_qwen36_27b_q3
+from core.llm.local_client import (
+    LocalLLMClient,
+    get_qwen35_9b_q3,
+    get_qwen36_27b_q3,
+)
 from service.sim.types import PlayerActionType
 
 # 서사형 action — GM이 narrative 주도. 수치/전투(ATTACK/EQUIP/SHOP/ABSORB 등)는
@@ -41,6 +45,49 @@ GM_NARRATE_ACTIONS: frozenset[PlayerActionType] = frozenset(
         PlayerActionType.ENTER_DUNGEON,
     }
 )
+
+# ─── 서빙 3단계 — 하이브리드 9B/27B 라우팅 ───
+#   단순 서사(탐색/이동/저강도)는 9B(~18 t/s, 4초)로 실 단축, pivotal(성년식
+#   단계·전투·적대 조우)은 27B로 품질 보장. '애매하면 27B' 안전 기본값 —
+#   라우팅 오분류로 중대 순간이 9B로 새지 않게(품질 우선).
+
+# pivotal 스토리 단계 — 성년식 첫인상(선언/무기 선택)은 27B 품질.
+PIVOTAL_PHASES: frozenset[str] = frozenset({"declaration", "weapon_choice"})
+
+# pivotal action — 전투는 27B 품질(중대 순간).
+PIVOTAL_ACTIONS: frozenset[PlayerActionType] = frozenset(
+    {PlayerActionType.ATTACK, PlayerActionType.FLEE}
+)
+
+
+def is_pivotal_gm(
+    action_type: PlayerActionType,
+    story_phase: str,
+    has_hostile: bool,
+) -> bool:
+    """27B(품질)로 보낼 pivotal 순간인지 — 아니면 9B(단순·빠름).
+
+    ★ '애매하면 27B' — 성년식 단계 / 전투 action / 적대 조우 중이면 27B.
+      순수 비전투 단순 행동(탐색·이동·대화·휴식)만 9B로 라우팅.
+    """
+    if story_phase in PIVOTAL_PHASES:
+        return True
+    if action_type in PIVOTAL_ACTIONS:
+        return True
+    if has_hostile:
+        return True
+    return False
+
+
+def gm_model_label(pivotal: bool) -> str:
+    """라우팅 관측 라벨 — 응답 gm_model 필드용."""
+    return "27b" if pivotal else "9b"
+
+
+def _gm_client(pivotal: bool) -> LocalLLMClient:
+    """pivotal → 27B(품질) / 단순 → 9B(빠름). 둘 다 thinking off·스트리밍 지원."""
+    return get_qwen36_27b_q3() if pivotal else get_qwen35_9b_q3()
+
 
 _GM_SYSTEM = (
     "# Role Contract\n"
@@ -111,15 +158,17 @@ def compose_gm_narrative(
     recent_turns: list[tuple[str, str]],
     canon: str = "",
     story_phase: str = "",
+    pivotal: bool = True,
 ) -> str:
     """누적 맥락 GM narrative 생성 (sync). 실패 시 빈 문자열 반환.
 
     recent_turns — (user_input, narrative) 시간순. 최근 8턴만 사용.
     mechanical_fact — handler가 확정한 결과(수치/사실). GM은 이를 서술만 한다.
     story_phase — 현재 스토리 단계 라벨(읽기 전용 맥락, State Contract).
+    pivotal — True면 27B(품질·기본값), False면 9B(단순·빠름). 라우팅 3단계.
     """
     try:
-        client = get_qwen36_27b_q3()
+        client = _gm_client(pivotal)
         prompt = _build_gm_prompt(
             user_input, mechanical_fact, location, surroundings,
             recent_turns, canon, story_phase,
@@ -144,15 +193,17 @@ async def stream_gm_narrative(
     recent_turns: list[tuple[str, str]],
     canon: str = "",
     story_phase: str = "",
+    pivotal: bool = True,
 ) -> AsyncIterator[str]:
     """누적 맥락 GM narrative 토큰 스트리밍 (평문). 실패 시 무출력.
 
     compose_gm_narrative와 동일 프롬프트(동일 맥락)이되 평문으로 점진 생성한다.
     JSON 래핑을 빼 토큰을 즉시 노출 — 호출자가 누적해 최종 narrative로 쓴다.
     스트림 시작/도중 오류는 삼켜 무출력으로 끝낸다(호출자가 handler로 fallback).
+    pivotal — True면 27B(품질·기본값), False면 9B(단순·빠름). 라우팅 3단계.
     """
     try:
-        client = get_qwen36_27b_q3()
+        client = _gm_client(pivotal)
         prompt = _build_gm_prompt(
             user_input, mechanical_fact, location, surroundings,
             recent_turns, canon, story_phase,

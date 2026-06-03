@@ -39,6 +39,8 @@ export interface FreeformActionResponse {
   session_id: string | null;
   session_state: FreeformSessionSummary | null;
   suggested_actions?: string[];
+  // ★ 서빙 3단계 — GM 라우팅 관측: "9b"(단순) / "27b"(pivotal) / null
+  gm_model?: string | null;
 }
 
 export interface FreeformActionRequest {

@@ -31,6 +31,8 @@ from service.sim.freeform_handler import freeform_action
 from service.sim.gm_narrator import (
     GM_NARRATE_ACTIONS,
     compose_gm_narrative,
+    gm_model_label,
+    is_pivotal_gm,
     stream_gm_narrative,
 )
 from service.sim.intent_classifier import classify_intent
@@ -298,6 +300,7 @@ async def _handle_weapon_choice(
         session_id=session_state.session_id,
         session_state=_session_summary(session_state),
         suggested_actions=_suggest_actions(session_state),
+        gm_model="27b",  # ★ 성년식 무기 선택 = pivotal 27B
     )
 
 
@@ -409,6 +412,7 @@ async def _run_action_stream(
             ),
             None,
         )
+        gm_model: str | None = None
         if session_state is not None and action_type in GM_NARRATE_ACTIONS:
             recent = await mgr.get_recent_turns(session_state.session_id)
             # 전투 시 적 상태(이름/HP)를 GM 컨텍스트에 — 약점/위기 묘사 정합.
@@ -422,6 +426,12 @@ async def _run_action_stream(
                 if hostile_state
                 else (npc_name or "특이사항 없음")
             )
+            # ★ 서빙 3단계 — 하이브리드 라우팅: pivotal(성년식 단계·전투·적대
+            #   조우)은 27B 품질, 순수 단순 행동은 9B(빠름). '애매하면 27B' 안전.
+            pivotal = is_pivotal_gm(
+                action_type, session_state.story_phase, bool(hostile_state)
+            )
+            gm_model = gm_model_label(pivotal)
             pieces: list[str] = []
             async for delta in stream_gm_narrative(
                 req.user_input,
@@ -431,6 +441,7 @@ async def _run_action_stream(
                 recent,
                 "",
                 PHASE_LABEL.get(session_state.story_phase, ""),
+                pivotal=pivotal,
             ):
                 pieces.append(delta)
                 yield ("token", delta)
@@ -524,6 +535,7 @@ async def _run_action_stream(
                     _session_summary(session_state) if session_state else None
                 ),
                 suggested_actions=_suggest_actions(session_state),
+                gm_model=gm_model,
             ),
         )
         return

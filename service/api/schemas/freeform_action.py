@@ -102,3 +102,6 @@ class FreeformActionResponse(BaseModel):
     session_state: SessionSummary | None = Field(default=None)
     # ★ 추천 행동 — frontend 추천 버튼(3항목). 현재 상황(전투/마을/던전) 정합.
     suggested_actions: list[str] = Field(default_factory=list, max_length=5)
+    # ★ 서빙 3단계 — GM 라우팅 관측: "9b"(단순 서사) / "27b"(pivotal 품질) / None.
+    #   하이브리드 라우팅 투명성 + 결정적 E2E 검증용(영속 X — 응답 전용).
+    gm_model: str | None = Field(default=None)
