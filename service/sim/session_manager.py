@@ -71,6 +71,9 @@ class SessionState:
     race: str = "barbarian"
     # ★ phase-e-2 — 시나리오 모드 (★ default bjorn)
     scenario_mode: str = "bjorn"
+    # ★ 게임 엔진 2단계 — 스토리 진전(07 StoryState): 단계 + 플래그
+    story_phase: str = "declaration"
+    story_flags: dict[str, bool] = field(default_factory=dict)
 
 
 def _new_id() -> str:
@@ -111,6 +114,8 @@ def _to_row(s: SessionState) -> SessionRow:
         time_elapsed=s.time_elapsed,
         race=s.race,
         scenario_mode=s.scenario_mode,
+        story_phase=s.story_phase,
+        story_flags=dict(s.story_flags),
     )
 
 
@@ -145,6 +150,8 @@ def _from_row(r: SessionRow) -> SessionState:
         time_elapsed=r.time_elapsed,
         race=r.race,
         scenario_mode=r.scenario_mode,
+        story_phase=r.story_phase,
+        story_flags=dict(r.story_flags),
     )
 
 

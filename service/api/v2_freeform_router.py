@@ -28,6 +28,11 @@ from service.sim.gm_narrator import GM_NARRATE_ACTIONS, compose_gm_narrative
 from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
+from service.sim.story_progression import (
+    PHASE_LABEL,
+    advance_story,
+    phase_suggestions,
+)
 from service.sim.types import PlayerActionType
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
@@ -190,9 +195,16 @@ def _suggest_actions(state: SessionState | None) -> list[str]:
 
     hostiles = [e for e in state.encounters if e.get("hostile")]
     npcs = [e for e in state.encounters if e.get("hostile") is False]
+    npc_name = str(npcs[0].get("name") or "상대") if npcs else None
 
+    # ★ 적대 조우는 전투 우선 (단계 무관)
     if hostiles:
         return ["적을 공격한다", "대화를 시도한다", "뒤로 물러선다"]
+
+    # ★ 스토리 단계 기반 동적 추천 (단계 진전 유도 — 정적 반복 해소)
+    phase_sugg = phase_suggestions(state.story_phase, npc_name)
+    if phase_sugg is not None:
+        return phase_sugg
     if npcs:
         npc_name = str(npcs[0].get("name") or "상대")
         tail = "무기를 점검한다" if state.floor_number < 1 else "더 깊이 나아간다"
@@ -261,16 +273,17 @@ async def freeform_action_endpoint(
             #   확정하고, GM이 누적 히스토리 맥락으로 narrative를 주도한다.
             #   같은 행동도 맥락 따라 다른 전개 → intent template 반복 해소.
             #   GM 실패 시 handler template narrative로 fallback.
+            npc_name = next(
+                (
+                    str(e.get("name"))
+                    for e in ctx.encounters
+                    if e.get("hostile") is False
+                ),
+                None,
+            )
             if session_state is not None and action_type in GM_NARRATE_ACTIONS:
                 recent = await mgr.get_recent_turns(session_state.session_id)
-                surroundings = (
-                    ", ".join(
-                        str(e.get("name"))
-                        for e in ctx.encounters
-                        if e.get("hostile") is False
-                    )
-                    or "특이사항 없음"
-                )
+                surroundings = npc_name or "특이사항 없음"
                 gm_text = await asyncio.to_thread(
                     compose_gm_narrative,
                     req.user_input,
@@ -278,9 +291,23 @@ async def freeform_action_endpoint(
                     ctx.location,
                     surroundings,
                     recent,
+                    "",
+                    PHASE_LABEL.get(session_state.story_phase, ""),
                 )
                 if gm_text:
                     result.narrative = gm_text
+
+            # ★ 스토리 전진 (Rule Engine — 07 정합): 행동 결과로 단계/플래그 전진.
+            #   GM은 읽기만, 여기서만 세계 상태를 바꾼다.
+            if session_state is not None:
+                new_phase, new_flags = advance_story(
+                    session_state.story_phase,
+                    session_state.story_flags,
+                    action_type,
+                    npc_name,
+                )
+                session_state.story_phase = new_phase
+                session_state.story_flags = new_flags
 
             resolved_path: Literal["intent", "fallback"] = "intent"
             final_narrative = result.narrative

@@ -70,6 +70,9 @@ class SessionStateResponse(BaseModel):
     race: str
     # 시나리오 모드 (★ phase-e-2)
     scenario_mode: str
+    # ★ 게임 엔진 2단계 — 스토리 진전(단계 + 플래그). frontend 단계 표시/검증용.
+    story_phase: str
+    story_flags: dict[str, bool]
 
 
 def _to_start_resp(s: SessionState) -> SessionStartResponse:
@@ -114,6 +117,8 @@ def _to_state_resp(s: SessionState) -> SessionStateResponse:
         time_elapsed=s.time_elapsed,
         race=s.race,
         scenario_mode=s.scenario_mode,
+        story_phase=s.story_phase,
+        story_flags=dict(s.story_flags),
     )
 
 

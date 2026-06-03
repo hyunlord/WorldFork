@@ -51,10 +51,10 @@ _GM_SYSTEM = (
 
 _GM_USER = (
     "## 최근 흐름\n{history}\n\n"
-    "## 현재\n위치: {location}\n주변: {surroundings}\n\n"
+    "## 현재\n단계: {phase}\n위치: {location}\n주변: {surroundings}\n\n"
     "## 확정 결과 (이미 적용됨 — 서술만)\n{fact}\n\n"
     "## 플레이어 행동\n{action}\n\n"
-    "위 행동의 결과를 누적 맥락에 맞게 진전시켜 묘사하라."
+    "위 행동의 결과를 현재 단계와 누적 맥락에 맞게 진전시켜 묘사하라."
 )
 
 _GM_SCHEMA: dict[str, Any] = {
@@ -73,11 +73,13 @@ def compose_gm_narrative(
     surroundings: str,
     recent_turns: list[tuple[str, str]],
     canon: str = "",
+    story_phase: str = "",
 ) -> str:
     """누적 맥락 GM narrative 생성 (sync). 실패 시 빈 문자열 반환.
 
     recent_turns — (user_input, narrative) 시간순. 최근 8턴만 사용.
     mechanical_fact — handler가 확정한 결과(수치/사실). GM은 이를 서술만 한다.
+    story_phase — 현재 스토리 단계 라벨(읽기 전용 맥락, State Contract).
     """
     try:
         client = get_qwen36_27b_q3()
@@ -90,6 +92,7 @@ def compose_gm_narrative(
         system = _GM_SYSTEM.format(canon=canon or "(추가 세계 정보 없음)")
         user = _GM_USER.format(
             history=history,
+            phase=story_phase or "(진행 중)",
             location=location or "알 수 없는 곳",
             surroundings=surroundings or "특이사항 없음",
             fact=mechanical_fact or "(특별한 변화 없음)",

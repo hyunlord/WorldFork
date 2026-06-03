@@ -49,7 +49,7 @@ CHECKS: tuple[Check, ...] = (
     Check("scenario_origin_naming", 1, False, "게임 화면 원작 명칭 (투르윈 노출 X)"),
     Check("session_scenario_reflected", 1, False, "생성 시나리오 화면 반영 (바바리안 HP 120)"),
     Check("no_starting_party", 2, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
-    Check("chat_freeform_works", 4, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
+    Check("chat_freeform_works", 3, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
     Check("weapon_choice_reflected", 1, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
@@ -63,12 +63,14 @@ CHECKS: tuple[Check, ...] = (
     Check("suggested_actions_shown", 1, False, "추천 행동 버튼 노출 (placeholder만 X)"),
     Check("dialogue_npc_works", 1, False, "NPC 대화 작동 (부족장 → '대화할 상대 없다' 부재)"),
     # ★ 히스토리 누적 + 주변 엔티티 (manual play 4)
-    Check("history_accumulates", 2, False, "narrative 히스토리 누적 (시작+행동 둘 다 잔존)"),
+    Check("history_accumulates", 1, False, "narrative 히스토리 누적 (시작+행동 둘 다 잔존)"),
     Check("surroundings_shown", 2, False, "주변 엔티티 패널 (부족장 NPC 표시)"),
     # ★ 인물 초상 연결 (하이브리드 1단계)
     Check("sheet_portrait_shown", 1, False, "캐릭터 시트 전신 일러스트 (ui_character)"),
-    # ★ 신규 — GM 루프 (게임 진행 엔진 1단계): 같은 행동 → 다른 응답
+    # ★ GM 루프 (게임 진행 엔진 1단계): 같은 행동 → 다른 응답
     Check("meaningful_progression", 3, False, "같은 행동 2회 → 다른 narrative (GM 맥락)"),
+    # ★ 신규 — 상태 진전 (2단계): 행동이 스토리 단계를 전진시킴
+    Check("story_phase_advances", 2, False, "부족장 대화 → 단계 전진(추천 무기 선택으로 변화)"),
 )
 MAX_SCORE = sum(c.points for c in CHECKS)
 
@@ -278,11 +280,19 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     results["surroundings_shown"] = "부족장" in surr_text
                 else:
                     results["surroundings_shown"] = False
+                # ★ 상태 진전 — 부족장 대화 후 추천이 무기 선택 단계로 전진.
+                #   declaration("말을 건다")→weapon_choice("무기를 고른다") 추천 변화.
+                sugg = page.locator('[data-testid="suggested-action"]')
+                sugg_text = ""
+                for i in range(await sugg.count()):
+                    sugg_text += await sugg.nth(i).inner_text()
+                results["story_phase_advances"] = "무기" in sugg_text
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
                 results["meaningful_progression"] = False
                 results["history_accumulates"] = False
+                results["story_phase_advances"] = False
                 results["surroundings_shown"] = False
         finally:
             await browser.close()

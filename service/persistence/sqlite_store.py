@@ -52,6 +52,9 @@ class SessionRow:
     race: str = "barbarian"
     # ★ phase-e-2 — 시나리오 모드
     scenario_mode: str = "bjorn"
+    # ★ 게임 엔진 2단계 — 스토리 진전(07 StoryState): 단계 + 플래그
+    story_phase: str = "declaration"
+    story_flags: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass
@@ -171,6 +174,14 @@ class SqliteStore:
                 "player_sensitivities",
                 "ALTER TABLE sessions ADD COLUMN player_sensitivities TEXT NOT NULL DEFAULT '{}'",
             ),
+            (
+                "story_phase",
+                "ALTER TABLE sessions ADD COLUMN story_phase TEXT NOT NULL DEFAULT 'declaration'",
+            ),
+            (
+                "story_flags",
+                "ALTER TABLE sessions ADD COLUMN story_flags TEXT NOT NULL DEFAULT '{}'",
+            ),
         ]
         with self._connect() as conn:
             cur = conn.execute("PRAGMA table_info(sessions)")
@@ -189,8 +200,10 @@ class SqliteStore:
              last_spawn_turn, player_level, player_xp, max_essences, soul_power,
              absorbed_essences, defeated_monster_types, floor_number, hours_in_dungeon,
              stone_balance, rift_id, rift_sub_area, rift_is_variant, portal_first_opened,
-             time_elapsed, race, scenario_mode, player_sensitivities)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             time_elapsed, race, scenario_mode, player_sensitivities,
+             story_phase, story_flags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             last_active             = excluded.last_active,
             current_hp              = excluded.current_hp,
@@ -217,7 +230,9 @@ class SqliteStore:
             time_elapsed            = excluded.time_elapsed,
             race                    = excluded.race,
             scenario_mode           = excluded.scenario_mode,
-            player_sensitivities    = excluded.player_sensitivities
+            player_sensitivities    = excluded.player_sensitivities,
+            story_phase             = excluded.story_phase,
+            story_flags             = excluded.story_flags
         """
         with self._connect() as conn:
             conn.execute(
@@ -251,6 +266,8 @@ class SqliteStore:
                     row.race,
                     row.scenario_mode,
                     json.dumps(row.player_sensitivities, ensure_ascii=False),
+                    row.story_phase,
+                    json.dumps(row.story_flags, ensure_ascii=False),
                 ),
             )
 
@@ -276,6 +293,8 @@ class SqliteStore:
         defeated_parsed = json.loads(defeated_raw)
         sens_raw = row["player_sensitivities"] if "player_sensitivities" in keys else "{}"
         sens_parsed = json.loads(sens_raw)
+        flags_raw = row["story_flags"] if "story_flags" in keys else "{}"
+        flags_parsed = json.loads(flags_raw) if flags_raw else {}
 
         def _int_col(name: str, default: int) -> int:
             val = row[name] if name in keys else default
@@ -329,6 +348,16 @@ class SqliteStore:
                 str(row["scenario_mode"])
                 if "scenario_mode" in keys and row["scenario_mode"]
                 else "bjorn"
+            ),
+            story_phase=(
+                str(row["story_phase"])
+                if "story_phase" in keys and row["story_phase"]
+                else "declaration"
+            ),
+            story_flags=(
+                {str(k): bool(v) for k, v in flags_parsed.items()}
+                if isinstance(flags_parsed, dict)
+                else {}
             ),
         )
 

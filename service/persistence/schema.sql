@@ -55,7 +55,11 @@ CREATE TABLE IF NOT EXISTS sessions (
     race                TEXT    NOT NULL DEFAULT 'barbarian',
 
     -- 시나리오 모드 (phase-e-2, ★ default bjorn)
-    scenario_mode       TEXT    NOT NULL DEFAULT 'bjorn'
+    scenario_mode       TEXT    NOT NULL DEFAULT 'bjorn',
+
+    -- 스토리 진전 (게임 엔진 2단계, ★ 단계 + 플래그 JSON)
+    story_phase         TEXT    NOT NULL DEFAULT 'declaration',
+    story_flags         TEXT    NOT NULL DEFAULT '{}'
 );
 
 
