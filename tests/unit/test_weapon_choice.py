@@ -91,3 +91,24 @@ def test_create_session_default_shield(tmp_path: Path) -> None:
     mgr = _make_manager(tmp_path)
     state = asyncio.run(mgr.create_session(scenario_mode=ScenarioMode.BJORN))
     assert "방패" in state.inventory  # scenario.starting_inventory 유지
+
+
+def test_match_weapon_in_text() -> None:
+    """성인식 무기 선택 — 입력에서 무기명 추출 (게임 엔진 3단계)."""
+    from service.sim.weapon_choice import match_weapon_in_text
+
+    assert match_weapon_in_text("양손 도끼를 고른다") == "양손 도끼"
+    assert match_weapon_in_text("한손 검을 손에 쥔다") == "한손 검"
+    # 긴 이름 우선 — '양손 대검'이 '양손 도끼'와 겹치지 않음
+    assert match_weapon_in_text("양손 대검을 고른다") == "양손 대검"
+    assert match_weapon_in_text("주변을 둘러본다") is None
+
+
+def test_make_weapon_equipment_dict() -> None:
+    """무기명 → equipment dict (element + attack_bonus, 35a0ef6 정합)."""
+    from service.sim.weapon_choice import make_weapon_equipment
+
+    eq = make_weapon_equipment("양손 도끼")
+    assert eq["name"] == "양손 도끼"
+    assert eq["attack_bonus"] == 6
+    assert "element" in eq  # 무기 element (물리는 "")

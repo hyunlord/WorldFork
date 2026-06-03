@@ -6,14 +6,12 @@ import { useRouter } from "next/navigation";
 import { RaceDetailPanel } from "@/components/character/RaceDetailPanel";
 import { RaceSelector } from "@/components/character/RaceSelector";
 import { ScenarioSelector } from "@/components/character/ScenarioSelector";
-import { WeaponSelector } from "@/components/character/WeaponSelector";
 import { createCharacter } from "@/lib/api/character";
 import {
   clearStoredStartNarrative,
   setStoredSessionId,
   setStoredStartNarrative,
 } from "@/lib/session";
-import { DEFAULT_WEAPON } from "@/lib/types/character";
 import type { Race, ScenarioMode } from "@/lib/types/character";
 import { unmaskIp } from "@/lib/api/v2";
 
@@ -21,7 +19,6 @@ export default function CharacterPage() {
   const router = useRouter();
   const [scenario, setScenario] = useState<ScenarioMode>("bjorn");
   const [race, setRace] = useState<Race | null>("barbarian");
-  const [weapon, setWeapon] = useState<string>(DEFAULT_WEAPON);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,10 +29,10 @@ export default function CharacterPage() {
     setLoading(true);
     setError(null);
     try {
+      // ★ 무기는 성인식(weapon_choice 단계)에서 게임 내 선택 — 미리 선택 X (ep_0002)
       const resp = await createCharacter({
         scenario_mode: scenario,
         race: raceDisabled ? undefined : effectiveRace,
-        weapon: raceDisabled ? weapon : undefined,
       });
       // ★ 새 세션으로 교체 — 옛 session_id 잔재(던전 상태) 덮어쓰기
       setStoredSessionId(resp.session_id);
@@ -67,7 +64,6 @@ export default function CharacterPage() {
         <ScenarioSelector value={scenario} onChange={setScenario} />
         <RaceSelector value={effectiveRace} onChange={setRace} disabled={raceDisabled} />
         <RaceDetailPanel race={effectiveRace} />
-        {raceDisabled && <WeaponSelector value={weapon} onChange={setWeapon} />}
 
         {error != null && (
           <div className="rounded border border-crimson/40 bg-crimson-dim/20 p-4 text-sm text-crimson">

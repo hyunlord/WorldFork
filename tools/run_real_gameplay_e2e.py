@@ -122,16 +122,8 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             await page.set_viewport_size({"width": 1280, "height": 720})
             await page.wait_for_timeout(200)
             # ★ 성인식 무기 선택 (★ ep_0002) — 양손 도끼 (방패 default 아님 → 반영 검증)
-            try:
-                weapon_btn = await page.wait_for_selector(
-                    '[data-testid="weapon-option-양손 도끼"]',
-                    timeout=8000,
-                    state="visible",
-                )
-                if weapon_btn is not None:
-                    await weapon_btn.click()
-            except Exception:
-                pass  # WeaponSelector 미표시 시 default 방패 진행
+            # ★ 무기는 character에서 미리 선택하지 않는다 (게임 엔진 3단계 —
+            #   성인식 weapon_choice 단계에서 게임 내 선택, ep_0002 고증).
             btn = await page.wait_for_selector(
                 "button:has-text('미궁으로')", timeout=10000, state="visible"
             )
@@ -170,9 +162,8 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
             results["background_rendered"] = (
                 bg_style is not None and "ui_main_bg" in bg_style
             )
-            # ★ 성인식 무기 선택 반영 (★ ep_0002) — 선택 무기(양손 도끼)가 장착/소지 표시.
-            #   방패 default 아닌 무기 선택 → 어댑터 equipment + inventory 반영 검증.
-            results["weapon_choice_reflected"] = "양손 도끼" in body
+            # ★ weapon_choice_reflected는 게임 내 무기 선택(부족장 대화→weapon_choice→
+            #   선택) 흐름 뒤 chat 블록에서 측정 — character 미리 선택 폐지(ep_0002).
             # ★ 진행 시스템 — 어댑터 연결 (영혼력/LV, 0 고정 해소).
             #   어댑터 누락 시 soul_power undefined → Number(?? 0) → "0".
             #   연결 시 바바리안 soul_power_base = 10. level은 누락이어도
@@ -280,18 +271,30 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     results["surroundings_shown"] = "부족장" in surr_text
                 else:
                     results["surroundings_shown"] = False
-                # ★ 상태 진전 — 부족장 대화 후 추천이 무기 선택 단계로 전진.
-                #   declaration("말을 건다")→weapon_choice("무기를 고른다") 추천 변화.
+                # ★ 상태 진전 — 부족장 대화 후 추천이 weapon_choice 단계로 전진.
+                #   추천 버튼이 곧 무기 선택지(도끼/검/창)로 바뀜.
                 sugg = page.locator('[data-testid="suggested-action"]')
                 sugg_text = ""
                 for i in range(await sugg.count()):
                     sugg_text += await sugg.nth(i).inner_text()
-                results["story_phase_advances"] = "무기" in sugg_text
+                results["story_phase_advances"] = any(
+                    w in sugg_text for w in ("도끼", "검", "창")
+                )
+                # ★ 성인식 무기 선택 (게임 내 — ep_0002) → 장착 + departure 전진.
+                #   character 미리 선택 폐지, weapon_choice 단계에서 선택.
+                narr_weapon = await _turn("양손 도끼를 고른다")
+                await page.wait_for_timeout(1200)
+                final_body = await page.locator("body").inner_text()
+                results["weapon_choice_reflected"] = (
+                    "양손 도끼" in narr_weapon or "양손 도끼" in final_body
+                )
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
                 results["meaningful_progression"] = False
                 results["history_accumulates"] = False
+                results["story_phase_advances"] = False
+                results["weapon_choice_reflected"] = False
                 results["story_phase_advances"] = False
                 results["surroundings_shown"] = False
         finally:

@@ -12,16 +12,16 @@ from __future__ import annotations
 
 from service.sim.types import PlayerActionType
 
-# 성인식 단계 (★ ep_0002): 부족장 선언 → 무기 선택 → 던전
-#   departure(무기 들고 떠날 채비)는 무기 선택 구현(다음 단계)과 함께 추가 — 지금은
-#   미사용 path를 두지 않는다(YAGNI).
+# 성인식 단계 (★ ep_0002): 부족장 선언 → 무기 선택 → 성지 떠남 → 던전
 PHASE_DECLARATION = "declaration"  # 부족장이 성년 선언, 무기 고르라 함
 PHASE_WEAPON_CHOICE = "weapon_choice"  # 무기 선택 단계
+PHASE_DEPARTURE = "departure"  # 무기 들고 성지 떠날 채비
 PHASE_DUNGEON = "dungeon"  # 미궁 진입
 
 PHASE_ORDER = (
     PHASE_DECLARATION,
     PHASE_WEAPON_CHOICE,
+    PHASE_DEPARTURE,
     PHASE_DUNGEON,
 )
 
@@ -38,6 +38,7 @@ _DUNGEON_ENTRY = frozenset(
 PHASE_LABEL: dict[str, str] = {
     PHASE_DECLARATION: "성인식 — 부족장의 성년 선언",
     PHASE_WEAPON_CHOICE: "성인식 — 무기 선택",
+    PHASE_DEPARTURE: "성인식 — 성지를 떠날 채비",
     PHASE_DUNGEON: "미궁 탐험",
 }
 
@@ -47,10 +48,12 @@ def advance_story(
     flags: dict[str, bool],
     action_type: PlayerActionType,
     npc_name: str | None = None,
+    chose_weapon: bool = False,
 ) -> tuple[str, dict[str, bool]]:
     """행동 결과 → (다음 단계, 갱신 플래그).
 
     - 부족장과 대화 → flags['chief_talked'] → declaration에서 weapon_choice로
+    - 무기 선택(chose_weapon) → flags['weapon_chosen'] → departure로
     - 던전 진입 계열 → dungeon으로 점프
     플래그는 한 방향으로만 진행(되돌리지 않음).
     """
@@ -62,10 +65,14 @@ def advance_story(
         and ("부족장" in npc_name or "촌장" in npc_name or "장로" in npc_name)
     ):
         new_flags["chief_talked"] = True
+    if chose_weapon:
+        new_flags["weapon_chosen"] = True
 
     new_phase = phase
     if action_type in _DUNGEON_ENTRY:
         new_phase = PHASE_DUNGEON
+    elif chose_weapon and phase == PHASE_WEAPON_CHOICE:
+        new_phase = PHASE_DEPARTURE
     elif phase == PHASE_DECLARATION and new_flags.get("chief_talked"):
         new_phase = PHASE_WEAPON_CHOICE
 
@@ -81,5 +88,8 @@ def phase_suggestions(phase: str, npc_name: str | None) -> list[str] | None:
         talk = f"{npc_name}에게 말을 건다" if npc_name else "부족장에게 말을 건다"
         return [talk, "주변을 둘러본다", "성년식을 지켜본다"]
     if phase == PHASE_WEAPON_CHOICE:
-        return ["무기를 고른다", "부족장에게 무기를 묻는다", "미궁으로 향한다"]
+        # 추천 버튼이 곧 무기 선택지 — 대표 3종(별도 UI 없이 선택)
+        return ["양손 도끼를 고른다", "한손 검을 고른다", "창을 고른다"]
+    if phase == PHASE_DEPARTURE:
+        return ["미궁으로 향한다", "마지막으로 성지를 둘러본다", "부족장에게 인사한다"]
     return None

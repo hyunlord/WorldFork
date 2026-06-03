@@ -19,7 +19,7 @@ from service.api.schemas.freeform_action import (
     StateDelta,
 )
 from service.canon.context import get_canon_facts, get_spawn_table
-from service.sim.action_context import ActionContext
+from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
 from service.sim.equipment import equipment_set_from_dict
@@ -30,10 +30,12 @@ from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
 from service.sim.story_progression import (
     PHASE_LABEL,
+    PHASE_WEAPON_CHOICE,
     advance_story,
     phase_suggestions,
 )
 from service.sim.types import PlayerActionType
+from service.sim.weapon_choice import make_weapon_equipment, match_weapon_in_text
 
 router = APIRouter(prefix="/api/v2", tags=["tier2-freeform"])
 
@@ -214,6 +216,68 @@ def _suggest_actions(state: SessionState | None) -> list[str]:
     return ["주변을 살핀다", "더 깊이 나아간다", "잠시 휴식한다"]
 
 
+async def _handle_weapon_choice(
+    req: FreeformActionRequest,
+    session_state: SessionState,
+    chosen: str,
+    ctx: ActionContext,
+) -> FreeformActionResponse:
+    """성인식 무기 선택 — 장착(element) + chosen_weapon flag + departure 전진.
+
+    Rule Engine이 하드 상태(장비/인벤/단계)를 확정하고, GM이 선택 장면을 서술한다.
+    """
+    mgr = get_session_manager()
+    # inventory 반영 → turn 기록(히스토리) 후 장비/단계 확정.
+    add = [chosen] if chosen not in session_state.inventory else []
+    fact = f"성년의 증표로 {chosen}을(를) 골라 손에 쥐었다"
+
+    recent = await mgr.get_recent_turns(session_state.session_id)
+    npc = next(
+        (str(e.get("name")) for e in ctx.encounters if e.get("hostile") is False),
+        "부족장",
+    )
+    new_phase, new_flags = advance_story(
+        session_state.story_phase,
+        session_state.story_flags,
+        PlayerActionType.EQUIP,
+        npc,
+        chose_weapon=True,
+    )
+    gm_text = await asyncio.to_thread(
+        compose_gm_narrative,
+        req.user_input,
+        fact,
+        ctx.location,
+        npc,
+        recent,
+        "",
+        PHASE_LABEL.get(new_phase, ""),
+    )
+    narrative = gm_text or f"나는 {chosen}을(를) 손에 쥐었다. 성년의 증표다."
+
+    result = ActionResult(narrative=narrative, inventory_add=add, time_advance=1)
+    session_state = await mgr.apply_result(
+        session_state.session_id, result, user_input=req.user_input,
+        resolved_path="intent",
+    )
+    # 장비/단계 확정 (apply_result 이후 — 한 번 더 저장)
+    session_state.equipment["weapon"] = make_weapon_equipment(chosen)
+    session_state.story_phase = new_phase
+    session_state.story_flags = new_flags
+    await mgr.save_state(session_state)
+
+    return FreeformActionResponse(
+        resolved_path="intent",
+        matched_action="equip",
+        confidence=1.0,
+        narrative=narrative,
+        state_delta=StateDelta(inventory_add=add, time_advance=1),
+        session_id=session_state.session_id,
+        session_state=_session_summary(session_state),
+        suggested_actions=_suggest_actions(session_state),
+    )
+
+
 @router.post("/freeform_action", response_model=FreeformActionResponse)
 async def freeform_action_endpoint(
     req: FreeformActionRequest,
@@ -251,6 +315,17 @@ async def freeform_action_endpoint(
 
     ctx = _build_context(req, session_state)
     ctx.extracted_entities = intent.entities
+
+    # ★ 성인식 무기 선택 (게임 엔진 3단계 — ep_0002 고증): weapon_choice 단계에서
+    #   플레이어가 무기를 고르면 장착(element 정합) + departure 전진. intent 분류와
+    #   무관하게 단계+무기명으로 직접 처리(부족장 '골라라' → 게임 내 선택).
+    if (
+        session_state is not None
+        and session_state.story_phase == PHASE_WEAPON_CHOICE
+    ):
+        chosen = match_weapon_in_text(req.user_input)
+        if chosen is not None:
+            return await _handle_weapon_choice(req, session_state, chosen, ctx)
 
     if (
         intent.matched_action is not None
