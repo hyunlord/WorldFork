@@ -6,66 +6,16 @@
  */
 
 import type {
-  DungeonViewData,
   EncounterPanelData,
   EssenceDetailData,
   InventoryPanelData,
   NarrativePanelData,
   PartyPanelData,
-  Tile,
-  TileType,
   TownViewData,
 } from "@/components/game/types";
 
-const ROW = (s: string, mapping: Record<string, TileType>): Tile[] =>
-  Array.from(s).map((ch) => ({
-    ch,
-    type: mapping[ch] ?? (ch === " " ? "blank" : "floor"),
-  }));
-
-const TILE_MAP: Record<string, TileType> = {
-  "▓": "wall",
-  "·": "floor",
-  "@": "player",
-  g: "enemy",
-  b: "enemy",
-  H: "npc",
-  E: "npc",
-  "!": "item",
-  "?": "item",
-  ">": "stair",
-  "<": "stair",
-  "|": "door",
-  " ": "blank",
-};
-
-export const DEMO_DUNGEON: DungeonViewData = {
-  turn: 142,
-  rows: [
-    ROW("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", TILE_MAP),
-    ROW("▓·················▓", TILE_MAP),
-    ROW("▓·!········g·····▓", TILE_MAP),
-    ROW("▓·················▓", TILE_MAP),
-    ROW("▓···@··H··········▓", TILE_MAP),
-    ROW("▓·················▓", TILE_MAP),
-    ROW("▓···········?·····▓", TILE_MAP),
-    ROW("▓·················▓", TILE_MAP),
-    ROW("▓▓▓▓|▓▓▓▓▓▓▓▓▓▓>▓▓", TILE_MAP),
-    ROW("    ····▓", TILE_MAP),
-    ROW("    ·b··▓", TILE_MAP),
-    ROW("    ····▓", TILE_MAP),
-    ROW("    ▓▓▓▓▓", TILE_MAP),
-  ],
-  legend: [
-    { ch: "@", type: "player", label: "본인" },
-    { ch: "g", type: "enemy", label: "고블린" },
-    { ch: "b", type: "enemy", label: "약탈자" },
-    { ch: "H", type: "npc", label: "한스" },
-    { ch: "!", type: "item", label: "물약" },
-    { ch: "?", type: "item", label: "두루마리" },
-    { ch: ">", type: "stair", label: "계단" },
-  ],
-};
+// ★ DEMO_DUNGEON(mock 던전 격자)은 제거 — DungeonView는 실 게임 state에서 파생한다
+//   (lib/game/dungeonView.ts). mock 던전이 실 플레이를 위장하던 DEMO fallback 우려 차단.
 
 export const DEMO_NARRATIVE: NarrativePanelData = {
   turn: 142,

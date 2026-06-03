@@ -62,7 +62,10 @@ export function DungeonView({ data }: Props) {
 
       <div className="absolute right-3.5 top-3.5 z-10 border border-border-rune bg-[rgba(8,8,16,0.92)] px-3.5 py-1.5 font-mono text-[0.7rem] tracking-[0.15em] text-text-mid backdrop-blur-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
         TURN{" "}
-        <span className="font-bold text-amber [text-shadow:0_0_6px_var(--torch-glow)]">
+        <span
+          data-testid="dungeon-turn"
+          className="font-bold text-amber [text-shadow:0_0_6px_var(--torch-glow)]"
+        >
           {data.turn}
         </span>
       </div>

@@ -36,7 +36,8 @@ import type {
   PartyPanelData,
   StatusBarData,
 } from "@/components/game/types";
-import { DEMO_DUNGEON, DEMO_ESSENCE } from "@/lib/game/mockData";
+import { DEMO_ESSENCE } from "@/lib/game/mockData";
+import { buildDungeonView } from "@/lib/game/dungeonView";
 import { useFreeformAction } from "@/lib/hooks/useFreeformAction";
 import { useGameState } from "@/lib/hooks/useGameState";
 import { useKeyboard } from "@/lib/hooks/useKeyboard";
@@ -406,6 +407,13 @@ export default function GamePage() {
     [data],
   );
 
+  // ★ DungeonView 실 state 연결 — DEMO_DUNGEON(mock) 제거. 실 본인 + 실 encounters를
+  //   파생(가짜 엔티티 X). state 없으면 null → mock 대신 명시적 로딩(DEMO fallback 차단).
+  const dungeonView = useMemo(
+    () => buildDungeonView(data?.state ?? null, turnCount),
+    [data, turnCount],
+  );
+
   // ★ narrative 히스토리 — 흐름 단절 해소 (현재 turn만 X → 과거 누적).
   //   session 정합: global recent_actions(옛 구조) 대신 freeform 응답을 누적.
   const [history, setHistory] = useState<
@@ -533,8 +541,18 @@ export default function GamePage() {
             : "grid grid-cols-[1.4fr_1fr] overflow-hidden pr-[270px]"
         }
       >
-        {/* ★ 던전맵은 floor 1+ 에서만 (성인식 마을 floor 0 미표시 — 비주얼 후속) */}
-        {!inVillage && <DungeonView data={DEMO_DUNGEON} />}
+        {/* ★ 던전맵은 floor 1+ 에서만. 실 state 파생(mock X) — 없으면 명시적 로딩. */}
+        {!inVillage &&
+          (dungeonView ? (
+            <DungeonView data={dungeonView} />
+          ) : (
+            <div
+              data-testid="dungeon-loading"
+              className="flex items-center justify-center border-r border-border-rune bg-bg-canvas/55 font-mono text-sm text-text-mute"
+            >
+              던전 상태를 불러오는 중…
+            </div>
+          ))}
 
         <div
           className={

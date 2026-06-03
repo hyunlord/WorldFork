@@ -52,7 +52,9 @@ CHECKS: tuple[Check, ...] = (
     Check("no_starting_party", 1, False, "시작 파티원 0 (실렌·한스 X — 성인식 마을)"),
     Check("chat_freeform_works", 3, False, "채팅 → narrative 화면 렌더 + IP 미노출 (라스카니아 X)"),
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
-    Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    Check("progression_displayed", 1, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
+    # ★ DungeonView 실 state — DEMO_DUNGEON(mock) 제거, 실 본인/적 파생(위장 X)
+    Check("dungeon_real_state", 1, False, "DungeonView 실 state (DEMO mock 제거 — 본인 타일)"),
     Check("weapon_choice_reflected", 1, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
     Check("menu_map_works", 1, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     # ★ UI 결함 — 파티창(고정 우상단)이 narrative 가리던 것 해소(거터 예약)
@@ -394,10 +396,26 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 #   img를 렌더(던전 floor 1+에서 표시). assets/pixel img 존재 = 픽셀 게임
                 #   화면(ASCII 해소, 결정적). 진입 후 grid 렌더 대기.
                 await page.wait_for_timeout(500)
-                pix_imgs = page.locator(
-                    '[data-testid="dungeon-grid"] img[src*="/assets/pixel/"]'
-                )
+                grid = page.locator('[data-testid="dungeon-grid"]')
+                pix_imgs = grid.locator('img[src*="/assets/pixel/"]')
                 results["dungeon_pixel_tiles"] = await pix_imgs.count() >= 1
+                # ★ DungeonView 실 state — DEMO_DUNGEON(mock) 제거 검증. 실 본인 타일이
+                #   파생되고(adapter), DEMO 고정 턴(142)이 아니면 실 state 반영(결정적).
+                #   mock 격자/가짜 엔티티 위장(과거 DEMO fallback) 부재.
+                has_player_tile = (
+                    await grid.locator('[data-tile="player"]').count() >= 1
+                )
+                turn_badge = page.locator('[data-testid="dungeon-turn"]')
+                turn_txt = (
+                    (await turn_badge.first.inner_text()).strip()
+                    if await turn_badge.count() > 0
+                    else ""
+                )
+                results["dungeon_real_state"] = (
+                    await grid.count() >= 1
+                    and has_player_tile
+                    and turn_txt != "142"
+                )
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
@@ -413,6 +431,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["hybrid_routing"] = False
                 results["party_no_overlap"] = False
                 results["dungeon_pixel_tiles"] = False
+                results["dungeon_real_state"] = False
         finally:
             await browser.close()
 
