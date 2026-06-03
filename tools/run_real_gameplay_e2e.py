@@ -54,7 +54,9 @@ CHECKS: tuple[Check, ...] = (
     Check("background_rendered", 1, False, "배경 이미지 렌더링 (ComfyUI PNG, ASCII 단독 X)"),
     Check("progression_displayed", 2, False, "진행 표시 (영혼력 10/LV 1 — 어댑터 연결, 0 고정 X)"),
     Check("weapon_choice_reflected", 1, False, "성인식 무기 선택 → 장착 반영 (방패 고정 X)"),
-    Check("menu_map_works", 2, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
+    Check("menu_map_works", 1, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
+    # ★ UI 결함 — 파티창(고정 우상단)이 narrative 가리던 것 해소(거터 예약)
+    Check("party_no_overlap", 1, False, "파티창 ↔ narrative 비겹침 (우측 텍스트 안 가림)"),
     Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
@@ -299,6 +301,24 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 # ★ SSE 토큰 점진 — GM narrative가 여러 token 이벤트로 흘렀는가(단일 blob X).
                 #   3+ token = 점진 노출 작동(체감 ~0.2초 시작). 단일/0 = 스트리밍 단절.
                 results["streaming_progressive"] = stream_info["max_tokens"] >= 3
+                # ★ UI — 파티창(고정 우상단)이 narrative 우측을 가리던 결함 해소 검증.
+                #   두 패널 bounding box가 가로로 안 겹치면 통과(narrative 우측 끝 ≤
+                #   party 좌측 시작). 거터 예약으로 텍스트가 파티창 뒤로 안 들어감.
+                try:
+                    np_box = await page.locator(
+                        '[data-testid="narrative-panel"]'
+                    ).first.bounding_box()
+                    pp_box = await page.locator(
+                        '[data-testid="party-panel"]'
+                    ).first.bounding_box()
+                    if np_box is not None and pp_box is not None:
+                        narr_right = np_box["x"] + np_box["width"]
+                        results["party_no_overlap"] = narr_right <= pp_box["x"] + 2
+                    else:
+                        # 파티창 미표시면 가림 없음 — 통과
+                        results["party_no_overlap"] = True
+                except Exception:
+                    results["party_no_overlap"] = False
 
                 results["chat_freeform_works"] = (
                     freeform["code"] == 200 and "라스카니아" not in post_body
@@ -381,6 +401,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["dungeon_entry_stable"] = False
                 results["dungeon_entry_narrated"] = False
                 results["hybrid_routing"] = False
+                results["party_no_overlap"] = False
         finally:
             await browser.close()
 

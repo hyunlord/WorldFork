@@ -115,7 +115,10 @@ function Member({
 
 export function PartyPanel({ data, onMember }: Props) {
   return (
-    <aside className="fixed right-5 top-[70px] z-50 w-[250px] border border-border-rune bg-[rgba(8,8,16,0.92)] backdrop-blur-[6px] [box-shadow:0_8px_24px_rgba(0,0,0,0.6),0_0_16px_var(--torch-glow)]">
+    <aside
+      data-testid="party-panel"
+      className="fixed right-5 top-[70px] z-50 w-[250px] border border-border-rune bg-[rgba(8,8,16,0.92)] backdrop-blur-[6px] [box-shadow:0_8px_24px_rgba(0,0,0,0.6),0_0_16px_var(--torch-glow)]"
+    >
       <header className="flex items-center justify-between border-b border-border-rune bg-gradient-to-r from-amber/[0.08] to-transparent px-3.5 py-2">
         <span className="font-mono text-[0.65rem] uppercase tracking-[0.3em] text-amber">
           <span className="animate-torch-flicker text-amber-bright">◆ </span>

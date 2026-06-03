@@ -524,11 +524,13 @@ export default function GamePage() {
     >
       <StatusBar data={statusData} onMenu={() => setMenuOpen((v) => !v)} />
 
+      {/* ★ 우측 270px 거터 — 고정 PartyPanel(우상단 w-250 + right-5)이 narrative를
+          덮던 결함 해소. 콘텐츠가 거터를 넘지 않아 파티창과 겹치지 않는다. */}
       <div
         className={
           inVillage
-            ? "overflow-hidden bg-bg-deep/80"
-            : "grid grid-cols-[1.4fr_1fr] overflow-hidden"
+            ? "overflow-hidden bg-bg-deep/80 pr-[270px]"
+            : "grid grid-cols-[1.4fr_1fr] overflow-hidden pr-[270px]"
         }
       >
         {/* ★ 던전맵은 floor 1+ 에서만 (성인식 마을 floor 0 미표시 — 비주얼 후속) */}

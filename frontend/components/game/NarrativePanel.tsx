@@ -67,6 +67,7 @@ export function NarrativePanel({ data }: Props) {
   return (
     <div
       ref={scrollRef}
+      data-testid="narrative-panel"
       className="relative overflow-y-auto border-b border-border-rune bg-gradient-to-b from-bg-panel to-bg-deep px-7 py-6"
     >
       <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber to-transparent opacity-40" />
