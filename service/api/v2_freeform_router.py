@@ -29,6 +29,7 @@ from service.sim.intent_classifier import classify_intent
 from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
 from service.sim.story_progression import (
+    PHASE_DEPARTURE,
     PHASE_LABEL,
     PHASE_WEAPON_CHOICE,
     advance_story,
@@ -327,12 +328,32 @@ async def freeform_action_endpoint(
         if chosen is not None:
             return await _handle_weapon_choice(req, session_state, chosen, ctx)
 
+    # ★ departure 단계 던전 진입 보조 (intent 정확도) — 무기 선택 후 departure는
+    #   던전 향하는 단계라 '미궁/던전' 류 입력은 진입 의도. 9B가 enter_dungeon으로
+    #   분류 못 해도 단계 기반으로 강제(intent flaky 회피). 9B confidence는 조작하지
+    #   않고 별도 forced_action으로 둬, classifier 출력 투명성을 유지한다.
+    forced_action: PlayerActionType | None = None
     if (
-        intent.matched_action is not None
-        and intent.confidence >= INTENT_THRESHOLD
+        session_state is not None
+        and session_state.story_phase == PHASE_DEPARTURE
+        and any(kw in req.user_input for kw in ("미궁", "던전", "들어가", "향한"))
     ):
+        forced_action = PlayerActionType.ENTER_DUNGEON
+
+    # forced_action(단계 기반) 우선, 없으면 9B intent(임계값 충족 시).
+    action_value = (
+        forced_action.value
+        if forced_action is not None
+        else (
+            intent.matched_action
+            if intent.confidence >= INTENT_THRESHOLD
+            else None
+        )
+    )
+
+    if action_value is not None:
         try:
-            action_type = PlayerActionType(intent.matched_action)
+            action_type = PlayerActionType(action_value)
         except ValueError:
             pass
         else:
@@ -435,7 +456,7 @@ async def freeform_action_endpoint(
 
             return FreeformActionResponse(
                 resolved_path=resolved_path,
-                matched_action=intent.matched_action,
+                matched_action=action_type.value,
                 confidence=intent.confidence,
                 narrative=final_narrative,
                 action_success=result.success,

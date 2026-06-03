@@ -33,7 +33,10 @@ _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
     PlayerActionType.EXIT_TO_PREV_FLOOR: "이전 층 복귀",
     PlayerActionType.EXCHANGE_MAGE_STONES: "마석 거래",
     PlayerActionType.WAIT_IN_VILLAGE: "마을 1일 대기 (HP/SP 회복)",
-    PlayerActionType.ENTER_DUNGEON: "1층 재진입 (★ 매월 자정)",
+    PlayerActionType.ENTER_DUNGEON: (
+        "미궁(던전) 1층 진입 — 성인식 후 첫 진입 또는 매월 자정 재진입"
+        " ('미궁으로 들어간다/향한다', '던전 입장')"
+    ),
     PlayerActionType.HEAL_AT_TEMPLE: "신전 치유",
     PlayerActionType.DIALOGUE: "NPC / 동료 대화",
     PlayerActionType.LIBRARY_SEARCH: "도서관 정보 조회",

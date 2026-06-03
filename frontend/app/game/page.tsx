@@ -292,7 +292,7 @@ function bgImage(floor: number, riftId: string | null | undefined): string {
 }
 
 export default function GamePage() {
-  const { data } = useGameState();
+  const { data, refetch } = useGameState();
   const { execute, executing } = usePostAction();
   const freeform = useFreeformAction();
   const inputRef = useRef<InputBarHandle>(null);
@@ -418,9 +418,12 @@ export default function GamePage() {
       if (resp) {
         setHistory((h) => [...h, { userInput: text, narrative: resp.narrative }]);
         setTurnCount((t) => t + 1);
+        // ★ 행동 결과로 바뀐 state(floor/위치/encounters/HP/단계)를 화면에 반영.
+        //   직전엔 초기 fetch만이라 던전 진입·HP 변화 등이 화면에 안 보였음.
+        void refetch();
       }
     },
-    [freeform],
+    [freeform, refetch],
   );
 
   const narrativeData = useMemo<NarrativePanelData>(() => {
