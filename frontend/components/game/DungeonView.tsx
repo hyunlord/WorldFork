@@ -1,24 +1,36 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 import type { DungeonViewData, TileType } from "./types";
 
 interface Props {
   data: DungeonViewData;
 }
 
-const TILE_CLASS: Record<TileType, string> = {
-  wall: "text-tile-wall [text-shadow:0_0_1px_rgba(0,0,0,0.8)]",
-  floor: "text-tile-floor opacity-60",
-  player:
-    "text-tile-player [text-shadow:0_0_12px_rgba(255,200,87,0.9),0_0_3px_rgba(255,200,87,1)] animate-player-pulse",
-  enemy: "text-tile-enemy [text-shadow:0_0_8px_rgba(255,85,85,0.7)]",
-  npc: "text-amber [text-shadow:0_0_10px_rgba(232,168,56,0.7)]",
-  item:
-    "text-tile-item [text-shadow:0_0_6px_rgba(102,224,255,0.5)] animate-ember-pulse",
-  stair: "text-tile-stair [text-shadow:0_0_6px_rgba(102,255,204,0.5)]",
-  door: "text-amber-dim",
-  blank: "text-transparent",
+// ★ 게임 화면 픽셀화 — 문자 타일(@/g/b) → 16x16 픽셀 스프라이트 격자.
+//   tools/gen_pixel_tiles.py가 생성한 CC0 타일(public/assets/pixel). 에셋 무관
+//   매핑이라 더 정교한 팩으로 PNG만 교체 가능.
+const PIX = "/assets/pixel";
+const CELL = 26; // 픽셀 타일 한 칸(px) — image-rendering: pixelated로 선명 확대
+const PIXELATED: CSSProperties = { imageRendering: "pixelated" };
+
+// 엔티티/지형 오버레이 스프라이트 (바닥 위에 얹음). null = 바탕만.
+const ENTITY_SPRITE: Partial<Record<TileType, string>> = {
+  player: "player",
+  enemy: "enemy",
+  npc: "npc",
+  item: "item",
+  stair: "stair",
+  door: "door",
 };
+
+// 칸 바탕: 벽은 wall, 그 외(엔티티 포함)는 floor, blank는 없음(투명).
+function baseTile(type: TileType): string | null {
+  if (type === "wall") return "wall";
+  if (type === "blank") return null;
+  return "floor";
+}
 
 const LEGEND_LABEL_COLOR: Record<TileType, string> = {
   player: "text-tile-player",
@@ -68,17 +80,48 @@ export function DungeonView({ data }: Props) {
         <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_4.5s_infinite_2.8s] [box-shadow:0_0_6px_var(--color-amber)] bottom-[25%] left-[48%]" />
         <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_5.5s_infinite_0.8s] [box-shadow:0_0_6px_var(--color-amber)] bottom-[28%] left-[62%]" />
 
-        <pre className="relative z-[2] m-0 whitespace-pre font-mono text-[1.4rem] font-bold leading-[1.25] tracking-[0.1em]">
+        <div
+          data-testid="dungeon-grid"
+          className="relative z-[2] flex flex-col"
+        >
           {data.rows.map((row, ri) => (
-            <div key={ri}>
-              {row.map((tile, ci) => (
-                <span key={ci} className={TILE_CLASS[tile.type]}>
-                  {tile.ch}
-                </span>
-              ))}
+            <div key={ri} className="flex">
+              {row.map((tile, ci) => {
+                const base = baseTile(tile.type);
+                const sprite = ENTITY_SPRITE[tile.type];
+                return (
+                  <div
+                    key={ci}
+                    data-tile={tile.type}
+                    className="relative shrink-0"
+                    style={{
+                      width: CELL,
+                      height: CELL,
+                      ...(base
+                        ? {
+                            backgroundImage: `url(${PIX}/${base}.png)`,
+                            backgroundSize: "100% 100%",
+                          }
+                        : {}),
+                      ...PIXELATED,
+                    }}
+                  >
+                    {sprite && (
+                      <img
+                        src={`${PIX}/${sprite}.png`}
+                        alt=""
+                        aria-hidden
+                        draggable={false}
+                        className="absolute inset-0 h-full w-full"
+                        style={PIXELATED}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
-        </pre>
+        </div>
 
         <span
           className="pointer-events-none absolute inset-0 z-[5]"
@@ -91,16 +134,30 @@ export function DungeonView({ data }: Props) {
 
       {data.legend && data.legend.length > 0 && (
         <div className="absolute bottom-3.5 left-3.5 z-10 flex gap-4 border border-border-rune bg-[rgba(8,8,16,0.92)] px-3.5 py-2 font-mono text-[0.65rem] text-text-mute shadow-[0_4px_16px_rgba(0,0,0,0.5)] backdrop-blur-[4px]">
-          {data.legend.map((entry, i) => (
-            <span key={i}>
-              <strong
-                className={`mr-1 font-bold ${LEGEND_LABEL_COLOR[entry.type]}`}
-              >
-                {entry.ch}
-              </strong>
-              {entry.label}
-            </span>
-          ))}
+          {data.legend.map((entry, i) => {
+            const sprite = ENTITY_SPRITE[entry.type] ?? baseTile(entry.type);
+            return (
+              <span key={i} className="flex items-center gap-1.5">
+                {sprite ? (
+                  <img
+                    src={`${PIX}/${sprite}.png`}
+                    alt=""
+                    aria-hidden
+                    draggable={false}
+                    className="h-4 w-4"
+                    style={PIXELATED}
+                  />
+                ) : (
+                  <strong
+                    className={`font-bold ${LEGEND_LABEL_COLOR[entry.type]}`}
+                  >
+                    {entry.ch}
+                  </strong>
+                )}
+                {entry.label}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

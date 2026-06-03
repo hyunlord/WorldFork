@@ -57,7 +57,9 @@ CHECKS: tuple[Check, ...] = (
     Check("menu_map_works", 1, False, "메뉴 지도 onClick → MapPanel (floor/rift 4종)"),
     # ★ UI 결함 — 파티창(고정 우상단)이 narrative 가리던 것 해소(거터 예약)
     Check("party_no_overlap", 1, False, "파티창 ↔ narrative 비겹침 (우측 텍스트 안 가림)"),
-    Check("menu_help_works", 2, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
+    Check("menu_help_works", 1, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
+    # ★ 게임 화면 픽셀화 — DungeonView 문자 타일 → CC0 픽셀 스프라이트 격자
+    Check("dungeon_pixel_tiles", 1, False, "DungeonView 픽셀 타일 img (ASCII 문자 X)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
     # ★ 화면 내용 검증 (검증 갭 닫기)
@@ -388,6 +390,14 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["hybrid_routing"] = (
                     route_dialogue == "27b" and route_entry == "9b"
                 )
+                # ★ 게임 화면 픽셀화 — DungeonView가 문자(@/g/b) 대신 픽셀 스프라이트
+                #   img를 렌더(던전 floor 1+에서 표시). assets/pixel img 존재 = 픽셀 게임
+                #   화면(ASCII 해소, 결정적). 진입 후 grid 렌더 대기.
+                await page.wait_for_timeout(500)
+                pix_imgs = page.locator(
+                    '[data-testid="dungeon-grid"] img[src*="/assets/pixel/"]'
+                )
+                results["dungeon_pixel_tiles"] = await pix_imgs.count() >= 1
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
@@ -402,6 +412,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["dungeon_entry_narrated"] = False
                 results["hybrid_routing"] = False
                 results["party_no_overlap"] = False
+                results["dungeon_pixel_tiles"] = False
         finally:
             await browser.close()
 
