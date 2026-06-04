@@ -105,6 +105,30 @@ class TestApplyResult:
         )
         assert updated.current_hp == 100
 
+    def test_combat_resolve_resets_spawn_cooldown(self, tmp_path: Path) -> None:
+        """★ 처치(encounter_resolved) 직후 재스폰 쿨다운을 현재 turn으로 리셋 —
+        죽은 적의 옛 스폰 turn 탓에 즉시 재스폰되던 '쉴 틈 없음' 해소."""
+        mgr = _make_manager(tmp_path)
+        state = run(mgr.create_session())
+        state.last_spawn_turn = -10  # 스폰이 오래 전(쿨다운 만료 상태)
+        result = ActionResult(narrative="적을 쓰러뜨렸다.", encounter_resolved=True)
+        updated = run(
+            mgr.apply_result(state.session_id, result, "공격", "intent")
+        )
+        # 처치 후 쿨다운 리셋 — last_spawn_turn == 현재 turn(즉시 재스폰 차단)
+        assert updated.last_spawn_turn == updated.turn_count
+
+    def test_non_combat_keeps_spawn_cooldown(self, tmp_path: Path) -> None:
+        """비전투 행동은 재스폰 쿨다운을 건드리지 않는다."""
+        mgr = _make_manager(tmp_path)
+        state = run(mgr.create_session())
+        state.last_spawn_turn = 3
+        result = ActionResult(narrative="주변을 둘러봤다.")  # resolved=False
+        updated = run(
+            mgr.apply_result(state.session_id, result, "탐색", "intent")
+        )
+        assert updated.last_spawn_turn == 3
+
     def test_inventory_add_remove(self, tmp_path: Path) -> None:
         mgr = _make_manager(tmp_path)
         state = run(mgr.create_session(inventory=["낡은 검"]))

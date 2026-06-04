@@ -418,7 +418,14 @@ async def _run_action_stream(
             None,
         )
         gm_model: str | None = None
-        if session_state is not None and action_type in GM_NARRATE_ACTIONS:
+        # ★ 무대상 공격(적 없는데 ATTACK) 등 no_target 실패는 GM 서술을 건너뛴다 —
+        #   handler가 이미 time_advance=0(턴 미소모)로 처리하는데 GM이 27B로 '빈 공기를
+        #   베는…'을 굳이 서술하던 낭비 제거(체감 + 27B 비용). 터스 안내만 노출.
+        if (
+            session_state is not None
+            and action_type in GM_NARRATE_ACTIONS
+            and result.fail_reason != "no_target"
+        ):
             recent = await mgr.get_recent_turns(session_state.session_id)
             # 전투 시 적 상태(이름/HP)를 GM 컨텍스트에 — 약점/위기 묘사 정합.
             hostile_state = [

@@ -387,6 +387,11 @@ class SessionManager:
         # ★ audit-step168h-followup — 일반 turn 경과 시간 누적 (minute 단위)
         state.time_elapsed += int(round(result.time_advance * 60))
         state.turn_count += 1
+        # ★ 전투 정리(처치/도주) 직후 재스폰 쿨다운 리셋 — last_spawn_turn이 죽은 적의
+        #   옛 스폰 turn이라 쿨다운이 이미 만료돼 즉시 재스폰되던 '쉴 틈 없음' 해소.
+        #   처치 기준으로 쿨다운을 다시 시작해 탐색/휴식 여유를 준다.
+        if result.encounter_resolved:
+            state.last_spawn_turn = state.turn_count
         state.last_active = _now()
 
         # persist
