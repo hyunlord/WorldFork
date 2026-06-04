@@ -59,12 +59,18 @@ def plan_enemy_turn(enemies: list[Enemy]) -> list[EnemyAction]:
 def should_enemy_flee(enemy: Enemy, initial_count: int, current_count: int) -> bool:
     """도주 조건 판정 — ep_0008 동료 사망 / ep_0013 수적 열세 / ep_0054 전략적 후퇴.
 
-    HP < 25% 이거나 초기 2마리 이상에서 절반 이하로 줄었을 때 도주.
+    ★ 도주는 '집단 사기 붕괴' 상황에 한정한다(initial_count ≥ 2). 단독 적은 저HP로
+    달아나지 않고 죽을 때까지 싸운다 — 약한 적이 처치 직전 도주해 플레이어가 처치
+    (XP/정수 획득, 게임 핵심 루프)를 거의 못 얻던 결함 해소. '적이 안 죽는다' 체감 원인.
+
+    집단(2마리 이상)에서는: 개별 HP < 25%(동료 잃은 공포) 또는 수가 절반 이하(수적
+    열세)면 도주.
     """
-    if enemy.max_hp > 0:
-        if enemy.hp / enemy.max_hp < 0.25:
-            return True
-    if initial_count >= 2 and current_count <= initial_count // 2:
+    if initial_count < 2:
+        return False
+    if enemy.max_hp > 0 and enemy.hp / enemy.max_hp < 0.25:
+        return True
+    if current_count <= initial_count // 2:
         return True
     return False
 

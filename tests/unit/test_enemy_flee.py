@@ -22,14 +22,21 @@ def _make_enemy(hp: int, max_hp: int, name: str = "오크") -> Enemy:
 # ── HP 기반 도주 (ep_0054) ──
 
 
-def test_flee_when_hp_below_25pct() -> None:
-    e = _make_enemy(hp=24, max_hp=100)
-    assert should_enemy_flee(e, initial_count=1, current_count=1) is True
-
-
-def test_no_flee_when_hp_at_25pct() -> None:
-    e = _make_enemy(hp=25, max_hp=100)
+def test_lone_enemy_no_flee_at_low_hp() -> None:
+    """★ 단독 적은 저HP로 도주하지 않고 죽을 때까지 싸운다 (처치/XP 보장)."""
+    e = _make_enemy(hp=10, max_hp=100)
     assert should_enemy_flee(e, initial_count=1, current_count=1) is False
+
+
+def test_group_member_flees_at_low_hp() -> None:
+    """집단(2마리 이상)에서 개별 HP < 25%면 사기 붕괴로 도주."""
+    e = _make_enemy(hp=24, max_hp=100)
+    assert should_enemy_flee(e, initial_count=2, current_count=2) is True
+
+
+def test_no_flee_when_hp_at_25pct_group() -> None:
+    e = _make_enemy(hp=25, max_hp=100)
+    assert should_enemy_flee(e, initial_count=2, current_count=2) is False
 
 
 def test_no_flee_when_hp_above_25pct() -> None:

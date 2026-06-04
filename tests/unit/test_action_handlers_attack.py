@@ -91,6 +91,26 @@ async def test_attack_damage_applied(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_lone_low_hp_enemy_does_not_flee(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """★ 단독 저HP 적은 도주가 아니라 생존 — 다음 공격에 처치(XP/정수) 가능.
+
+    옛 동작(HP<25% 단독 도주)은 약한 적이 죽기 직전 달아나 처치를 못 하게 했다
+    ('적이 안 죽는다' 체감). 단독 적은 죽을 때까지 싸운다.
+    """
+    from service.sim import combat as _combat
+
+    monkeypatch.setattr(_combat, "compute_critical_hit", lambda *_a, **_k: False)
+    # hp 15 / max 100 → 공격 10(방어 0) 후 hp 5 (5% — 옛 규칙이면 도주)
+    ctx = _ctx_with_enemy(hp=15, max_hp=100, defense=0)
+    result = await handle_attack(ctx)
+    assert result.encounter_resolved is False  # 도주로 종료되지 않음
+    assert result.encounters_update is not None  # 생존 적 잔존(처치 대상)
+    assert int(result.encounters_update[0]["hp"]) == 5  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
 async def test_attack_enemy_resolved() -> None:
     ctx = _ctx_with_enemy(hp=5, defense=0)
     result = await handle_attack(ctx)
