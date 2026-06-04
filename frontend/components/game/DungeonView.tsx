@@ -12,7 +12,7 @@ interface Props {
 //   tools/gen_pixel_tiles.py가 생성한 CC0 타일(public/assets/pixel). 에셋 무관
 //   매핑이라 더 정교한 팩으로 PNG만 교체 가능.
 const PIX = "/assets/pixel";
-const CELL = 26; // 픽셀 타일 한 칸(px) — image-rendering: pixelated로 선명 확대
+const CELL = 38; // 픽셀 타일 한 칸(px) — 확대(작은 방 해소). pixelated로 선명 유지
 const PIXELATED: CSSProperties = { imageRendering: "pixelated" };
 
 // 엔티티/지형 오버레이 스프라이트 (바닥 위에 얹음). null = 바탕만.

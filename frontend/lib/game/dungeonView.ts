@@ -13,8 +13,10 @@ import type { GameStateV2 } from "@/lib/api/v2";
 
 import type { DungeonViewData, Tile, TileType } from "@/components/game/types";
 
-const COLS = 13;
-const ROWS = 9;
+// ★ 방을 좌측 패널에 더 채우기 위해 격자 확대(픽셀 2단계 — 작은 방+빈 어둠 해소).
+//   배치 spot(아래)은 모두 이 범위 내. 엔티티 수는 실 state(불변).
+const COLS = 15;
+const ROWS = 11;
 // 적 배치 후보(내부 상단~중앙, 결정적). 실 encounters 수만큼 앞에서 채운다.
 const ENEMY_SPOTS: ReadonlyArray<readonly [number, number]> = [
   [2, 3],

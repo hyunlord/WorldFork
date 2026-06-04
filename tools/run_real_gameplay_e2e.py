@@ -61,7 +61,7 @@ CHECKS: tuple[Check, ...] = (
     Check("party_no_overlap", 1, False, "파티창 ↔ narrative 비겹침 (우측 텍스트 안 가림)"),
     Check("menu_help_works", 1, False, "메뉴 도움말 onClick → HelpPanel (조작/시스템)"),
     # ★ 게임 화면 픽셀화 — DungeonView 문자 타일 → CC0 픽셀 스프라이트 격자
-    Check("dungeon_pixel_tiles", 1, False, "DungeonView 픽셀 타일 img (ASCII 문자 X)"),
+    Check("dungeon_pixel_tiles", 1, False, "DungeonView 픽셀 타일 img + 방 적정 크기(작게 박힘 X)"),
     Check("time_limit_consistent", 1, False, "시간 한도 168h 표시 (174 불일치 X — 7일 정합)"),
     Check("character_scrollable", 1, False, "character 긴 콘텐츠 스크롤 가능 (생성 버튼 도달)"),
     # ★ 화면 내용 검증 (검증 갭 닫기)
@@ -400,7 +400,13 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 await page.wait_for_timeout(500)
                 grid = page.locator('[data-testid="dungeon-grid"]')
                 pix_imgs = grid.locator('img[src*="/assets/pixel/"]')
-                results["dungeon_pixel_tiles"] = await pix_imgs.count() >= 1
+                # ★ 픽셀 타일 렌더 + 방 적정 크기(2단계 — 작게 박힘 해소). 격자 폭이
+                #   400px+ 면 확대 적용(직전 13×26=338px → 작게 박힘이 아님을 확인).
+                grid_box = await grid.first.bounding_box()
+                grid_w = grid_box["width"] if grid_box else 0
+                results["dungeon_pixel_tiles"] = (
+                    await pix_imgs.count() >= 1 and grid_w >= 400
+                )
                 # ★ DungeonView 실 state — DEMO_DUNGEON(mock) 제거 검증. 실 본인 타일이
                 #   파생되고(adapter), DEMO 고정 턴(142)이 아니면 실 state 반영(결정적).
                 #   mock 격자/가짜 엔티티 위장(과거 DEMO fallback) 부재.
