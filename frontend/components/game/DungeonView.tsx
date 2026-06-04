@@ -46,7 +46,7 @@ const LEGEND_LABEL_COLOR: Record<TileType, string> = {
 
 export function DungeonView({ data }: Props) {
   return (
-    <div className="relative flex flex-col overflow-hidden border-r border-border-rune bg-bg-canvas/55">
+    <div className="relative flex flex-col overflow-hidden border-r border-cyan/15 bg-[rgba(14,28,32,0.5)]">
       <span className="pointer-events-none absolute left-2 top-2 z-[3] font-serif text-2xl text-amber-dim opacity-40">
         ◆
       </span>
@@ -78,10 +78,20 @@ export function DungeonView({ data }: Props) {
               "radial-gradient(ellipse 260px 200px at 50% 50%, rgba(255, 200, 87, 0.18) 0%, rgba(232, 168, 56, 0.08) 40%, transparent 80%)",
           }}
         />
+        {/* ★ 수정동굴 결정 앰비언트 — 따뜻한 횃불(중앙)에 차가운 청록(가장자리)을
+            더해 배경(ui_gameplay_bg_crystal)과 톤 조화. 동굴 깊이감/광물 분위기. */}
+        <span
+          className="pointer-events-none absolute inset-0 z-[3] mix-blend-screen"
+          style={{
+            background:
+              "radial-gradient(ellipse 340px 260px at 50% 45%, transparent 35%, rgba(66, 184, 204, 0.10) 78%, rgba(40, 140, 162, 0.18) 100%)",
+          }}
+        />
         <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_4s_infinite] [box-shadow:0_0_6px_var(--color-amber)] bottom-[30%] left-[35%]" />
-        <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_5s_infinite_1.5s] [box-shadow:0_0_6px_var(--color-amber)] bottom-[35%] left-[55%]" />
+        {/* ★ 결정 모트 — 일부 시안(수정 반짝)으로 동굴 광물 분위기 */}
+        <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-cyan [animation:float-ember_5s_infinite_1.5s] [box-shadow:0_0_6px_rgba(102,224,255,0.8)] bottom-[35%] left-[55%]" />
         <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_4.5s_infinite_2.8s] [box-shadow:0_0_6px_var(--color-amber)] bottom-[25%] left-[48%]" />
-        <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-amber-bright [animation:float-ember_5.5s_infinite_0.8s] [box-shadow:0_0_6px_var(--color-amber)] bottom-[28%] left-[62%]" />
+        <span className="ember pointer-events-none absolute z-[6] h-[3px] w-[3px] rounded-full bg-cyan [animation:float-ember_5.5s_infinite_0.8s] [box-shadow:0_0_6px_rgba(102,224,255,0.8)] bottom-[28%] left-[62%]" />
 
         <div
           data-testid="dungeon-grid"

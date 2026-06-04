@@ -24,12 +24,14 @@ SIZE = 16
 PALETTE: dict[str, tuple[int, int, int, int]] = {
     " ": (0, 0, 0, 0),
     # 돌 바닥/벽
-    "d": (38, 35, 53, 255),    # 바닥 베이스(어두운 청회)
-    "D": (30, 27, 43, 255),    # 바닥 음영
-    "f": (53, 48, 72, 255),    # 바닥 하이라이트 결
-    "w": (74, 68, 88, 255),    # 벽돌
-    "W": (90, 84, 104, 255),   # 벽돌 상단 하이라이트
-    "m": (26, 22, 34, 255),    # 벽 모르타르(틈)
+    # ★ 수정동굴 청록 톤 (★ 본문 1층 — 배경 ui_gameplay_bg_crystal과 조화)
+    "d": (26, 42, 46, 255),    # 바닥 베이스(어두운 청록 슬레이트)
+    "D": (18, 32, 36, 255),    # 바닥 음영
+    "f": (42, 64, 68, 255),    # 바닥 하이라이트 결(청록 광택)
+    "v": (74, 160, 176, 255),  # 수정 글린트(시안 결정 반짝)
+    "w": (40, 66, 74, 255),    # 벽 — 청록 광물 암석
+    "W": (58, 92, 102, 255),   # 벽 상단 하이라이트(결정 면)
+    "m": (16, 30, 34, 255),    # 벽 틈(어두운 청록)
     # 캐릭터
     "s": (224, 184, 144, 255),  # 살색
     "h": (74, 53, 32, 255),     # 머리/갈색
@@ -44,8 +46,8 @@ PALETTE: dict[str, tuple[int, int, int, int]] = {
     # 아이템/지형
     "c": (102, 224, 255, 255),  # 시안 보석
     "C": (160, 240, 255, 255),  # 보석 하이라이트
-    "k": (40, 38, 56, 255),     # 계단 어둠
-    "K": (136, 132, 152, 255),  # 계단 돌
+    "k": (22, 38, 42, 255),     # 계단 어둠(청록)
+    "K": (90, 130, 138, 255),   # 계단 돌(청록-회)
     "o": (138, 90, 48, 255),    # 문 나무
     "O": (170, 116, 64, 255),   # 나무 하이라이트
     "n": (90, 58, 30, 255),     # 나무 음영
@@ -56,18 +58,18 @@ PALETTE: dict[str, tuple[int, int, int, int]] = {
 
 FLOOR = [
     "dddddddddddddddd",
-    "dddddffddddddddd",
-    "ddDdddddddddfddd",
+    "dddddfvddddddddd",
+    "ddDddddddddvfddd",
     "ddddddddDddddddd",
     "dddffdddddddddDd",
-    "ddddddddddddddddd"[:16],
+    "dddddddddvddddd"[:16],
     "dDddddddddffddddd"[:16],
     "ddddddddddddddDdd"[:16],
-    "ddffdddddddddddd",
+    "ddfvdddddddddddd",
     "dddddddDdddddddd",
-    "ddddddddddddffdd",
+    "ddddddddddddfvdd",
     "dDdddddffddddddd",
-    "ddddddddddddddDd",
+    "ddddddddddvdddDd"[:16],
     "ddffddddddDddddd",
     "dddddddddddddddd",
     "dddddddddddffdddd"[:16],
@@ -75,19 +77,19 @@ FLOOR = [
 
 WALL = [
     "WWWWWWWWWWWWWWWW",
-    "wwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwvwwww",
     "wwwwwwwmwwwwwwww",
-    "wwwwwwwmwwwwwwww",
+    "wwvwwwwmwwwwwwww",
     "mmmmmmmmmmmmmmmm",
-    "wwwwWWWWwwwwwwww",
+    "wwwwWWWWwwwwwvww",
     "wwwwwwwwwwwwWWWw",
     "wwwmwwwwwwwwwwww",
-    "wwwmwwwwwwwmwwww",
+    "wwwmwwwwvwwmwwww",
     "mmmmmmmmmmmmmmmm",
     "wwwwwwwwWWWWwwww",
-    "WWWwwwwwwwwwwwww",
+    "WWWwwwwwwwwwwvww",
     "wwwwwwwmwwwwwwww",
-    "wwwwwwwmwwwwwwww",
+    "wvwwwwwmwwwwwwww",
     "wwwwwwwmwwwwwwww",
     "wwwwwwwmwwwwwwww",
 ]
