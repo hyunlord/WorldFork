@@ -101,7 +101,14 @@ export function DungeonView({ data }: Props) {
             <div key={ri} className="flex">
               {row.map((tile, ci) => {
                 const base = baseTile(tile.type);
-                const sprite = ENTITY_SPRITE[tile.type];
+                // ★ 엔티티 스프라이트 — 몬스터 종류별(tile.sprite) 우선, 없으면 타입 기본.
+                const sprite = tile.sprite ?? ENTITY_SPRITE[tile.type];
+                // 캐릭터(본인/적/NPC)는 한 칸보다 크게(1.7×) 하단 정렬 — 상세 스프라이트가
+                // 자연 비율로 타일 위에 서 있게. 소품(item/stair/door)은 칸에 맞춤.
+                const isChar =
+                  tile.type === "player" ||
+                  tile.type === "enemy" ||
+                  tile.type === "npc";
                 return (
                   <div
                     key={ci}
@@ -119,16 +126,26 @@ export function DungeonView({ data }: Props) {
                       ...PIXELATED,
                     }}
                   >
-                    {sprite && (
-                      <img
-                        src={`${PIX}/${sprite}.png`}
-                        alt=""
-                        aria-hidden
-                        draggable={false}
-                        className="absolute inset-0 h-full w-full"
-                        style={PIXELATED}
-                      />
-                    )}
+                    {sprite &&
+                      (isChar ? (
+                        <img
+                          src={`${PIX}/${sprite}.png`}
+                          alt=""
+                          aria-hidden
+                          draggable={false}
+                          className="pointer-events-none absolute bottom-0 left-1/2 z-[1] max-w-none -translate-x-1/2"
+                          style={{ height: CELL * 1.7, width: "auto", ...PIXELATED }}
+                        />
+                      ) : (
+                        <img
+                          src={`${PIX}/${sprite}.png`}
+                          alt=""
+                          aria-hidden
+                          draggable={false}
+                          className="absolute inset-0 h-full w-full"
+                          style={PIXELATED}
+                        />
+                      ))}
                   </div>
                 );
               })}

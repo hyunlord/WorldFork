@@ -42,6 +42,9 @@ export type TileType =
 export interface Tile {
   ch: string;
   type: TileType;
+  // ★ 엔티티 스프라이트 override (몬스터 종류별 — 고블린/노움/슬라임 등). 없으면
+  //   TileType 기본 스프라이트. assets/pixel/<sprite>.png.
+  sprite?: string;
 }
 
 export interface DungeonViewData {

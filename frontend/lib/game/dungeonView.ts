@@ -42,8 +42,21 @@ const CH: Record<TileType, string> = {
   blank: " ",
 };
 
-function tile(type: TileType): Tile {
-  return { ch: CH[type], type };
+function tile(type: TileType, sprite?: string): Tile {
+  return { ch: CH[type], type, ...(sprite ? { sprite } : {}) };
+}
+
+// ★ 적 이름 → 몬스터 스프라이트(assets/pixel). 1층 9등급 정합. 미매칭 시 undefined
+//   → DungeonView가 기본 enemy 스프라이트 사용.
+function enemySprite(name: string): string | undefined {
+  if (name.includes("검사")) return "goblin_swordsman";
+  if (name.includes("궁수")) return "goblin_archer";
+  if (name.includes("고블린")) return "goblin";
+  if (name.includes("노움")) return "gnome";
+  if (name.includes("슬라임")) return "slime";
+  if (name.includes("늑대")) return "blade_wolf";
+  if (name.includes("레이스")) return "wraith";
+  return undefined;
 }
 
 /**
@@ -82,9 +95,9 @@ export function buildDungeonView(
     (e) => e.hostile === true || e.is_hostile === true,
   );
   const shown = hostiles.slice(0, MAX_ENEMIES);
-  shown.forEach((_, i) => {
+  shown.forEach((e, i) => {
     const [r, c] = ENEMY_SPOTS[i];
-    grid[r][c] = tile("enemy");
+    grid[r][c] = tile("enemy", enemySprite(String(e.name ?? "")));
   });
 
   // ★ 본인 — characters의 is_player(실 state)

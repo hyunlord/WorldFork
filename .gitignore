@@ -70,3 +70,9 @@ docs/scenarios/
 
 # Local novel bodies (★ 저작권 — 외부 source, repo 제외)
 .local/
+
+# 일회성 플레이/캡처(공유용, 비커밋)
+tools/long_playthrough.py
+tools/playthrough_captures/
+tools/labyrinth_capture.py
+tools/labyrinth_captures/
