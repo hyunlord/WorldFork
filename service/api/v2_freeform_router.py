@@ -233,13 +233,17 @@ def _suggest_actions(state: SessionState | None) -> list[str]:
     phase_sugg = phase_suggestions(state.story_phase, npc_name)
     if phase_sugg is not None:
         return phase_sugg
+    # ★ 버그4 — '더 깊이 나아간다'는 균열 내(rift_sub_area)에서만 유효(MOVE_CHAMBER).
+    #   균열 밖 던전 floor에서 추천하면 'handle_move_chamber: 균열 안에 있지 않거나…'
+    #   실행 불가 응답. 균열 밖에서는 항상 실행 가능한 탐색(EXPLORE)을 추천한다.
+    deeper = "더 깊이 나아간다" if state.rift_sub_area else "안쪽을 탐색한다"
     if npcs:
         npc_name = str(npcs[0].get("name") or "상대")
-        tail = "무기를 점검한다" if state.floor_number < 1 else "더 깊이 나아간다"
+        tail = "무기를 점검한다" if state.floor_number < 1 else deeper
         return [f"{npc_name}에게 말을 건다", "주변을 둘러본다", tail]
     if state.floor_number < 1:
         return ["주변을 둘러본다", "무기를 점검한다", "길을 나선다"]
-    return ["주변을 살핀다", "더 깊이 나아간다", "잠시 휴식한다"]
+    return ["주변을 살핀다", deeper, "잠시 휴식한다"]
 
 
 async def _handle_weapon_choice(

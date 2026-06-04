@@ -25,6 +25,17 @@ def test_character_create_bjorn_default(client: TestClient) -> None:
     assert "라스카니아" in data["starting_location"]
 
 
+def test_character_create_bjorn_no_weapon_preselected(client: TestClient) -> None:
+    """버그2 — 무기는 성인식(weapon_choice)에서 선택. 시작 narrative가 무기를
+    미리 골랐다고 하지 않는다('골라 손에 쥐고' 부재) — weapon_choice 추천과 모순 방지."""
+    resp = client.post("/api/v2/character/create", json={})
+    assert resp.status_code == 200
+    narrative = resp.json()["starting_narrative"]
+    # 무기 선점 append 부재 — 부족장 '골라야 한다' 클리프행어로 끝
+    assert "골라 손에 쥐고" not in narrative
+    assert "무기를 골라야 한다" in narrative
+
+
 def test_character_create_bjorn_ignores_race(client: TestClient) -> None:
     """BJORN — race 지정해도 barbarian 고정."""
     resp = client.post("/api/v2/character/create", json={"scenario_mode": "bjorn", "race": "fairy"})

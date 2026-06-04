@@ -6,9 +6,7 @@ from fastapi import APIRouter, HTTPException
 from service.api.schemas.character import CharacterConfigRequest, CharacterConfigResponse
 from service.canon.races import get_race_config, race_from_string
 from service.canon.scenario import (
-    DEFAULT_COMING_OF_AGE_WEAPON,
     SCENARIO_CONFIGS,
-    ScenarioMode,
     build_starting_narrative,
     resolve_race_for_scenario,
     scenario_from_string,
@@ -34,11 +32,11 @@ async def character_create(req: CharacterConfigRequest) -> CharacterConfigRespon
     race_cfg = get_race_config(resolved_race)
     scenario_cfg = SCENARIO_CONFIGS[mode]
 
-    # ★ 성인식 무기 (★ ep_0002): BJORN은 명시 > 방패 default, NEW_EXPLORER는 race 기본.
-    #   단 explicit inventory override 시 default weapon 미적용(inventory 우선 — test 정합).
+    # ★ 무기는 성인식(weapon_choice 단계)에서 게임 내 선택 — 생성 시 방패 선점 제거.
+    #   선점 시 시작 narrative '방패 골랐다' + 장착 vs weapon_choice 추천 '무기 선택'이
+    #   모순(manual play 버그2). req.weapon만 존중하고, 미지정이면 무기 미장착 상태로
+    #   시작해 성인식에서 첫 선택(방패는 inventory에 캐논대로 잔존 — ep_0005).
     use_weapon: str | None = req.weapon
-    if use_weapon is None and not req.inventory and mode == ScenarioMode.BJORN:
-        use_weapon = DEFAULT_COMING_OF_AGE_WEAPON
 
     mgr = get_session_manager()
     state = await mgr.create_session(

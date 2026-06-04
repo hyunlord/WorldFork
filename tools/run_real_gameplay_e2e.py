@@ -75,7 +75,9 @@ CHECKS: tuple[Check, ...] = (
     # ★ 인물 초상 연결 (하이브리드 1단계)
     Check("sheet_portrait_shown", 1, False, "캐릭터 시트 전신 일러스트 (ui_character)"),
     # ★ GM 루프 (게임 진행 엔진 1단계): 같은 행동 → 다른 응답
-    Check("meaningful_progression", 2, False, "같은 행동 2회 → 다른 narrative (GM 맥락)"),
+    Check("meaningful_progression", 1, False, "같은 행동 2회 → 다른 narrative (GM 맥락)"),
+    # ★ manual play 버그2/4 — 무기 선점 모순 부재 + 추천 실행 가능
+    Check("play_consistency", 1, False, "무기 선점 모순 X + 추천 실행 가능('더 깊이' 균열 밖 X)"),
     # ★ 서빙 1단계 — SSE 스트리밍: GM narrative가 토큰 점진(통째 blob X)
     Check("streaming_progressive", 1, False, "SSE 토큰 점진 노출 (단일 blob X — 체감 즉효)"),
     # ★ 상태 진전 (2단계): 행동이 스토리 단계를 전진시킴
@@ -416,6 +418,17 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                     and has_player_tile
                     and turn_txt != "142"
                 )
+                # ★ 버그2/4 플레이 정합 — 시작 narrative가 무기를 선점하지 않고
+                #   ('골라 손에 쥐고' 부재 → weapon_choice 추천과 모순 X), 던전(균열 밖)
+                #   추천에 실행 불가 '더 깊이 나아간다'가 없음(필터 정합).
+                sugg_d = page.locator('[data-testid="suggested-action"]')
+                sugg_d_text = ""
+                for i in range(await sugg_d.count()):
+                    sugg_d_text += await sugg_d.nth(i).inner_text()
+                results["play_consistency"] = (
+                    "골라 손에 쥐고" not in dungeon_body
+                    and "더 깊이 나아간다" not in sugg_d_text
+                )
             except Exception:
                 results["chat_freeform_works"] = False
                 results["dialogue_npc_works"] = False
@@ -432,6 +445,7 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 results["party_no_overlap"] = False
                 results["dungeon_pixel_tiles"] = False
                 results["dungeon_real_state"] = False
+                results["play_consistency"] = False
         finally:
             await browser.close()
 
