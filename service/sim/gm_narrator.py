@@ -126,6 +126,88 @@ _GM_SCHEMA: dict[str, Any] = {
 GM_MAX_TOKENS = 160
 
 
+# 비요른 persona 앵커 — canon_facts는 원작 주인공(한스 계열)이라 게임 플레이어
+# 비요른(흑곰족)을 직접 담지 않는다. 무기/persona 일관을 위해 고정 앵커를 canon
+# Contract 앞에 둔다. 무기는 호출자가 현재 장비를 넘기면 함께 고정.
+_PERSONA_ANCHOR = (
+    "주인공 비요른은 흑곰족 출신의 거구 바바리안 전사이며, "
+    "현대인 '이한수'의 영혼이 깃들어 있다. 성년식에서 고른 무기를 일관되게 쓴다."
+)
+
+# 키워드 정합으로 주입할 canon 타입 — 세계 사물만. character/skill/facility/mechanism은
+# 부분일치 노이즈(원작 주인공 '한수', '궁수' skill, '방' 시설 등)라 배제.
+_WORLD_FACT_TYPES: frozenset[str] = frozenset({"essence", "race", "location"})
+
+
+def build_gm_canon(
+    user_input: str,
+    location: str,
+    surroundings: str,
+    hostiles: list[str] | None = None,
+    weapon: str = "",
+    *,
+    max_facts: int = 5,
+) -> str:
+    """현재 턴 맥락에 정합한 canon 고증 + persona/무기 앵커를 Canon Contract 문자열로.
+
+    전역 EntityIndex(canon_facts)에서 위치·적·입력 키워드에 걸리는 fact만 압축 주입해
+    환각(근거 없는 고유명사/설정)을 차단한다. 전체 canon 주입(토큰 낭비)은 피한다.
+    인덱스 미적재 시 persona 앵커만 반환(고증 없이도 무기/persona 일관은 보강).
+    """
+    from service.canon.context import get_entity_index
+
+    persona = _PERSONA_ANCHOR
+    if weapon:
+        persona += f" 현재 무기: {weapon}."
+
+    idx = get_entity_index()
+    if idx is None:
+        return persona
+
+    lines: list[str] = []
+    seen: set[str] = set()
+
+    def _add(name: str, summary: str) -> None:
+        if name in seen or not summary.strip():
+            return
+        seen.add(name)
+        lines.append(f"- {name}: {summary.strip()[:140]}")
+
+    # 위치 고증 (현재 location)
+    if location:
+        raw = idx.get_raw_location(location)
+        if raw is not None:
+            _add(location, str(raw.get("description") or ""))
+        else:
+            ref = idx.fuzzy_lookup(location)
+            if ref is not None and ref.entity_type == "location":
+                _add(ref.name, ref.summary)
+
+    # 적 고증 (등급/출몰/정수 — 현재 적대 대상)
+    for name in (hostiles or [])[:3]:
+        ref = idx.lookup_by_name(name) or idx.fuzzy_lookup(name)
+        if ref is not None:
+            _add(ref.name, ref.summary)
+
+    # 입력/주변 키워드 정합 (그 외 등장 엔티티) — 세계 사물만(_WORLD_FACT_TYPES).
+    #   이미 담은 name의 부분문자열도 제외(중복/노이즈 회피).
+    for ref in idx.keyword_match(f"{user_input} {surroundings}", limit=max_facts * 2):
+        if ref.entity_type not in _WORLD_FACT_TYPES:
+            continue
+        # 1글자 name('방'⊂'방향' 등)은 부분일치 노이즈라 제외.
+        if len(ref.name) < 2:
+            continue
+        if any(ref.name in kept for kept in seen):
+            continue
+        _add(ref.name, ref.summary)
+        if len(lines) >= max_facts:
+            break
+
+    if not lines:
+        return persona
+    return persona + "\n" + "\n".join(lines[:max_facts])
+
+
 def _build_gm_prompt(
     user_input: str,
     mechanical_fact: str,

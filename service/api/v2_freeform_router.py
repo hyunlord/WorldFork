@@ -30,6 +30,7 @@ from service.sim.equipment import equipment_set_from_dict
 from service.sim.freeform_handler import freeform_action
 from service.sim.gm_narrator import (
     GM_NARRATE_ACTIONS,
+    build_gm_canon,
     compose_gm_narrative,
     gm_model_label,
     is_pivotal_gm,
@@ -273,6 +274,8 @@ async def _handle_weapon_choice(
         npc,
         chose_weapon=True,
     )
+    # ★ Canon Contract 주입(고증 RAG) — 성년식 장면: 위치/persona/무기 앵커.
+    canon = build_gm_canon(req.user_input, ctx.location, npc, None, chosen)
     gm_text = await asyncio.to_thread(
         compose_gm_narrative,
         req.user_input,
@@ -280,7 +283,7 @@ async def _handle_weapon_choice(
         ctx.location,
         npc,
         recent,
-        "",
+        canon,
         PHASE_LABEL.get(new_phase, ""),
     )
     narrative = gm_text or f"나는 {chosen}을(를) 손에 쥐었다. 성년의 증표다."
@@ -444,6 +447,20 @@ async def _run_action_stream(
                 action_type, session_state.story_phase, bool(hostile_state)
             )
             gm_model = gm_model_label(pivotal)
+            # ★ Canon Contract 주입(고증 RAG) — 위치/적 등급·출몰/persona/무기 정합.
+            hostile_names = [
+                str(e.get("name")) for e in ctx.encounters if e.get("hostile")
+            ]
+            weapon_eq = (session_state.equipment or {}).get("weapon")
+            weapon_name = (
+                str(weapon_eq.get("name") or "")
+                if isinstance(weapon_eq, dict)
+                else ""
+            )
+            canon = build_gm_canon(
+                req.user_input, ctx.location, surroundings,
+                hostile_names, weapon_name,
+            )
             pieces: list[str] = []
             async for delta in stream_gm_narrative(
                 req.user_input,
@@ -451,7 +468,7 @@ async def _run_action_stream(
                 ctx.location,
                 surroundings,
                 recent,
-                "",
+                canon,
                 PHASE_LABEL.get(session_state.story_phase, ""),
                 pivotal=pivotal,
             ):
