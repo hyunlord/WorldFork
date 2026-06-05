@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from service.sim.gm_narrator import GM_NARRATE_ACTIONS, compose_gm_narrative
+import pytest
+
+from service.sim.gm_narrator import (
+    GM_NARRATE_ACTIONS,
+    _gm_client,
+    _gm_temperature,
+    compose_gm_narrative,
+    gm_model_label,
+)
 from service.sim.types import PlayerActionType
 
 
@@ -28,7 +36,7 @@ def _fake_client(narrative: str) -> MagicMock:
 
 def test_compose_returns_llm_narrative() -> None:
     fake = _fake_client("나는 부족 성지를 천천히 둘러보았다. 횃불이 흔들렸다.")
-    with patch("service.sim.gm_narrator.get_qwen36_27b_q3", return_value=fake):
+    with patch("service.sim.gm_narrator.get_gemma4_12b", return_value=fake):
         out = compose_gm_narrative(
             "주변을 둘러본다", "특별한 변화 없음", "부족 성지",
             "부족장", [("이전 행동", "이전 결과")],
@@ -38,14 +46,14 @@ def test_compose_returns_llm_narrative() -> None:
 
 def test_compose_empty_on_too_short() -> None:
     fake = _fake_client("짧다")
-    with patch("service.sim.gm_narrator.get_qwen36_27b_q3", return_value=fake):
+    with patch("service.sim.gm_narrator.get_gemma4_12b", return_value=fake):
         out = compose_gm_narrative("x", "f", "l", "s", [])
     assert out == ""
 
 
 def test_compose_empty_on_exception() -> None:
     with patch(
-        "service.sim.gm_narrator.get_qwen36_27b_q3", side_effect=RuntimeError("down")
+        "service.sim.gm_narrator.get_gemma4_12b", side_effect=RuntimeError("down")
     ):
         out = compose_gm_narrative("x", "f", "l", "s", [])
     assert out == ""
@@ -60,10 +68,37 @@ def test_history_passed_to_prompt() -> None:
 
     fake = MagicMock()
     fake.generate_json.side_effect = gen
-    with patch("service.sim.gm_narrator.get_qwen36_27b_q3", return_value=fake):
+    with patch("service.sim.gm_narrator.get_gemma4_12b", return_value=fake):
         compose_gm_narrative(
             "행동", "확정사실", "위치", "주변", [("과거행동", "과거결과")],
         )
     # 누적 히스토리가 프롬프트에 포함 (맥락 인지)
     assert "과거행동" in captured["user"]
     assert "확정사실" in captured["user"]
+
+
+def test_routing_pivotal_gemma_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 기본(GEMMA_GM 미설정): pivotal → Gemma(8085), 단순 → 9B(8083)
+    monkeypatch.delenv("GEMMA_GM", raising=False)
+    assert gm_model_label(True) == "gemma"
+    assert gm_model_label(False) == "9b"
+    assert "8085" in _gm_client(True)._base_url
+    assert "8083" in _gm_client(False)._base_url
+
+
+def test_routing_pivotal_27b_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    # GEMMA_GM=0 폴백: pivotal → 27B(8081)
+    monkeypatch.setenv("GEMMA_GM", "0")
+    assert gm_model_label(True) == "27b"
+    assert "8081" in _gm_client(True)._base_url
+    # 단순 경로는 토글 무관 9B 유지
+    assert gm_model_label(False) == "9b"
+
+
+def test_gm_temperature_per_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Gemma pivotal = 공식 권장 1.0(변주↑), 27B 폴백/단순 9B = 0.8
+    monkeypatch.delenv("GEMMA_GM", raising=False)
+    assert _gm_temperature(True) == 1.0  # Gemma
+    assert _gm_temperature(False) == 0.8  # 9B
+    monkeypatch.setenv("GEMMA_GM", "0")
+    assert _gm_temperature(True) == 0.8  # 27B 폴백

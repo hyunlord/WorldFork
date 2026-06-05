@@ -10,6 +10,7 @@ from core.llm.local_client import (
     LocalLLMClient,
     get_default_gm,
     get_default_npc,
+    get_gemma4_12b,
     get_qwen35_9b_q3,
     get_qwen36_27b_q2,
     get_qwen36_27b_q3,
@@ -301,6 +302,14 @@ class TestFactoryFunctions:
         # Phase A.3-c: llama-server 본 response_format json_schema 지원.
         c = get_qwen35_9b_q3()
         assert c._supports_json_schema is True
+
+    def test_get_gemma4_12b(self) -> None:
+        # pivotal GM — Gemma 4 12B(8085), 권장 샘플링 기본값 + json_schema.
+        c = get_gemma4_12b()
+        assert c.model_name == "gemma4-12b"
+        assert "8085" in c._base_url
+        assert c._supports_json_schema is True
+        assert c._default_sampling == {"top_k": 64, "top_p": 0.95, "repeat_penalty": 1.1}
 
     def test_get_qwen36_27b_q2(self) -> None:
         c = get_qwen36_27b_q2()

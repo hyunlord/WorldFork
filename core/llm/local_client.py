@@ -76,6 +76,7 @@ class LocalLLMClient(LLMClient):
         timeout: int = 120,
         chat_template_kwargs: dict[str, Any] | None = None,
         supports_json_schema: bool = False,
+        default_sampling: dict[str, Any] | None = None,
     ) -> None:
         self._key = model_key
         self._base_url = base_url.rstrip("/")
@@ -85,6 +86,8 @@ class LocalLLMClient(LLMClient):
             _THINKING_OFF if chat_template_kwargs is None else chat_template_kwargs
         )
         self._supports_json_schema = supports_json_schema
+        # 모델별 권장 샘플링 기본값(top_k/top_p/repeat_penalty 등). 호출 kwargs가 우선.
+        self._default_sampling: dict[str, Any] = default_sampling or {}
 
     @property
     def model_name(self) -> str:
@@ -106,6 +109,12 @@ class LocalLLMClient(LLMClient):
             "max_tokens": kwargs.get("max_tokens", 1500),
             "temperature": kwargs.get("temperature", 0.7),
         }
+        # 모델 권장 샘플링(top_k/top_p/repeat_penalty 등) 주입 — 호출 kwargs가 덮어쓴다.
+        for skey, sval in self._default_sampling.items():
+            payload[skey] = kwargs.get(skey, sval)
+        for skey in ("top_k", "top_p", "repeat_penalty", "frequency_penalty"):
+            if skey in kwargs:
+                payload[skey] = kwargs[skey]
         if self._chat_template_kwargs:
             payload["chat_template_kwargs"] = self._chat_template_kwargs
         return payload
@@ -296,6 +305,22 @@ def get_qwen36_27b_q3() -> LocalLLMClient:
         base_url="http://localhost:8081",
         model_name_in_request="qwen3.6-27b",
         supports_json_schema=True,
+    )
+
+
+def get_gemma4_12b() -> LocalLLMClient:
+    """Gemma 4 12B Q4_K_M — pivotal GM narrative (llama-server, port 8085).
+
+    PoC 검증: 한국어 서사 우위(무기 일관/persona/누설0) + ~15 t/s(현 27B 3.5×) +
+    response_format json_schema 준수 + 스트리밍. 권장 샘플링(top_k 64/top_p 0.95/
+    repeat_penalty 1.1 — 산문 무손상 + 반복 안전망). Apache-2.0.
+    """
+    return LocalLLMClient(
+        model_key="gemma4-12b",
+        base_url="http://localhost:8085",
+        model_name_in_request="gemma",
+        supports_json_schema=True,
+        default_sampling={"top_k": 64, "top_p": 0.95, "repeat_penalty": 1.1},
     )
 
 

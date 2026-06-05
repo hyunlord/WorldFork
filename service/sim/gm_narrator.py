@@ -10,12 +10,14 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from typing import Any
 
 from core.llm.client import Prompt
 from core.llm.local_client import (
     LocalLLMClient,
+    get_gemma4_12b,
     get_qwen35_9b_q3,
     get_qwen36_27b_q3,
 )
@@ -79,14 +81,38 @@ def is_pivotal_gm(
     return False
 
 
+# pivotal GM 모델 — Gemma 4 12B(기본, ~15 t/s·서사 우위) ↔ 27B(폴백).
+#   GEMMA_GM=0 으로 즉시 27B 되돌림(서빙 문제 시 안전). 단순 경로는 9B 유지.
+def _use_gemma_pivotal() -> bool:
+    return os.environ.get("GEMMA_GM", "1") != "0"
+
+
 def gm_model_label(pivotal: bool) -> str:
     """라우팅 관측 라벨 — 응답 gm_model 필드용."""
-    return "27b" if pivotal else "9b"
+    if not pivotal:
+        return "9b"
+    return "gemma" if _use_gemma_pivotal() else "27b"
 
 
 def _gm_client(pivotal: bool) -> LocalLLMClient:
-    """pivotal → 27B(품질) / 단순 → 9B(빠름). 둘 다 thinking off·스트리밍 지원."""
-    return get_qwen36_27b_q3() if pivotal else get_qwen35_9b_q3()
+    """pivotal → Gemma 4 12B(기본·품질·~15 t/s) 또는 27B(GEMMA_GM=0 폴백) /
+    단순 → 9B(빠름). 모두 thinking off·스트리밍·json_schema 지원."""
+    if not pivotal:
+        return get_qwen35_9b_q3()
+    return get_gemma4_12b() if _use_gemma_pivotal() else get_qwen36_27b_q3()
+
+
+# GM 서사 temperature — 27B/9B는 0.8. Gemma 4는 공식 권장 1.0으로 변주를 높여
+#   짧은 constrained 프롬프트(예: 부족장 대화)에서 반복 narration을 줄인다
+#   (산문 품질 무손상 — 디코딩 eval 확인). 게임 서사 다양성에도 기여.
+_GM_TEMPERATURE = 0.8
+_GEMMA_GM_TEMPERATURE = 1.0
+
+
+def _gm_temperature(pivotal: bool) -> float:
+    if pivotal and _use_gemma_pivotal():
+        return _GEMMA_GM_TEMPERATURE
+    return _GM_TEMPERATURE
 
 
 _GM_SYSTEM = (
@@ -263,7 +289,7 @@ def compose_gm_narrative(
             prompt,
             schema=_GM_SCHEMA,
             max_tokens=GM_MAX_TOKENS,
-            temperature=0.8,
+            temperature=_gm_temperature(pivotal),
         )
         result = str(response.parsed.get("narrative", ""))
         return result if len(result) >= 20 else ""
@@ -294,7 +320,9 @@ async def stream_gm_narrative(
             user_input, mechanical_fact, location, surroundings,
             recent_turns, canon, story_phase,
         )
-        agen = client.astream(prompt, max_tokens=GM_MAX_TOKENS, temperature=0.8)
+        agen = client.astream(
+            prompt, max_tokens=GM_MAX_TOKENS, temperature=_gm_temperature(pivotal)
+        )
     except Exception:
         return
     try:

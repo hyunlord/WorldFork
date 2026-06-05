@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from service.sim.gm_narrator import gm_model_label, is_pivotal_gm
 from service.sim.types import PlayerActionType
 
@@ -38,6 +40,12 @@ def test_dungeon_entry_9b() -> None:
     assert is_pivotal_gm(PlayerActionType.ENTER_DUNGEON, "departure", False) is False
 
 
-def test_model_label() -> None:
+def test_model_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 기본: pivotal → Gemma 4(품질·~15 t/s), 단순 → 9B
+    monkeypatch.delenv("GEMMA_GM", raising=False)
+    assert gm_model_label(True) == "gemma"
+    assert gm_model_label(False) == "9b"
+    # GEMMA_GM=0 폴백: pivotal → 27B
+    monkeypatch.setenv("GEMMA_GM", "0")
     assert gm_model_label(True) == "27b"
     assert gm_model_label(False) == "9b"

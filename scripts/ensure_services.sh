@@ -24,12 +24,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # ─── 기동 대상 정의 (★ Step 1 진단 정합) ───
 LLAMA_SERVER="${LLAMA_SERVER:-/home/hyunlord/repos/llama.cpp/build/bin/llama-server}"
 MODEL_9B="${MODEL_9B:-/home/hyunlord/models/gguf/qwen35-9b/Qwen3.5-9B-UD-Q3_K_XL.gguf}"
+MODEL_GEMMA="${MODEL_GEMMA:-/home/hyunlord/models/poc/gemma-4-12B-it-Q4_K_M.gguf}"
 PORT_9B=8083
+PORT_GEMMA=8085   # pivotal GM (Gemma 4 12B) — local_client get_gemma4_12b 정합
 PORT_FE=4000
 PORT_BACKEND=8090
 PORT_27B=8081
 
 LLM_HEALTH_TIMEOUT="${LLM_HEALTH_TIMEOUT:-90}"   # 9B model load 대기 (초)
+GEMMA_HEALTH_TIMEOUT="${GEMMA_HEALTH_TIMEOUT:-180}"  # Gemma 12B load 대기 (초)
 FE_HEALTH_TIMEOUT="${FE_HEALTH_TIMEOUT:-120}"    # next dev cold compile 대기 (초)
 HEALTH_INTERVAL=3
 
@@ -86,6 +89,39 @@ ensure_9b() {
         > /tmp/llama_9b.log 2>&1 &
     disown
     _wait_health "9B" "$PORT_9B" "/health" "$LLM_HEALTH_TIMEOUT"
+}
+
+
+# ─── Gemma 4 12B (8085) llama-server — pivotal GM ───
+#   GEMMA_GM=0(런타임) 이면 게임이 27B로 폴백하므로 서빙도 skip 가능(ENSURE_GEMMA=0).
+ensure_gemma() {
+    if [ "${ENSURE_GEMMA:-1}" != "1" ] || [ "${GEMMA_GM:-1}" = "0" ]; then
+        echo "[ensure] Gemma (8085) skip (ENSURE_GEMMA=0 또는 GEMMA_GM=0 — 27B 폴백)"
+        return 0
+    fi
+    if _check "$PORT_GEMMA" "/health"; then
+        echo "[ensure] Gemma (8085) ✅ 이미 UP"
+        return 0
+    fi
+    if [ ! -x "$LLAMA_SERVER" ]; then
+        echo "[ensure] Gemma (8085) ⚠️  llama-server 바이너리 없음: $LLAMA_SERVER"
+        return 1
+    fi
+    if [ ! -f "$MODEL_GEMMA" ]; then
+        echo "[ensure] Gemma (8085) ⚠️  model 파일 없음: $MODEL_GEMMA"
+        return 1
+    fi
+    echo "[ensure] Gemma (8085) DOWN → llama-server 자동 start..."
+    nohup "$LLAMA_SERVER" \
+        -m "$MODEL_GEMMA" \
+        --port "$PORT_GEMMA" \
+        --host 0.0.0.0 \
+        -ngl 99 \
+        -c 8192 \
+        --jinja \
+        > /tmp/llama_gemma.log 2>&1 &
+    disown
+    _wait_health "Gemma" "$PORT_GEMMA" "/health" "$GEMMA_HEALTH_TIMEOUT"
 }
 
 
@@ -163,6 +199,7 @@ main() {
     echo "=== ensure_services — Ship Gate 전 인프라 헬스체크 ==="
     local warn=0
     ensure_9b || warn=1
+    ensure_gemma || warn=1
     ensure_backend || warn=1
     ensure_frontend || warn=1
     review_27b
