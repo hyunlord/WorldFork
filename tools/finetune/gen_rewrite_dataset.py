@@ -39,6 +39,8 @@ _SYS_B = (
     "③원작 고유명사는 유지 ④3~5문장. 메타·시스템 설명 금지, 서사만 출력."
 )
 _THINK_TAG = re.compile(r"<think>.*?</think>", re.DOTALL)
+# ★ output(학습 타깃)에서만 게임 메타 누출 배제 — instruction(입력)은 무관
+_META = re.compile(r"(NPC|플레이어|스킬|레벨|던전\s*앤\s*스톤|시스템|퀘스트|\bHP\b|\bMP\b)")
 
 
 def _call(system: str, user: str, max_tokens: int) -> str | None:
@@ -70,6 +72,8 @@ def make_pair(ch: str) -> dict[str, str] | None:
     hp = hangul_purity(rewrite)
     if hp["purity_pct"] < 95.0 or hp["glue_glitch"] or hp["dup_glitch"]:
         return None
+    if _META.search(rewrite):  # output 메타 누출 배제(GM 자칭/게임명 금지)
+        return None
     return {"instruction": instr, "output": rewrite}
 
 
@@ -78,6 +82,8 @@ def main() -> None:
     ap.add_argument("--target", type=int, default=1500)
     ap.add_argument("--concurrency", type=int, default=8)
     ap.add_argument("--episodes", type=int, default=0, help="0=전체")
+    ap.add_argument("--offset", type=int, default=0, help="청크 풀 시작 오프셋(보충용)")
+    ap.add_argument("--append", action="store_true", help="기존 파일에 이어쓰기")
     args = ap.parse_args()
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -90,10 +96,11 @@ def main() -> None:
     print(f"청크 풀 {len(chunks)}개 → target {args.target} 쌍 "
           f"(동시 {args.concurrency})", flush=True)
 
+    chunks = chunks[args.offset:]
     lock = threading.Lock()
     kept = [0]
     rejected = [0]
-    fout = OUT.open("w", encoding="utf-8")
+    fout = OUT.open("a" if args.append else "w", encoding="utf-8")
 
     def worker(ch: str) -> None:
         if kept[0] >= args.target:
