@@ -1,0 +1,49 @@
+# 고정 평가 시나리오 (★ 동일 입력 — 모델 간 공정 비교).
+#   task: 종합 GM 서사(나중에 GM/intent/전투/고증 태스크로 분리 가능).
+#   structured: json_schema strict 준수 측정(구조화 출력 지표).
+#   ★ system은 게임 실제 _GM_SYSTEM 계약형을 run_eval가 canon 주입해 구성.
+
+narrative:
+  - key: 수정동굴_진입
+    user: "나는 수정동굴 안으로 더 깊이 들어선다."
+    location: "1층: 수정동굴"
+    surroundings: "특이사항 없음"
+    hostiles: []
+    weapon: "전투 도끼"
+    phase: "던전 탐험"
+    fact: "수정동굴 1층에 진입했다."
+  - key: 고블린_조우
+    user: "모퉁이를 돌자 고블린들이 나를 노려본다."
+    location: "1층: 수정동굴"
+    surroundings: "고블린, 고블린 궁수"
+    hostiles: ["고블린", "고블린 궁수"]
+    weapon: "전투 도끼"
+    phase: "전투"
+    fact: "고블린 2마리가 출현했다."
+  - key: 성인식_무기
+    user: "부족장 앞에서 도끼와 방패를 집어 든다."
+    location: "성인식 마을"
+    surroundings: "부족장"
+    hostiles: []
+    weapon: "전투 도끼"
+    phase: "성년식"
+    fact: "성년의 증표로 도끼와 방패를 골랐다."
+
+# 구조화 출력 — intent 분류(action enum + target + confidence + reason)
+structured:
+  schema:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [attack, move, talk, use_item, flee, rest, explore]
+      target: { type: string }
+      confidence: { type: number }
+      reason: { type: string }
+    required: [action, target, confidence, reason]
+    additionalProperties: false
+  cases:
+    - "고블린이 달려든다. 나는 방패로 막고 도끼로 친다."
+    - "마석 거래소 노인에게 다가가 가격을 묻는다."
+    - "체력이 바닥났다. 안전한 구석에서 잠시 쉰다."
+    - "균열 너머로 더 깊이 내려가는 계단을 발견한다."

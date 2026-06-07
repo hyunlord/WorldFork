@@ -1,0 +1,38 @@
+# 평가 대상 모델 레지스트리 (★ 확장 가능 — 줄 추가로 신규/파인튜닝 모델 등록).
+#   endpoint: OpenAI 호환 /v1/chat/completions / model: 요청 model 필드 /
+#   size_gb: 가중치 파일 크기(메모리 지표) / family: 그룹 / role: 게임 내 역할.
+#   judge: 이 모델을 평가할 judge 모델 key (★ 자기선호 회피 — Cross-Model).
+models:
+  - key: gemma4-12b
+    label: "Gemma 4 12B (현 배선)"
+    endpoint: http://localhost:8085
+    model: gemma
+    size_gb: 7.4
+    family: gemma
+    role: "pivotal GM (live)"
+    judge: qwen36-27b
+  - key: qwen36-27b
+    label: "Qwen 3.6 27B (fp8)"
+    endpoint: http://localhost:8081
+    model: qwen3.6-27b
+    size_gb: 26.0
+    family: qwen
+    role: "GM fallback"
+    judge: gemma4-12b
+  - key: qwen35-9b
+    label: "Qwen 3.5 9B (Q3)"
+    endpoint: http://localhost:8083
+    model: qwen35-9b-q3
+    size_gb: 5.5
+    family: qwen
+    role: "simple GM / intent"
+    judge: qwen36-27b
+
+# 샘플링 (★ 비결정 다회 평균/분산 — 단발 X)
+sampling:
+  temperature: 1.0
+  top_k: 64
+  top_p: 0.95
+  repeat_penalty: 1.1
+  max_tokens: 200
+  runs: 3

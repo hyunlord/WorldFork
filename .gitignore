@@ -76,3 +76,7 @@ tools/long_playthrough.py
 tools/playthrough_captures/
 tools/labyrinth_capture.py
 tools/labyrinth_captures/
+
+# 평가 프레임워크 생성 산출물(재생성 가능, 비커밋)
+tools/eval/results.json
+tools/eval/eval_dashboard.html
