@@ -86,6 +86,35 @@ def parse_judge(text: str) -> dict[str, Any] | None:
     return out
 
 
+def aggregate_nonself(
+    author: str, per_judge_list: list[dict[str, dict[str, Any] | None]],
+) -> dict[str, Any]:
+    """author별 다judge 평균 — 자기채점 배제(author≠judge, Cross-Model 원칙).
+
+    per_judge_list: scenario별 {judge: {축:점수}|None}. 생성 모델 자신의 채점은 제외하고
+    나머지 judge 점수를 축별 평균. judge별 편향(예: 27B harsh)은 호출자가 per_judge
+    원점수로 추적·해석한다(judge_cross 측정에 정량화). 평균은 단순·검증가능하게 유지.
+    """
+    import statistics
+
+    # 자기채점 제외한 유효 judge 점수만 수집(누락/None은 애초에 배제 — 0.0 대입 안 함)
+    axis_vals: dict[str, list[float]] = {ax: [] for ax in JUDGE_AXES}
+    judges: set[str] = set()
+    for per_judge in per_judge_list:
+        for judge_key, score in per_judge.items():
+            if score is None or judge_key == author:
+                continue
+            judges.add(judge_key)
+            for ax in JUDGE_AXES:
+                if ax in score:
+                    axis_vals[ax].append(float(score[ax]))
+    # 데이터가 실재하는 축만 평균(누락 축은 결과에서 생략 — 0.0 placeholder 미사용)
+    axes = {ax: round(statistics.mean(vals), 2)
+            for ax, vals in axis_vals.items() if vals}
+    overall = round(statistics.mean(axes.values()), 2) if axes else None
+    return {"axes": axes, "overall": overall, "judges": sorted(judges)}
+
+
 def validate_structured(text: str, required: list[str]) -> dict[str, Any]:
     """구조화 출력 검증 — valid JSON object + required 키 충족."""
     m = re.search(r"\{.*\}", text, re.DOTALL)

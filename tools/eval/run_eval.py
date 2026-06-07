@@ -124,14 +124,16 @@ def main() -> None:
     set_entity_index(EntityIndex(facts))
 
     results: dict[str, Any] = {"sampling": sampling, "models": []}
+    # author별 scenario별 per_judge 원점수 — 루프 후 self제외+보정 집계(metrics)
+    author_per_judge: dict[str, list[dict[str, Any]]] = {}
     for m in models:
         print(f"=== {m['key']} ({m['label']}) ===", flush=True)
         tps_all: list[float] = []
         ttft_all: list[float] = []
         purity_all: list[float] = []
         glue_tot = dup_tot = foreign_tot = 0
-        judge_axes: dict[str, list[float]] = {ax: [] for ax in metrics.JUDGE_AXES}
         samples: list[dict[str, Any]] = []
+        per_judge_list: list[dict[str, Any]] = []
 
         for scen in prm["narrative"]:
             canon = build_gm_canon(scen["user"], scen["location"], scen["surroundings"],
@@ -155,15 +157,21 @@ def main() -> None:
                 dup_tot += hp["dup_glitch"]
                 foreign_tot += hp["foreign_chars"]
                 best_text = r["text"]
-            # judge (대표 1회 — best_text)
+            # ★ 다judge 채점 — author≠judge(자기채점 배제, Cross-Model 원칙).
+            #   judge harshness 보정·집계는 전 모델 수집 후 일괄(metrics.calibrate_aggregate).
             ctx = f"위치: {scen['location']} / 주변: {scen['surroundings']} / 행동: {scen['user']}"
-            jv = _judge(by_key, m["judge"], ctx, best_text) if best_text else None
-            if jv:
-                for ax in metrics.JUDGE_AXES:
-                    judge_axes[ax].append(float(jv[ax]))
+            per_judge: dict[str, Any] = {}
+            if best_text:
+                for jk in by_key:
+                    if jk == m["key"]:
+                        continue  # 자기채점 배제
+                    per_judge[jk] = _judge(by_key, jk, ctx, best_text)
+            per_judge_list.append(per_judge)
             samples.append({"scenario": scen["key"], "text": best_text,
-                            "judge": jv, "judge_by": m["judge"]})
-            print(f"  [{scen['key']}] tps={_mean(tps_all)} judge={jv}", flush=True)
+                            "per_judge": per_judge})
+            print(f"  [{scen['key']}] tps={_mean(tps_all)} judges={list(per_judge)}",
+                  flush=True)
+        author_per_judge[m["key"]] = per_judge_list
 
         # 구조화 출력 준수율
         sch = prm["structured"]["schema"]
@@ -191,20 +199,25 @@ def main() -> None:
             struct_samples.append({"case": case, "valid": v["valid"],
                                    "parsed": v.get("parsed")})
 
-        judge_mean = {ax: _mean(judge_axes[ax]) for ax in metrics.JUDGE_AXES}
-        judge_overall = _mean([v for v in judge_mean.values()])
         results["models"].append({
             "key": m["key"], "label": m["label"], "role": m["role"],
-            "size_gb": m["size_gb"], "judge_by": m["judge"],
+            "size_gb": m["size_gb"], "judge_by": "calibrated non-self",
             "latency": {"tps": _mean(tps_all), "ttft": _mean(ttft_all),
                         "tps_runs": len(tps_all)},
             "hangul": {"purity_pct": _mean(purity_all), "glue_glitch": glue_tot,
                        "dup_glitch": dup_tot, "foreign_chars": foreign_tot},
-            "judge": {"axes": judge_mean, "overall": judge_overall},
+            "judge": {"axes": {}, "overall": 0.0},  # 사후 보정 집계로 채움
             "structured": {"pass": ok, "total": len(cases),
                            "pct": round(ok / len(cases) * 100, 1) if cases else 0.0},
             "samples": samples, "structured_samples": struct_samples,
         })
+
+    # ★ author별 다judge 평균 — 자기채점 배제(per_judge 원점수는 샘플에 유지·투명)
+    for entry in results["models"]:
+        agg = metrics.aggregate_nonself(entry["key"],
+                                        author_per_judge.get(entry["key"], []))
+        entry["judge"] = {"axes": agg["axes"], "overall": agg["overall"]}
+        entry["judge_by"] = "non-self mean (" + "/".join(agg["judges"]) + ")"
 
     Path(args.out).write_text(json.dumps(results, ensure_ascii=False, indent=2),
                               encoding="utf-8")
