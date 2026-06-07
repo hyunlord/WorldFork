@@ -71,3 +71,31 @@ tools/eval/ 6+지표 전후 비교:
 
 → 데이터 파이프라인은 즉시 실행 가능. **LoRA 학습은 패키지 승인 + safetensors + GB10 호환 검증 후.**
 대안: Mac(MLX-LM LoRA) 또는 승인된 학습 환경에서 1단계 검증 후 GGUF 반입.
+
+## 7. 1단계 실행 결과 (2026-06-08 — 파이프라인 검증 ✅ / 품질 ❌ 음성)
+
+**환경 해소**: 사용자(DGX 소유자) peft/trl 승인. GB10 sm_121 호환 = PEFT 0.19.1 + TRL 1.5.1
++ transformers 4.57.1 동작(단, torchao 0.9.0 제거 필요 — PEFT는 >0.16.0 요구).
+
+**파이프라인 5단계 전부 작동 검증**: 데이터(Gemma labeler 100쌍) → LoRA SFT(r16, 3ep,
+train_loss 2.80, loss 4.59→2.13 단조 하강) → 병합 → GGUF(Q8) → tools/eval A/B 평가.
+도구: `tools/finetune/{train_lora,merge_lora,eval_ab}.py`.
+
+**A/B 결과(base vs LoRA, 동일 Q8·동일 시나리오·judge=gemma+27b)** — ★ 음성:
+
+| 모델 | judge overall | 문체 | persona | 고증 | 시스템 | 한글순도 |
+|---|---|---|---|---|---|---|
+| Llama-3.2-3B base | 2.92 | 1.83 | 2.33 | 3.50 | 4.00 | 95.1% |
+| + GM-LoRA | **2.25** | 1.83 | 1.67 | 2.33 | 3.17 | **90.8%** |
+
+**근본 원인(measurement-first)**:
+1. **base가 부적합** — Llama-3.2-3B는 영어 중심(한자 누출 `修`/`narrowing`). 파이프라인 검증용
+   fallback이지 의도한 Qwen3.5-4B(한국어 강함) 아님. transformers 4.57.1이 `qwen3_5` arch
+   미인식이라 부득이 대체 → **production base는 transformers 업그레이드 후 Qwen3.5-4B 재시도**.
+2. **Full SFT(assistant-only loss 미지원)** — Llama 템플릿에 `{% generation %}` 마커 부재로
+   프롬프트까지 학습 → 포맷 모방·메타 누출("## 메타·규칙"). assistant-only 가능한 base 필요.
+3. **타깃=원작 본문 청크** — 문맥 끊긴 중간 파편 + 한자를 문체로 학습 → 순도 하락.
+4. **100쌍 3ep lr2e-4** = 파편 과적합. 다음: 1500-3000쌍·lr5e-5·early-stop.
+
+**결론**: 도구·파이프라인 검증 완료(재사용 가능). 품질 개선은 base+레시피 교체 후 2차 시도.
+헛된 비싼 학습(2단계 12B)을 막은 값싼 음성 신호 — 1단계 검증의 본래 목적 달성.

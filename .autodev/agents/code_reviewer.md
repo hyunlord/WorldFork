@@ -93,6 +93,8 @@ are NOT external_pkg_added violations:
   * vitest, playwright, msw (Tier 2+ testing)
   * @testing-library/react, jsdom (★ Phase D step 2 — vitest 의 React
     hook test, frontend only, runtime 영향 X)
+- ★ peft, trl, transformers, datasets, torch (★ 파인튜닝 1단계 — DGX 소유자
+  승인. 학습 도구 only(tools/finetune/), 게임 runtime/core/service 미사용)
 ★ Do NOT report adding these packages as a violation.
 ★ Do NOT report transitive deps in package-lock.json (★ npm internal).
 

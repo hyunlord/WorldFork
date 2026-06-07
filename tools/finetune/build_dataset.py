@@ -17,7 +17,13 @@ from pathlib import Path
 
 BODIES = Path(".local/novel_bodies/ntk01_novel_20_bodies")
 OUT = Path(".local/finetune/gm_narrative.jsonl")
-LABELER = ("http://localhost:8081", "qwen3.6-27b")
+# labeler 엔드포인트 — 27B(품질) / gemma(8085, ~5배 빠름, 대량 생성용).
+LABELERS = {
+    "27b": ("http://localhost:8081", "qwen3.6-27b"),
+    "gemma": ("http://localhost:8085", "gemma"),
+    "9b": ("http://localhost:8083", "qwen35-9b-q3"),
+}
+LABELER = LABELERS["27b"]
 
 # 격식체(챗봇 말투) 종결 — 문어체 GM 데이터에서 배제
 _CHATTY = re.compile(r"(해요|예요|에요|네요|거든요|더라고요|습니다만요)[.!?\"']")
@@ -26,8 +32,11 @@ _SENT = re.compile(r"(?<=[다요죠])\.\s+|(?<=[.!?])\s+")
 
 def load_bodies(limit: int) -> list[str]:
     files = sorted(BODIES.glob("episode_*.txt"))
-    if limit:
-        files = files[:limit]
+    # 도입부(현대 배경) 편중 회피 — 5화 이후를 전 구간 고르게 샘플(문체 다양).
+    files = files[4:]
+    if limit and limit < len(files):
+        stride = max(1, len(files) // limit)
+        files = files[::stride][:limit]
     out: list[str] = []
     for f in files:
         text = f.read_text(encoding="utf-8", errors="ignore")
@@ -87,7 +96,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=5, help="에피소드 수(0=전체)")
     ap.add_argument("--max-pairs", type=int, default=20, help="생성 쌍 상한(검증용)")
+    ap.add_argument("--labeler", choices=list(LABELERS), default="27b",
+                    help="역설계 labeler — 27b(품질)/gemma(빠름)/9b")
     args = ap.parse_args()
+    global LABELER
+    LABELER = LABELERS[args.labeler]
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
     pairs: list[dict[str, str]] = []
