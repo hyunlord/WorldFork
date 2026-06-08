@@ -1,7 +1,7 @@
 """LoRA 어댑터 → base 병합 후 merged safetensors 저장 (GGUF 변환 전 단계).
 
-학습된 어댑터(/home/hyunlord/models/finetune/llama32-3b-gm-lora)를 base에 merge_and_unload,
-/home/hyunlord/models/finetune/llama32-3b-gm-merged 로 저장. 이후 llama.cpp로 GGUF화.
+학습된 어댑터(/home/hyunlord/models/finetune/qwen3-4b-gm-lora-v2)를 base에 merge_and_unload,
+/home/hyunlord/models/finetune/qwen3-4b-gm-v2-merged 로 저장. 이후 llama.cpp로 GGUF화.
 
 사용: python tools/finetune/merge_lora.py
 """
@@ -12,9 +12,9 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-BASE = "/home/hyunlord/models/finetune/Llama-3.2-3B"
-ADAPTER = "/home/hyunlord/models/finetune/llama32-3b-gm-lora"
-MERGED = "/home/hyunlord/models/finetune/llama32-3b-gm-merged"
+BASE = "/home/hyunlord/models/finetune/Qwen3-4B-Instruct-2507"
+ADAPTER = "/home/hyunlord/models/finetune/qwen3-4b-gm-lora-v2"
+MERGED = "/home/hyunlord/models/finetune/qwen3-4b-gm-v2-merged"
 
 
 def main() -> None:
