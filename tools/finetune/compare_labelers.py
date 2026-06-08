@@ -29,6 +29,8 @@ LABELERS = {
     "qwen35-9b": ("http://localhost:8083", "qwen35-9b-q3"),
     "gemma": ("http://localhost:8085", "gemma"),
     "qwen35-122b": ("http://localhost:8089", "qwen35-122b"),
+    "qwen36-35b": ("http://localhost:8089", "qwen36-35b"),
+    "gemma31b": ("http://localhost:8092", "gemma31b"),
 }
 
 _SYS_A = (
@@ -76,9 +78,11 @@ def main() -> None:
             "key": c["key"], "scene": c["scene"],
             "instruction": instr, "rewrite": rewrite,
             "rewrite_purity": hp["purity_pct"], "rewrite_foreign": hp["foreign_chars"],
+            "rewrite_cjk": hp["cjk"],  # ★ 한자 누출(학습 위험) — 0 필수
             "rewrite_glitch": hp["glue_glitch"] + hp["dup_glitch"],
         })
-        print(f"  [{c['key']}] purity={hp['purity_pct']} instr={instr[:40]}", flush=True)
+        print(f"  [{c['key']}] purity={hp['purity_pct']} cjk={hp['cjk']} "
+              f"instr={instr[:36]}", flush=True)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"out_{args.labeler}.json"

@@ -24,8 +24,13 @@ sys.path.insert(0, str(ROOT))
 from tools.eval.metrics import hangul_purity  # noqa: E402
 from tools.finetune.build_dataset import chunk, is_munche, load_bodies  # noqa: E402
 
-ENDPOINT, MODEL = "http://localhost:8081", "qwen3.6-27b"
-OUT = ROOT / ".local/finetune/gm_narrative_v2.jsonl"
+# labeler 선택 — best=35B-A3B(한자 누출 0 + 문어체 최고, commit 비교 근거). 27B는 한자 5.7% 누출.
+LABELERS = {
+    "qwen36-35b": ("http://localhost:8089", "qwen36-35b"),
+    "qwen36-27b": ("http://localhost:8081", "qwen3.6-27b"),
+    "gemma": ("http://localhost:8085", "gemma"),
+}
+ENDPOINT, MODEL = LABELERS["qwen36-35b"]  # main()에서 --labeler로 덮어씀
 
 _SYS_A = (
     "당신은 한국어 던전 게임 로그 설계자다. 주어진 소설 서사 한 토막을 보고, "
@@ -70,7 +75,8 @@ def make_pair(ch: str) -> dict[str, str] | None:
     if not rewrite or len(rewrite) < 40:
         return None
     hp = hangul_purity(rewrite)
-    if hp["purity_pct"] < 95.0 or hp["glue_glitch"] or hp["dup_glitch"]:
+    # ★ 한자(cjk) 0 필수 — 1~2자 누출도 학습 위험(순도 95%는 너무 느슨, 5.7% 통과했음)
+    if hp["cjk"] > 0 or hp["purity_pct"] < 97.0 or hp["glue_glitch"] or hp["dup_glitch"]:
         return None
     if _META.search(rewrite):  # output 메타 누출 배제(GM 자칭/게임명 금지)
         return None
@@ -84,7 +90,13 @@ def main() -> None:
     ap.add_argument("--episodes", type=int, default=0, help="0=전체")
     ap.add_argument("--offset", type=int, default=0, help="청크 풀 시작 오프셋(보충용)")
     ap.add_argument("--append", action="store_true", help="기존 파일에 이어쓰기")
+    ap.add_argument("--labeler", choices=list(LABELERS), default="qwen36-35b")
+    ap.add_argument("--out", default=None, help="출력 jsonl 경로")
     args = ap.parse_args()
+    global ENDPOINT, MODEL, OUT
+    ENDPOINT, MODEL = LABELERS[args.labeler]
+    if args.out:
+        OUT = Path(args.out)
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
     # 청크 풀 — 전 구간 고르게, 문어체 필터

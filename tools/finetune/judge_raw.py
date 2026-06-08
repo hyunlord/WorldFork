@@ -20,6 +20,8 @@ ENDPOINTS = {
     "qwen36-27b": ("http://localhost:8081", "qwen3.6-27b"),
     "gemma": ("http://localhost:8085", "gemma"),
     "qwen35-122b": ("http://localhost:8089", "qwen35-122b"),
+    "qwen36-35b": ("http://localhost:8089", "qwen36-35b"),
+    "gemma31b": ("http://localhost:8092", "gemma31b"),
 }
 AXES = ("자기완결", "문어체", "메타제거", "충실")
 _SYS = (
