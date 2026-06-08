@@ -57,11 +57,31 @@ def main() -> None:
     ap.add_argument("--epochs", type=float, default=3.0)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--lr", type=float, default=5e-5)
+    ap.add_argument("--base", default=BASE, help="base 모델 경로/리포(여러 base 비교용)")
+    ap.add_argument("--out", default=OUT, help="어댑터 출력 경로")
     args = ap.parse_args()
 
-    tok = AutoTokenizer.from_pretrained(BASE)
+    base, out = args.base, args.out
+    tok = AutoTokenizer.from_pretrained(base)
+    # ★ assistant-only loss는 템플릿에 {% generation %} 마커 필요. 일부 base(Bllossom/Phi)는
+    #   마커 없는 템플릿 → 호환 실패. base 특수토큰을 쓰는 generation-마커 템플릿으로 폴백 주입.
+    from trl.chat_template_utils import get_training_chat_template
+    try:
+        get_training_chat_template(tok)
+    except Exception:  # noqa: BLE001 — 마커 부재 base: 검증된 ChatML generation 템플릿 주입
+        tok.chat_template = (
+            '{% for message in messages %}'
+            '{% if message["role"] == "assistant" %}'
+            '{{ "<|im_start|>assistant\n" }}{% generation %}{{ message["content"] }}'
+            '{{ "<|im_end|>\n" }}{% endgeneration %}'
+            '{% else %}'
+            '{{ "<|im_start|>" + message["role"] + "\n" + message["content"] + "<|im_end|>\n" }}'
+            '{% endif %}{% endfor %}'
+            '{% if add_generation_prompt %}{{ "<|im_start|>assistant\n" }}{% endif %}'
+        )
+        print(f"[template] {base} — ChatML generation 템플릿 주입(assistant-only 유지)", flush=True)
     model = AutoModelForCausalLM.from_pretrained(
-        BASE, torch_dtype=torch.bfloat16, device_map="cuda",
+        base, torch_dtype=torch.bfloat16, device_map="cuda",
     )
     rows = load_pairs()
     # ★ early-stop용 holdout 5%(과적합 조기 감지) — 결정적 분할(섞기 없이 뒤 5%)
@@ -77,7 +97,7 @@ def main() -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     )
     cfg = SFTConfig(
-        output_dir=OUT, num_train_epochs=args.epochs,
+        output_dir=out, num_train_epochs=args.epochs,
         per_device_train_batch_size=1, gradient_accumulation_steps=8,
         learning_rate=args.lr, warmup_ratio=0.05, lr_scheduler_type="cosine",
         logging_steps=5, bf16=True, max_length=1024, packing=False, report_to=[],
@@ -90,13 +110,13 @@ def main() -> None:
     )
     trainer = SFTTrainer(
         model=model, args=cfg, train_dataset=train_ds, eval_dataset=eval_ds,
-        peft_config=peft_cfg,
+        peft_config=peft_cfg, processing_class=tok,  # ★ 주입한 템플릿 사용(폴백 반영)
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )
     trainer.train()
-    trainer.save_model(OUT)
-    tok.save_pretrained(OUT)
-    print(f"DONE LoRA → {OUT}", flush=True)
+    trainer.save_model(out)
+    tok.save_pretrained(out)
+    print(f"DONE LoRA → {out}", flush=True)
 
 
 if __name__ == "__main__":
