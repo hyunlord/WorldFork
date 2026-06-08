@@ -148,3 +148,26 @@ train_loss 2.80, loss 4.59→2.13 단조 하강) → 병합 → GGUF(Q8) → too
 
 **데이터 v3**: best 교체 → 35B로 1500쌍 재생성(gm_narrative_v3.jsonl). 필터 강화 **cjk=0
 + 순도 97%+**(v2의 5.7% 누출 차단). gen_rewrite_dataset.py --labeler 추가. **2차 LoRA는 후속.**
+
+## 10. 2차 LoRA 실행 결과 (2026-06-08 — 음성 4원인 수정 ✅)
+
+**4원인 수정**: ①base Qwen3-4B-Instruct-2507(한국어 강·qwen3 arch 인식, Qwen3.5-4B는
+transformers 5.x 필요라 동급 대체) ②assistant-only loss(템플릿 {% generation %} — 1단계
+Llama 차단 극복, entropy 1.18=마스킹 활성) ③v3 1500쌍(한자 0) ④lr 5e-5 + eval holdout 5%
++ EarlyStopping. 학습: 3ep 3.7h, train_loss 2.08, eval_loss 2.13→2.04 플래토(과적합 없음).
+
+**A/B(base vs 2차 LoRA, 동일 Q8·judge gemma+27B self제외)**:
+
+| 축 | base | 2차 GM | Δ | 1단계 GM(참고) |
+|---|---|---|---|---|
+| **문체** | 2.67 | **3.0** | **+0.33 ↑** | 1.83(정체) |
+| persona | 3.17 | 2.83 | −0.34 | 1.67 |
+| 고증 | 4.5 | 3.83 | −0.67 | 3.5 |
+| 시스템(메타) | 5.0 | 4.83 | −0.17 | 3.17(누출) |
+| overall | 3.83 | 3.62 | −0.21 | 2.25 |
+
+**★ 4원인 수정 검증**: ①문체 +0.33(1단계 정체→향상) ②메타 누출 0(시스템 4.83 유지,
+"## 메타·규칙" 사라짐 — assistant-only 성공) ③한자 0(순도 100%) ④과적합 없음(eval_loss 플래토).
+1단계(2.92→2.25, -0.67, 메타누출)와 비교해 대폭 개선. 단 **고증 -0.67 trade-off**(문체 SFT가
+lore-grounding 일부 희생) + 강한 base(3.83)라 overall LoRA 이득 제한적. 도구: train_lora/
+merge_lora/eval_ab v2화. **다음: 고증 완화(데이터 혼합) or 큰 모델 범용 SFT(12B/35B-A3B).**

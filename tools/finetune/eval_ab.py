@@ -27,8 +27,8 @@ from tools.eval.run_eval import _judge, _stream_call  # noqa: E402
 EVAL_DIR = ROOT / "tools" / "eval"
 
 AUTHORS = [
-    {"key": "llama32-base", "endpoint": "http://127.0.0.1:8088", "model": "llama32-base"},
-    {"key": "llama32-gm", "endpoint": "http://127.0.0.1:8087", "model": "llama32-gm"},
+    {"key": "qwen3-4b-base", "endpoint": "http://127.0.0.1:8088", "model": "qwen3-4b-base"},
+    {"key": "qwen3-4b-gm", "endpoint": "http://127.0.0.1:8087", "model": "qwen3-4b-gm"},
 ]
 JUDGES = {
     "gemma": {"key": "gemma", "endpoint": "http://127.0.0.1:8085", "model": "gemma"},
