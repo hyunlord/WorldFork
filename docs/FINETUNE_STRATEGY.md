@@ -171,3 +171,28 @@ Llama 차단 극복, entropy 1.18=마스킹 활성) ③v3 1500쌍(한자 0) ④l
 1단계(2.92→2.25, -0.67, 메타누출)와 비교해 대폭 개선. 단 **고증 -0.67 trade-off**(문체 SFT가
 lore-grounding 일부 희생) + 강한 base(3.83)라 overall LoRA 이득 제한적. 도구: train_lora/
 merge_lora/eval_ab v2화. **다음: 고증 완화(데이터 혼합) or 큰 모델 범용 SFT(12B/35B-A3B).**
+
+## 11. 여러 base SFT 매트릭스 (2026-06-09 — 약한 base 가설 반증)
+
+**목표**: 같은 v3 + 2차 레시피로 여러 base SFT → "약한 base가 LoRA 이득 큰가"(크기×목적) 검증.
+
+**툴체인 측정(가정 아닌 실측)**:
+- ❌ Qwen3.5/3.6 + Gemma 4: transformers 5.x 필요 → peft(릴리스 0.19.1 + git main 0.19.2dev)
+  모두 tf5 미지원(`PreTrainedModel` top-level export 제거) → LoRA 불가. 별도 ft_venv 복제까지
+  검증. (게임 런타임·테스트는 transformers 미사용이라 무관.)
+- ❌ Phi-4-mini/Bllossom: TRL assistant-only는 템플릿 {% generation %} 마커 필요 — 부재.
+  → 검증된 ChatML generation 템플릿 주입 + SFTTrainer processing_class로 Bllossom은 살림.
+
+**작동 base 3종 A/B(judge gemma+27B self제외)**:
+
+| base | base | gm(LoRA) | Δ overall | 문체 base→gm | 순도 |
+|---|---|---|---|---|---|
+| SmolLM3-3B (약) | 3.42 | 2.83 | −0.59 | 3.0→2.33 ↓ | 100% |
+| Bllossom-8B (한국어, 1ep) | 3.46 | 2.04 | −1.42 | 2.67→1.83 ↓ | 86.5% |
+| **Qwen3-4B (강)** | 3.83 | 3.62 | −0.21 | 2.67→**3.0 ↑** | 100% |
+
+**★ 매트릭스 결론 — 가설 반증**: 약한 base(SmolLM3/Bllossom)는 LoRA 이득이 크기는커녕 **더
+악화**. 강한 Qwen3-4B만 문체 향상 + 최소 하락(유일하게 문체↑). = 좁은 문체 SFT엔 base 품질이
+중요(약한 base는 v3 문어체를 흡수하며 기존 능력 손상). Bllossom은 ChatML 주입+1ep 미완 영향
+일부(순도 86.5%=템플릿 토큰 누출 의심). **채택 best=Qwen3-4B(2차)** 유지. 큰 모델 범용 SFT가
+다음 후보(강한 base일수록 LoRA 이득 — 매트릭스 시사). 도구: train_lora --base/--out + 템플릿 폴백.

@@ -26,7 +26,7 @@ from tools.eval.run_eval import _judge, _stream_call  # noqa: E402
 
 EVAL_DIR = ROOT / "tools" / "eval"
 
-AUTHORS = [
+_DEF_AUTHORS = [
     {"key": "qwen3-4b-base", "endpoint": "http://127.0.0.1:8088", "model": "qwen3-4b-base"},
     {"key": "qwen3-4b-gm", "endpoint": "http://127.0.0.1:8087", "model": "qwen3-4b-gm"},
 ]
@@ -40,14 +40,25 @@ JUDGES = {
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / ".local/finetune/ab_results.json"))
+    ap.add_argument("--name", help="base 이름(예: smollm3) — base/gm 페어 자동 구성")
+    ap.add_argument("--base-ep", default="http://127.0.0.1:8088")
+    ap.add_argument("--gm-ep", default="http://127.0.0.1:8087")
     args = ap.parse_args()
+
+    if args.name:
+        authors = [
+            {"key": f"{args.name}-base", "endpoint": args.base_ep, "model": f"{args.name}-base"},
+            {"key": f"{args.name}-gm", "endpoint": args.gm_ep, "model": f"{args.name}-gm"},
+        ]
+    else:
+        authors = _DEF_AUTHORS
 
     prm = yaml.safe_load((EVAL_DIR / "prompts.yaml").read_text(encoding="utf-8"))
     cfg = yaml.safe_load((EVAL_DIR / "models.yaml").read_text(encoding="utf-8"))
     sampling = cfg["sampling"]
 
     out: dict[str, Any] = {"sampling": sampling, "models": []}
-    for m in AUTHORS:
+    for m in authors:
         print(f"=== {m['key']} ===", flush=True)
         tps: list[float] = []
         purity: list[float] = []
