@@ -254,3 +254,15 @@ base 3.67 → gm **3.83 (+0.16 overall ↑)** — 매트릭스 **최대 양성**
 
 **도구**: train_unsloth.py(env 4종 필수 — docstring). Gemma 4/Qwen3.6은 동일 경로지만 gated HF
 접근(라이선스+토큰) 필요 — 툴체인 아닌 접근 장벽. 채택 best=Qwen3.5-4B(의도 최신, 최대 LoRA 이득).
+
+## 15. Gemma 4 시도 + repo명 정정 (2026-06-09)
+
+**repo명 정정(앞 §의 "gated 미승인"은 오판)**: 404는 **존재하지 않는 이름**(gemma-4-4b-it,
+Qwen3.5-4B-Instruct) 때문이었지 라이선스 아님. HfApi 실측 — 실제 이름 전부 gated=None(Apache/접근가능):
+Gemma4=E2B/E4B/12B/26B-A4B/31B(+-it), Qwen3.5=0.8B/2B/4B/9B/27B/35B-A3B/122B-A10B/397B-A17B
+(post-trained는 "-Instruct" 없이 Qwen3.5-4B), Qwen3.6=27B/35B-A3B. HF_TOKEN 유효(접근 OK).
+
+**Gemma 4 E4B-it Unsloth SFT 시도 → device-side assert**: gemma-4 HF 토크나이저는 chat_template
+부재 → ChatML 토큰 주입 + resize 필요한데, **E-series(MatFormer/elastic arch)에서 forward assert**
+(4bit·bf16 둘 다). 접근/이름 아닌 arch별 토큰처리 이슈. → 후속: gemma-4-12B(dense, 현 GM)로 재시도
+or gemma-native 템플릿(토큰 무주입). train_unsloth.py에 --no-4bit + ChatML 직접주입 폴백 추가.

@@ -55,20 +55,40 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--max-seq", type=int, default=1024)
+    ap.add_argument("--no-4bit", action="store_true", help="bf16 로드(임베딩 resize 안정 — gemma4)")
     args = ap.parse_args()
 
     model, tok = FastLanguageModel.from_pretrained(
-        args.base, max_seq_length=args.max_seq, load_in_4bit=True, dtype=None,
+        args.base, max_seq_length=args.max_seq, load_in_4bit=not args.no_4bit, dtype=None,
     )
-    # ★ Unsloth 네이티브 ChatML 설정(eos·템플릿·pad 일괄 — base 모델 placeholder eos 교정).
+    # ★ ChatML generation 템플릿 설정. Unsloth get_chat_template은 기존 turn 토큰 리맵을
+    #   전제 → gemma4(템플릿 부재/비표준)에서 실패. 실패 시 ChatML 토큰 직접 등록+템플릿 주입 폴백.
     from unsloth.chat_templates import get_chat_template
-    tok = get_chat_template(tok, chat_template="chatml")
-    # ★ Unsloth가 trl SFTConfig.eos_token에 '<EOS_TOKEN>' placeholder를 강제 주입 →
-    #   trl 0.24가 vocab 검증 실패. placeholder를 실제 토큰으로 등록해 검증 통과(데이터엔 미사용).
+    _chatml = (
+        '{% for message in messages %}'
+        '{% if message["role"] == "assistant" %}'
+        '{{ "<|im_start|>assistant\n" }}{% generation %}{{ message["content"] }}'
+        '{{ "<|im_end|>\n" }}{% endgeneration %}'
+        '{% else %}'
+        '{{ "<|im_start|>" + message["role"] + "\n" + message["content"] + "<|im_end|>\n" }}'
+        '{% endif %}{% endfor %}'
+        '{% if add_generation_prompt %}{{ "<|im_start|>assistant\n" }}{% endif %}'
+    )
+    try:
+        tok = get_chat_template(tok, chat_template="chatml")
+    except Exception:  # noqa: BLE001 — gemma 등: ChatML 토큰 직접 등록 + 템플릿 주입
+        new = [t for t in ("<|im_start|>", "<|im_end|>") if t not in tok.get_vocab()]
+        if new:
+            tok.add_special_tokens({"additional_special_tokens": new})
+        tok.chat_template = _chatml
+        tok.eos_token = "<|im_end|>"
+        print(f"[template] {args.base} — ChatML 직접 주입(토큰 {len(new)} 등록)", flush=True)
+    # ★ Unsloth가 trl SFTConfig.eos_token에 '<EOS_TOKEN>' placeholder 강제 주입 →
+    #   trl 0.24 vocab 검증 실패. placeholder를 실제 토큰으로 등록해 통과(데이터엔 미사용).
     _ph = [t for t in ("<EOS_TOKEN>", "<PAD_TOKEN>") if t not in tok.get_vocab()]
     if _ph:
         tok.add_special_tokens({"additional_special_tokens": _ph})
-        model.resize_token_embeddings(len(tok))
+    model.resize_token_embeddings(len(tok))
     model = FastLanguageModel.get_peft_model(
         model, r=args.r, lora_alpha=args.r * 2, lora_dropout=0.0, bias="none",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
