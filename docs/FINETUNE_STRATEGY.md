@@ -266,3 +266,15 @@ Gemma4=E2B/E4B/12B/26B-A4B/31B(+-it), Qwen3.5=0.8B/2B/4B/9B/27B/35B-A3B/122B-A10
 부재 → ChatML 토큰 주입 + resize 필요한데, **E-series(MatFormer/elastic arch)에서 forward assert**
 (4bit·bf16 둘 다). 접근/이름 아닌 arch별 토큰처리 이슈. → 후속: gemma-4-12B(dense, 현 GM)로 재시도
 or gemma-native 템플릿(토큰 무주입). train_unsloth.py에 --no-4bit + ChatML 직접주입 폴백 추가.
+
+## 16. Gemma 4 E4B 확정 차단 — elastic arch (2026-06-09)
+
+**근본 원인 발견**: gemma-4는 chat_template을 `chat_template.jinja`(별도 파일)에 둠 — generation
+마커 有, 마커 `<|turn>user`/`<|turn>model`. 앞 시도의 빈 템플릿은 다운로드 allow_patterns가
+`.jinja` 누락 탓. train_unsloth.py에 **네이티브 템플릿 우선 + turn마커 자동감지 + eos 동적** 로직 추가.
+
+**그러나 gemma-4-E4B-it는 4회 모두 device-side assert**(position_ids forward) — chatml주입/4bit/
+bf16/네이티브 템플릿 전부 동일. = 토큰처리 아닌 **E-series(MatFormer/elastic) arch가 Unsloth+GB10
+(sm_121) 비호환**. 접근/이름/라이선스 무관(토큰 유효, 이름 정확). **E4B 확정 차단**.
+→ Gemma 4는 dense(gemma-4-12B/31B) 또는 Unsloth의 gemma-4 elastic 지원 갱신 후 재시도(후속).
+채택 best 유지 = Qwen3.5-4B(Unsloth, +0.16).

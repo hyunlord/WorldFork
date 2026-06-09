@@ -74,15 +74,35 @@ def main() -> None:
         '{% endif %}{% endfor %}'
         '{% if add_generation_prompt %}{{ "<|im_start|>assistant\n" }}{% endif %}'
     )
-    try:
-        tok = get_chat_template(tok, chat_template="chatml")
-    except Exception:  # noqa: BLE001 — gemma 등: ChatML 토큰 직접 등록 + 템플릿 주입
-        new = [t for t in ("<|im_start|>", "<|im_end|>") if t not in tok.get_vocab()]
-        if new:
-            tok.add_special_tokens({"additional_special_tokens": new})
-        tok.chat_template = _chatml
-        tok.eos_token = "<|im_end|>"
-        print(f"[template] {args.base} — ChatML 직접 주입(토큰 {len(new)} 등록)", flush=True)
+    # ★ 네이티브 템플릿 우선: generation 마커가 이미 있으면 그대로 사용(토큰 주입·resize 불필요
+    #   → gemma4 elastic arch device assert 회피). 마커 부재 시에만 ChatML 폴백.
+    native_ct = tok.chat_template or ""
+    if "{% generation %}" in native_ct or "{%- generation" in native_ct:
+        # 모델 자체 turn 마커 감지(gemma: <|turn>user/<|turn>model, chatml: <|im_start|>...)
+        rendered = tok.apply_chat_template(
+            [{"role": "user", "content": "U"}, {"role": "assistant", "content": "A"}],
+            tokenize=False, add_generation_prompt=False)
+        if "<|turn>model" in rendered:
+            instr_part, resp_part, eos_tok = "<|turn>user\n", "<|turn>model\n", "<turn|>"
+        else:
+            instr_part, resp_part = "<|im_start|>user\n", "<|im_start|>assistant\n"
+            eos_tok = "<|im_end|>"
+        if eos_tok not in tok.get_vocab():
+            eos_tok = tok.eos_token  # 폴백: 토크나이저 기존 eos
+        print(f"[template] {args.base} — 네이티브 템플릿 사용(마커 {resp_part!r}, eos {eos_tok!r})",
+              flush=True)
+    else:
+        instr_part, resp_part = "<|im_start|>user\n", "<|im_start|>assistant\n"
+        eos_tok = "<|im_end|>"
+        try:
+            tok = get_chat_template(tok, chat_template="chatml")
+        except Exception:  # noqa: BLE001 — base 등: ChatML 토큰 직접 등록 + 템플릿 주입
+            new = [t for t in ("<|im_start|>", "<|im_end|>") if t not in tok.get_vocab()]
+            if new:
+                tok.add_special_tokens({"additional_special_tokens": new})
+            tok.chat_template = _chatml
+            tok.eos_token = "<|im_end|>"
+            print(f"[template] {args.base} — ChatML 직접 주입(토큰 {len(new)} 등록)", flush=True)
     # ★ Unsloth가 trl SFTConfig.eos_token에 '<EOS_TOKEN>' placeholder 강제 주입 →
     #   trl 0.24 vocab 검증 실패. placeholder를 실제 토큰으로 등록해 통과(데이터엔 미사용).
     _ph = [t for t in ("<EOS_TOKEN>", "<PAD_TOKEN>") if t not in tok.get_vocab()]
@@ -107,12 +127,12 @@ def main() -> None:
         learning_rate=args.lr, warmup_ratio=0.05, lr_scheduler_type="cosine",
         logging_steps=5, bf16=True, max_length=args.max_seq, packing=False, report_to=[],
         dataset_num_proc=1,  # ★ 멀티프로세싱 pickle(torch config) 회피
-        eos_token="<|im_end|>",  # ★ ChatML 종결 — SFTConfig 기본 '<EOS_TOKEN>' placeholder 교정
+        eos_token=eos_tok,  # ★ 종결 — SFTConfig 기본 '<EOS_TOKEN>' placeholder 교정
         eval_strategy="steps", eval_steps=20, save_strategy="steps", save_steps=20,
         load_best_model_at_end=True, metric_for_best_model="eval_loss",
         greater_is_better=False, save_total_limit=2,
     )
-    cfg.eos_token = "<|im_end|>"  # ★ Unsloth 패치가 덮은 '<EOS_TOKEN>' placeholder 재교정
+    cfg.eos_token = eos_tok  # ★ Unsloth 패치가 덮은 '<EOS_TOKEN>' placeholder 재교정
     trainer = SFTTrainer(
         model=model, args=cfg, train_dataset=train_ds, eval_dataset=eval_ds,
         processing_class=tok,
@@ -121,8 +141,8 @@ def main() -> None:
     from unsloth.chat_templates import train_on_responses_only
     trainer = train_on_responses_only(
         trainer,
-        instruction_part="<|im_start|>user\n",
-        response_part="<|im_start|>assistant\n",
+        instruction_part=instr_part,
+        response_part=resp_part,
     )
     trainer.train()
     model.save_pretrained(args.out)
