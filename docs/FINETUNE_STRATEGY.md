@@ -292,3 +292,23 @@ Qwen3-8B +0.04 / **Qwen3.5-4B +0.16(sweet spot)** / Qwen3.5-9B −0.50. **결론
 (elastic/MatFormer)만 assert였고 **dense는 정상** — 사용자 가설 적중. 단 병합모델 arch가
 `Gemma4UnifiedForConditionalGeneration`(멀티모달 통합) → llama.cpp convert 미지원으로 GGUF eval
 보류(후속: 텍스트-only 추출 or 신 llama.cpp). 학습·병합은 성공. env 4종 + 네이티브/.jinja 처리 동일.
+
+## 15. 게임 GM 배선 검증 — Qwen3.5-4B LoRA 속도×품질 A/B (2026-06-10)
+
+**무작정 교체 X — 측정 후 판단**. Qwen3.5-4B LoRA(matrix best +0.16) vs 현 pivotal GM Gemma4-12B:
+
+| 항목 | Qwen3.5-4B LoRA | Gemma4-12B(현 GM) |
+|---|---|---|
+| 속도 | **27.6 t/s** (TTFT 0.16s) | 16.0 t/s |
+| 서사 길이 | ~130자 (짧음) | ~340자 (풍부) |
+| 품질(27B+gemma judge, 매트릭스) | overall 3.83 | ~4.5 |
+
+**자가평가(1차)**: 같은 장면 A/B에서 12B가 확연히 풍부·몰입(감각 묘사 "습기 머금은 공기 속
+비린내/번뜩이는 안광"), 4B LoRA는 1.7× 빠르나 서사가 2.6배 짧고 일부 비논리("물음이 대답을
+기다렸으나"). 품질 격차(3.83 vs 4.5)가 게임 서사에서 가시적. 단 9B judge 1차는 전부 5점=변별력
+없음(약judge) → Claude 웹 2차가 권위(샘플 game_ab.zip).
+
+**★ 배선 권장**: pivotal GM 교체 X — **Gemma4-12B 유지**(품질·풍부함이 GM 가치). Qwen3.5-4B
+LoRA는 **빠른/단순 tier**(현 하이브리드 9B 자리)에 배치 — GM 문체 학습본이라 raw 9B보다 단순
+서사에 적합 + 27.6 t/s. = 멀티모델 하이브리드(pivotal 12B / 빠른 4B), 전면 교체 아님. 둘 다 이미
+playable(>15t/s)이라 속도 이득이 새 UX tier를 못 열고, 품질·길이 손실은 사용자 가시 → trade가 12B 유지 지지.
