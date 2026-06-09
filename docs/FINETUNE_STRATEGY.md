@@ -228,3 +228,29 @@ v3 + 2차 레시피 SFT. (※ Gemma4/27B=qwen3.6/35B-A3B는 모두 tf5 필요라
 "강한/큰 base 유리" 확정 — 약한 base는 v3 흡수하며 손상, 강한 base는 기존 능력 보존하며 문체 흡수.
 **채택 best=Qwen3-8B**(overall 양성). 다음: 더 큰 강한 base(14B/Qwen3.5 — Unsloth 핀 해결 시) /
 ep 늘려 8B 완전 학습 / 게임 배선(8B는 4B보다 느리나 품질↑ — 속도-품질 trade 검토).
+
+## 14. ★ Unsloth 트랙 성공 — Qwen3.5-4B GB10 학습 완성 (2026-06-09)
+
+**직전(§12) 학습 하니스 차단을 측정으로 전부 해소** — Unsloth로 의도한 최신 모델 학습 성공:
+- **dill pickle ConfigModuleInstance** → `UNSLOTH_COMPILE_DISABLE=1` + `TORCHDYNAMO_DISABLE=1`
+  (torch.compile/_dynamo config가 dataset.map 클로저에 잡히던 문제, num_proc 무관)
+- **Triton PTXAS sm_121a 미지원** → `TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas`
+  (번들 ptxas=CUDA12.8 sm_120까지 / 시스템 CUDA13.0이 sm_121a 컴파일 지원)
+- **GGUF 변환** → unsloth_venv(tf5.5, qwen3_5 인식) + gguf 패키지로 변환, **llama.cpp는 QWEN35
+  arch 지원**(서빙 OK). .venv tf4.57.1로는 qwen3_5_text 미인식이라 불가.
+
+**Qwen3.5-4B(Base, Unsloth r16 1.1ep) A/B(judge gemma+27B self제외)**:
+base 3.67 → gm **3.83 (+0.16 overall ↑)** — 매트릭스 **최대 양성**. 고증 4.33→5.0·persona↑,
+문체 3.0→2.67(소폭↓ — 1.1ep 미완 영향 가능), 순도 100%, 메타0(시스템 5.0).
+
+**★ 최종 매트릭스(강한/큰/최신 base 유리 확정)**:
+| base | base | gm | Δ overall |
+|---|---|---|---|
+| SmolLM3-3B | 3.42 | 2.83 | −0.59 |
+| Bllossom-8B | 3.46 | 2.04 | −1.42 |
+| Qwen3-4B | 3.83 | 3.62 | −0.21 |
+| Qwen3-8B | 3.75 | 3.79 | +0.04 |
+| **Qwen3.5-4B(Unsloth)** | 3.67 | **3.83** | **+0.16** ★ |
+
+**도구**: train_unsloth.py(env 4종 필수 — docstring). Gemma 4/Qwen3.6은 동일 경로지만 gated HF
+접근(라이선스+토큰) 필요 — 툴체인 아닌 접근 장벽. 채택 best=Qwen3.5-4B(의도 최신, 최대 LoRA 이득).

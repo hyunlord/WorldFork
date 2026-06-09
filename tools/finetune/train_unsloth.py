@@ -4,8 +4,13 @@
 Unsloth(자체 transformers 5.5 호환 + FastLanguageModel)로 우회. 같은 v3 + 2차 레시피(r16/lr5e-5/
 assistant-only). GB10: .venv의 torch 2.9.1+cu128 복사 필요(unsloth 기본 torch는 cpu).
 
-사용: python tools/finetune/train_unsloth.py --base <경로> --out <경로>
+사용(★ GB10 필수 env — 이거 없으면 학습 진입 실패):
+  TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas \\  # ★ CUDA13.0 ptxas(sm_121a — 번들12.8 미지원)
+  UNSLOTH_COMPILE_DISABLE=1 TORCHDYNAMO_DISABLE=1 \\  # ★ dill pickle(ConfigModuleInstance) 회피
+  HF_DATASETS_DISABLE_CACHING=1 \\
+  /home/hyunlord/unsloth_venv/bin/python tools/finetune/train_unsloth.py --base <경로> --out <경로>
 ★ 외부 패키지(unsloth) — 사용자 승인(DGX). 본문 데이터 .local(git 금지). 별도 unsloth_venv.
+★ unsloth_venv는 기본 cpu torch → .venv torch2.9.1+cu128/nvidia/triton 복사 필요(torchvision 제거).
 """
 
 from __future__ import annotations
