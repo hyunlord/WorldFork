@@ -312,3 +312,22 @@ Qwen3-8B +0.04 / **Qwen3.5-4B +0.16(sweet spot)** / Qwen3.5-9B −0.50. **결론
 LoRA는 **빠른/단순 tier**(현 하이브리드 9B 자리)에 배치 — GM 문체 학습본이라 raw 9B보다 단순
 서사에 적합 + 27.6 t/s. = 멀티모델 하이브리드(pivotal 12B / 빠른 4B), 전면 교체 아님. 둘 다 이미
 playable(>15t/s)이라 속도 이득이 새 UX tier를 못 열고, 품질·길이 손실은 사용자 가시 → trade가 12B 유지 지지.
+
+## 16. 4B 서빙 가속 진단 — qwen35 arch 커널 병목 (2026-06-10)
+
+**27.6 t/s 비정상 원인 측정(llama-bench pp/tg 분리)**:
+- pp256 **1240 t/s**(연산 빠름) vs tg256 **27.65 t/s**(생성 느림) — 연산·오프로드 정상, **decode 병목**.
+- LoRA는 병합 단일 GGUF, -ngl 99 전 GPU — 설정 문제 아님.
+- ★ 근본: Qwen3.5 = **Gated Delta Net(선형 어텐션 하이브리드)** 신규 arch. 고정 per-token 상태
+  트래픽 + llama.cpp qwen35 tg 커널 미최적 → 4B Q8 대역폭 한계(~65)의 42%만.
+
+**Q4_K_M 최적화**: tg 27.65 → **36.40 t/s(+32%)**. 단 가중치 0.6×인데 tg 1.32×만 = 순수
+대역폭 아님(고정 비용 천장). Q4가 llama.cpp 최선. (Q8→Q4 재양자화 금지 — bf16 재병합 필요.)
+
+**엔진 교체 차단(측정)**: Qwen3.5(`qwen3_5_text`)가 너무 신규라 **sglang(.venv tf4.57)/.venv/
+vLLM 도커 전부 미인식**(transformers <5.5). tf5.5는 unsloth_venv뿐(sglang/vLLM 미설치).
+→ **Qwen3.5-4B 서빙 엔진은 llama.cpp가 유일**(QWEN35 네이티브, transformers 무관). 100+ t/s는
+vLLM/sglang에 tf5.5+FLA 최적 커널+GB10 sm_121 지원이 모두 갖춰져야 — 현재 부재.
+
+**배선 함의**: 4B 빠른 tier는 **Q4 36.4 t/s**(12B 16의 2.3×)가 현실값(100+ 아님). 속도가 더
+중요하면 표준 arch(Qwen3-8B 등 — Gated Delta Net 없음)가 llama.cpp서 더 빠를 수 있음(후속 비교).
