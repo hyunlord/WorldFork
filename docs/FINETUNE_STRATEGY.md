@@ -278,3 +278,17 @@ bf16/네이티브 템플릿 전부 동일. = 토큰처리 아닌 **E-series(MatF
 (sm_121) 비호환**. 접근/이름/라이선스 무관(토큰 유효, 이름 정확). **E4B 확정 차단**.
 → Gemma 4는 dense(gemma-4-12B/31B) 또는 Unsloth의 gemma-4 elastic 지원 갱신 후 재시도(후속).
 채택 best 유지 = Qwen3.5-4B(Unsloth, +0.16).
+
+## 17. Qwen 큰 사이즈 + Gemma 4 dense (2026-06-09 — 데이터 천장 + dense 학습 성공)
+
+**트랙 C — Qwen 더 큰 사이즈(Unsloth)**: Qwen3.5-9B A/B → base **4.58**(전 base 최강) →
+gm **4.08(−0.50)**. ★ 매트릭스 **비단조 정제**: 9B base가 v3 데이터 품질 천장(35B 증류)을
+**넘어서** LoRA가 끌어내림. 최종 곡선: SmolLM3 −0.59 / Bllossom −1.42 / Qwen3-4B −0.21 /
+Qwen3-8B +0.04 / **Qwen3.5-4B +0.16(sweet spot)** / Qwen3.5-9B −0.50. **결론: best=데이터
+천장 아래의 강한 base(Qwen3.5-4B)**. 9B급은 v3보다 고품질 데이터 필요(원작 본문 직접 or 더 큰 정제기).
+
+**트랙 A — Gemma 4 dense(★ E4B 가설 검증)**: gemma-4-12B-it는 transformers 5.5.0 미지원 →
+**5.10.2 업글로 로드 성공** → Unsloth SFT **학습 작동**(step 120, device assert 없음). ★ E4B
+(elastic/MatFormer)만 assert였고 **dense는 정상** — 사용자 가설 적중. 단 병합모델 arch가
+`Gemma4UnifiedForConditionalGeneration`(멀티모달 통합) → llama.cpp convert 미지원으로 GGUF eval
+보류(후속: 텍스트-only 추출 or 신 llama.cpp). 학습·병합은 성공. env 4종 + 네이티브/.jinja 처리 동일.
