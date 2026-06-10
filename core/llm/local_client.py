@@ -349,11 +349,12 @@ def get_qwen35_9b_q3() -> LocalLLMClient:
 
 
 def get_qwen35_4b_gm() -> LocalLLMClient:
-    """Qwen3.5-4B Q8 GM-LoRA — 빠른 tier 단순 서사 ★ (port 8088, ~28 tok/s).
+    """Qwen3.5-4B 원본 Q8 — 빠른 tier 단순 서사 ★ (port 8088, ~28 tok/s).
 
-    파인튜닝 best(서빙 측정 a6e6650): GM 문체 학습본, base 3.67→3.83(+0.16) 매트릭스 최대 양성.
-    ★ Q8 채택 — Q4는 고증 4.33→2.67 붕괴라 게임 부적합. 8B 대비 2배 속도(최속 tier),
-    raw 9B보다 단순 서사 적합(GM contract 학습). FA/CUDA Graphs 적용.
+    ★ 6축 재평가(ba2ba8f): 파인튜닝은 6축(구체성/몰입)서 원본보다 낮음(4B -0.22, 9B -0.56) —
+    raw 청크 학습이 출력 터스화. 기존 "FT +0.16"은 변별없는 4축 + think 부풀림 artifact.
+    → 빠른 tier도 **원본 Qwen3.5-4B**(파인튜닝 접음). pivotal = 원본 Gemma 12B. FA/CUDA Graphs.
+    (함수명은 라우팅 호환 위해 유지 — 실제 서빙 모델은 원본 base.)
     """
     return LocalLLMClient(
         model_key="qwen35-4b-gm",

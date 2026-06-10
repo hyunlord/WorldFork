@@ -25,7 +25,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLAMA_SERVER="${LLAMA_SERVER:-/home/hyunlord/repos/llama.cpp/build/bin/llama-server}"
 MODEL_9B="${MODEL_9B:-/home/hyunlord/models/gguf/qwen35-9b/Qwen3.5-9B-UD-Q3_K_XL.gguf}"
 MODEL_GEMMA="${MODEL_GEMMA:-/home/hyunlord/models/poc/gemma-4-12B-it-Q4_K_M.gguf}"
-MODEL_4B="${MODEL_4B:-/home/hyunlord/models/finetune/qwen35-4b-gm-q8.gguf}"
+# ★ 6축 재평가(ba2ba8f): 파인튜닝 접음(원본 ≥ FT). 4B-base는 instruct 아니라 빈출력 → 빠른 tier는
+#   검증된 원본 9B(ensure_9b) 유지. ensure_4b는 미호출(레거시, 함수만 잔존).
+MODEL_4B="${MODEL_4B:-/home/hyunlord/models/finetune/qwen35-4b-base-q8.gguf}"
 PORT_9B=8083
 PORT_4B=8088      # 빠른 tier GM (Qwen3.5-4B Q8 GM-LoRA) — local_client get_qwen35_4b_gm 정합
 PORT_GEMMA=8085   # pivotal GM (Gemma 4 12B) — local_client get_gemma4_12b 정합
@@ -230,7 +232,6 @@ main() {
     echo "=== ensure_services — Ship Gate 전 인프라 헬스체크 ==="
     local warn=0
     ensure_9b || warn=1
-    ensure_4b || warn=1
     ensure_gemma || warn=1
     ensure_backend || warn=1
     ensure_frontend || warn=1

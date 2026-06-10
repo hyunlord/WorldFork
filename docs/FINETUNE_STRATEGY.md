@@ -422,3 +422,18 @@ JUDGE_AXES에 구체성·몰입 추가(6축, 빈약 감점 명시). **현 배선
   품질 이득 기대 어려움(GGUF 차단 + 6축상 FT 무익) — **원본 유지가 정답**.
 - 파인튜닝 가치는 "품질 향상"이 아니라 좁은 태스크/포맷/속도(소형) 한정. 게임 GM 품질엔 큰 원본이 우위.
 - 측정 교훈: rubric 변별력(구체성/몰입) + thinking 억제 없이는 점수가 품질을 호도. 향후 6축+/no_think 표준.
+
+## 19. ★ 원본 배선 확정 + 속도 레버 측정 (2026-06-11)
+
+**원본 배선(6축 결론 — 파인튜닝 접음)**: pivotal = 원본 Gemma 12B(6축 최고), 단순 tier = 원본 9B,
+NPC = 9B. 파인튜닝 4B-LoRA 라우팅 제거(gm_narrator 비-pivotal → get_qwen35_9b_q3 환원).
+★ 원본 Qwen3.5-4B-base 시도했으나 **instruct 아니라 GM 프롬프트서 빈출력 3/3**(4B-Instruct는 gated)
+→ 검증된 원본 9B로 빠른 tier 유지. ensure_4b 미호출.
+
+**★ 속도 극대화 레버 — 원본도 차단(가설 반증)**: "원본은 파인튜닝 vocab/MTP 차단 해제" 가설을 측정:
+- speculative: Qwen3.5는 **Gated Delta Net(SSM/recurrent)** arch → llama-server "target context does
+  not support partial sequence removal" — seq rollback 불가, checkpoint 방식만(speculative 무력).
+- Q4 양자화: llama-quantize가 qwen35 GDN tensor서 **크래시**(SIGSEGV). 파인튜닝 Q4 고증 붕괴에 이어
+  원본 Q4도 불가 — GDN arch 자체가 Q4/speculative 미성숙(llama.cpp 한계).
+→ ★ tg 천장 ~28(Q8)~37(Q4 가능했을 때) 그대로. 원본/파인튜닝 무관하게 **qwen35 GDN arch가 병목**.
+**결론**: 빠른 tier 속도는 현 한계(9B ~38 t/s Q3, GB10 대역폭+GDN). 큰 폭 가속은 arch 지원 성숙 대기.

@@ -18,7 +18,7 @@ from core.llm.client import Prompt
 from core.llm.local_client import (
     LocalLLMClient,
     get_gemma4_12b,
-    get_qwen35_4b_gm,
+    get_qwen35_9b_q3,
     get_qwen36_27b_q3,
 )
 from service.sim.types import PlayerActionType
@@ -90,16 +90,17 @@ def _use_gemma_pivotal() -> bool:
 def gm_model_label(pivotal: bool) -> str:
     """라우팅 관측 라벨 — 응답 gm_model 필드용."""
     if not pivotal:
-        return "4b"
+        return "9b"
     return "gemma" if _use_gemma_pivotal() else "27b"
 
 
 def _gm_client(pivotal: bool) -> LocalLLMClient:
-    """pivotal → Gemma 4 12B(기본·품질·~15 t/s) 또는 27B(GEMMA_GM=0 폴백) /
-    단순 → Qwen3.5-4B Q8 GM-LoRA(빠른 tier·~28 t/s·고증 유지). 파인튜닝 best 배선
-    (a6e6650): GM 문체 학습본이 raw 9B보다 단순 서사 적합. 모두 thinking off·스트리밍·schema."""
+    """pivotal → Gemma 4 12B(기본·품질) 또는 27B(GEMMA_GM=0 폴백) / 단순 → 원본 9B(빠름).
+    ★ 6축 재평가(ba2ba8f): 파인튜닝은 6축서 원본보다 낮음(원본 ≥ FT) → 파인튜닝 접고 원본 배선.
+    원본 4B-base는 instruct 아니라 빈출력, 4B-Instruct는 gated → 단순 tier도 검증된 원본 9B 유지.
+    pivotal = 원본 Gemma 12B(6축 최고 서사). 모두 thinking off·스트리밍·schema."""
     if not pivotal:
-        return get_qwen35_4b_gm()
+        return get_qwen35_9b_q3()
     return get_gemma4_12b() if _use_gemma_pivotal() else get_qwen36_27b_q3()
 
 
