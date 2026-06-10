@@ -81,8 +81,15 @@ export function StatusBar({ data, onMenu }: Props) {
             HP
           </span>
           <span className="relative h-2.5 w-[80px] overflow-hidden rounded-[1px] border border-border-rune bg-bg-void shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
+            {/* ★ 5순위 HUD 미세: HP 비율 색(고정 → 저체력 위험 가시) + 전환 + 저체력 펄스 */}
             <span
-              className="block h-full bg-gradient-to-r from-crimson-dim via-crimson to-amber-bright shadow-[0_0_8px_rgba(232,168,56,0.4)]"
+              className={`block h-full transition-all duration-300 ${
+                hpPct <= 25
+                  ? "animate-pulse bg-gradient-to-r from-crimson-dim to-crimson shadow-[0_0_8px_rgba(200,40,40,0.6)]"
+                  : hpPct <= 50
+                    ? "bg-gradient-to-r from-crimson to-amber shadow-[0_0_8px_rgba(232,168,56,0.4)]"
+                    : "bg-gradient-to-r from-crimson-dim via-crimson to-amber-bright shadow-[0_0_8px_rgba(232,168,56,0.4)]"
+              }`}
               style={{ width: `${hpPct}%` }}
             />
           </span>
