@@ -25,7 +25,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLAMA_SERVER="${LLAMA_SERVER:-/home/hyunlord/repos/llama.cpp/build/bin/llama-server}"
 MODEL_9B="${MODEL_9B:-/home/hyunlord/models/gguf/qwen35-9b/Qwen3.5-9B-UD-Q3_K_XL.gguf}"
 MODEL_GEMMA="${MODEL_GEMMA:-/home/hyunlord/models/poc/gemma-4-12B-it-Q4_K_M.gguf}"
+MODEL_4B="${MODEL_4B:-/home/hyunlord/models/finetune/qwen35-4b-gm-q8.gguf}"
 PORT_9B=8083
+PORT_4B=8088      # 빠른 tier GM (Qwen3.5-4B Q8 GM-LoRA) — local_client get_qwen35_4b_gm 정합
 PORT_GEMMA=8085   # pivotal GM (Gemma 4 12B) — local_client get_gemma4_12b 정합
 PORT_FE=4000
 PORT_BACKEND=8090
@@ -89,6 +91,35 @@ ensure_9b() {
         > /tmp/llama_9b.log 2>&1 &
     disown
     _wait_health "9B" "$PORT_9B" "/health" "$LLM_HEALTH_TIMEOUT"
+}
+
+
+# ─── Qwen3.5-4B Q8 GM-LoRA (8088) llama-server — 빠른 tier GM ───
+ensure_4b() {
+    if [ "${ENSURE_4B:-1}" != "1" ]; then
+        echo "[ensure] 4B (8088) skip (ENSURE_4B=0)"
+        return 0
+    fi
+    if _check "$PORT_4B" "/health"; then
+        echo "[ensure] 4B (8088) ✅ 이미 UP"
+        return 0
+    fi
+    if [ ! -x "$LLAMA_SERVER" ] || [ ! -f "$MODEL_4B" ]; then
+        echo "[ensure] 4B (8088) ⚠️  바이너리/모델 없음 — skip"
+        return 1
+    fi
+    echo "[ensure] 4B (8088) DOWN → llama-server 자동 start..."
+    nohup "$LLAMA_SERVER" \
+        -m "$MODEL_4B" \
+        --port "$PORT_4B" \
+        --host 0.0.0.0 \
+        -ngl 999 \
+        -c 4096 \
+        -fa on \
+        --alias qwen35-4b-gm \
+        > /tmp/llama_4b.log 2>&1 &
+    disown
+    _wait_health "4B" "$PORT_4B" "/health" "$LLM_HEALTH_TIMEOUT"
 }
 
 
@@ -199,6 +230,7 @@ main() {
     echo "=== ensure_services — Ship Gate 전 인프라 헬스체크 ==="
     local warn=0
     ensure_9b || warn=1
+    ensure_4b || warn=1
     ensure_gemma || warn=1
     ensure_backend || warn=1
     ensure_frontend || warn=1

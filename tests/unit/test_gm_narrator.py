@@ -78,12 +78,12 @@ def test_history_passed_to_prompt() -> None:
 
 
 def test_routing_pivotal_gemma_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 기본(GEMMA_GM 미설정): pivotal → Gemma(8085), 단순 → 9B(8083)
+    # 기본(GEMMA_GM 미설정): pivotal → Gemma(8085), 단순 → Qwen3.5-4B Q8(8088)
     monkeypatch.delenv("GEMMA_GM", raising=False)
     assert gm_model_label(True) == "gemma"
-    assert gm_model_label(False) == "9b"
+    assert gm_model_label(False) == "4b"
     assert "8085" in _gm_client(True)._base_url
-    assert "8083" in _gm_client(False)._base_url
+    assert "8088" in _gm_client(False)._base_url
 
 
 def test_routing_pivotal_27b_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -91,8 +91,8 @@ def test_routing_pivotal_27b_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GEMMA_GM", "0")
     assert gm_model_label(True) == "27b"
     assert "8081" in _gm_client(True)._base_url
-    # 단순 경로는 토글 무관 9B 유지
-    assert gm_model_label(False) == "9b"
+    # 단순 경로는 토글 무관 빠른 tier(4B Q8) 유지
+    assert gm_model_label(False) == "4b"
 
 
 def test_gm_temperature_per_model(monkeypatch: pytest.MonkeyPatch) -> None:

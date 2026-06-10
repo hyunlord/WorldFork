@@ -41,11 +41,11 @@ def test_dungeon_entry_9b() -> None:
 
 
 def test_model_label(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 기본: pivotal → Gemma 4(품질·~15 t/s), 단순 → 9B
+    # 기본: pivotal → Gemma 4(품질·~15 t/s), 단순 → Qwen3.5-4B Q8(빠른 tier)
     monkeypatch.delenv("GEMMA_GM", raising=False)
     assert gm_model_label(True) == "gemma"
-    assert gm_model_label(False) == "9b"
+    assert gm_model_label(False) == "4b"
     # GEMMA_GM=0 폴백: pivotal → 27B
     monkeypatch.setenv("GEMMA_GM", "0")
     assert gm_model_label(True) == "27b"
-    assert gm_model_label(False) == "9b"
+    assert gm_model_label(False) == "4b"

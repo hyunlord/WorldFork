@@ -348,6 +348,21 @@ def get_qwen35_9b_q3() -> LocalLLMClient:
     )
 
 
+def get_qwen35_4b_gm() -> LocalLLMClient:
+    """Qwen3.5-4B Q8 GM-LoRA — 빠른 tier 단순 서사 ★ (port 8088, ~28 tok/s).
+
+    파인튜닝 best(서빙 측정 a6e6650): GM 문체 학습본, base 3.67→3.83(+0.16) 매트릭스 최대 양성.
+    ★ Q8 채택 — Q4는 고증 4.33→2.67 붕괴라 게임 부적합. 8B 대비 2배 속도(최속 tier),
+    raw 9B보다 단순 서사 적합(GM contract 학습). FA/CUDA Graphs 적용.
+    """
+    return LocalLLMClient(
+        model_key="qwen35-4b-gm",
+        base_url="http://localhost:8088",
+        model_name_in_request="qwen35-4b-gm",
+        supports_json_schema=True,
+    )
+
+
 def get_default_npc() -> LocalLLMClient:
     """실시간 NPC 응답용 — 9B Q3 (38 tok/s)."""
     return get_qwen35_9b_q3()

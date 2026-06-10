@@ -18,7 +18,7 @@ from core.llm.client import Prompt
 from core.llm.local_client import (
     LocalLLMClient,
     get_gemma4_12b,
-    get_qwen35_9b_q3,
+    get_qwen35_4b_gm,
     get_qwen36_27b_q3,
 )
 from service.sim.types import PlayerActionType
@@ -90,15 +90,16 @@ def _use_gemma_pivotal() -> bool:
 def gm_model_label(pivotal: bool) -> str:
     """라우팅 관측 라벨 — 응답 gm_model 필드용."""
     if not pivotal:
-        return "9b"
+        return "4b"
     return "gemma" if _use_gemma_pivotal() else "27b"
 
 
 def _gm_client(pivotal: bool) -> LocalLLMClient:
     """pivotal → Gemma 4 12B(기본·품질·~15 t/s) 또는 27B(GEMMA_GM=0 폴백) /
-    단순 → 9B(빠름). 모두 thinking off·스트리밍·json_schema 지원."""
+    단순 → Qwen3.5-4B Q8 GM-LoRA(빠른 tier·~28 t/s·고증 유지). 파인튜닝 best 배선
+    (a6e6650): GM 문체 학습본이 raw 9B보다 단순 서사 적합. 모두 thinking off·스트리밍·schema."""
     if not pivotal:
-        return get_qwen35_9b_q3()
+        return get_qwen35_4b_gm()
     return get_gemma4_12b() if _use_gemma_pivotal() else get_qwen36_27b_q3()
 
 
