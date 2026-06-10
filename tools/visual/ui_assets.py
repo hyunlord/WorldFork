@@ -413,6 +413,69 @@ COMBAT_ASSETS: Final[dict[str, dict[str, Any]]] = {
         "lora": None,
         "lora_strength": 1.0,
     },
+    # ★ 다듬기 3순위: 1층 4 zone 전투 일러스트 균형(서 노움/남 구울/북 고블린).
+    "combat_monster_gnome": {
+        "filename_prefix": "ui_combat_monster_gnome",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "hostile gnome creature, 9th grade dungeon dweller, "
+            "small earthy humanoid, brown wrinkled skin, large ugly nose, "
+            "dirt-stained skin, dirty rough tunic, "
+            "wielding a crude pickaxe, malicious grin, beady cunning eyes, "
+            "crouched ambush stance among crystal rocks, "
+            "dark dungeon background, ominous lighting, "
+            "dark fantasy creature design, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "cute, friendly, modern, cartoon, anime, soft, low quality, tall, heroic"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "combat_monster_ghoul": {
+        "filename_prefix": "ui_combat_monster_ghoul",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "ghoulish wraith creature, 9th grade dungeon undead, "
+            "ghostly translucent humanoid, tattered ethereal robes, "
+            "hollow glowing eye sockets, shadow form, "
+            "drifting menacingly with shadow tendrils, "
+            "decayed gaunt face, clawed ethereal hands reaching, "
+            "dark crystal cavern background, eerie cold lighting, "
+            "dark fantasy creature design, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "cute, friendly, modern, cartoon, anime, soft, low quality, "
+            "solid body, colorful"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
+    "combat_monster_goblin": {
+        "filename_prefix": "ui_combat_monster_goblin",
+        "width": 768,
+        "height": 1024,
+        "prompt": (
+            "goblin warrior creature, 9th grade dungeon raider, "
+            "small green-skinned humanoid, sharp teeth, pointed ears, "
+            "hunched aggressive posture, tattered loincloth, "
+            "wielding a crude rusty short sword and small wooden shield, "
+            "snarling battle cry, wild bloodshot eyes, "
+            "dark dungeon background, ominous torchlight, "
+            "dark fantasy creature design, painterly, "
+            "8k, masterpiece, highly detailed"
+        ),
+        "negative_prompt": (
+            "cute, friendly, modern, cartoon, anime, soft, low quality, "
+            "human, tall, heroic"
+        ),
+        "lora": None,
+        "lora_strength": 1.0,
+    },
     "combat_vfx_axe_strike": {
         "filename_prefix": "ui_combat_vfx_axe_strike",
         "width": 1024,

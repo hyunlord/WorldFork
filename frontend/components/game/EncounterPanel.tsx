@@ -1,5 +1,6 @@
 "use client";
 
+import { combatIllustration } from "../../lib/game/combatIllustration";
 import type {
   EncounterPanelData,
   EncounterTarget,
@@ -36,9 +37,19 @@ function Target({
       className={`mb-1 flex w-full items-center gap-3 border border-transparent border-l-[3px] bg-bg-elev px-4 py-2.5 text-left transition hover:translate-x-0.5 ${borderClass}`}
     >
       <span
-        className={`relative flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center border bg-bg-void font-mono text-[0.95rem] font-bold ${portraitColor}`}
+        className={`relative flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center overflow-hidden border bg-bg-void font-mono text-[0.95rem] font-bold ${portraitColor}`}
       >
-        {target.ch}
+        {/* ★ 다듬기 3순위: 적 전투 일러스트(있으면) 표시, 없으면 문자 초상 폴백 */}
+        {isHostile && combatIllustration(target.name) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={combatIllustration(target.name)}
+            alt={target.name}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          target.ch
+        )}
       </span>
       <span className="flex flex-1 flex-col gap-0.5">
         <span className="font-serif text-[0.95rem] font-bold text-text-bright">

@@ -500,11 +500,15 @@ class TestCombatAssets:
     """Phase 6e 전투 자료 검증."""
 
     def test_assets_count_five(self) -> None:
-        assert len(COMBAT_ASSETS) == 5
+        # ★ 다듬기 3순위: 4 zone 전투 일러스트 균형 — 노움/구울/고블린 추가(5→8).
+        assert len(COMBAT_ASSETS) == 8
         assert set(COMBAT_ASSETS) == {
             "combat_bjorn_action",
             "combat_erwen_casting",
             "combat_monster_blade_wolf",
+            "combat_monster_gnome",
+            "combat_monster_ghoul",
+            "combat_monster_goblin",
             "combat_vfx_axe_strike",
             "combat_vfx_magic_missile",
         }
@@ -669,9 +673,10 @@ class TestAllAssetDictsPhase6gMarmugi:
         assert len(ALL_ASSET_DICTS) == 7
 
     def test_total_assets_twenty_four(self) -> None:
-        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 5 + 6f 4 + 6g 1 = 24."""
+        """6a 3 + 6b 4 + 6c 3 + 6d 4 + 6e 8 + 6f 4 + 6g 1 = 27.
+        ★ 다듬기 3순위: combat 5→8(노움/구울/고블린 전투 일러스트 — 4 zone 균형)."""
         total = sum(len(d) for d in ALL_ASSET_DICTS.values())
-        assert total == 24
+        assert total == 27
 
     def test_phase_per_count(self) -> None:
         expected = {
@@ -679,7 +684,7 @@ class TestAllAssetDictsPhase6gMarmugi:
             "gameplay_screen": 4,
             "character_sheet": 3,
             "rift_entry": 4,
-            "combat": 5,
+            "combat": 8,  # ★ blade_wolf + 노움/구울/고블린 + bjorn/erwen + vfx 2
             "dialogue": 4,
             "start_menu": 1,
         }
