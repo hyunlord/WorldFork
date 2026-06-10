@@ -1364,6 +1364,19 @@ async def handle_shop_buy(ctx: ActionContext) -> ActionResult:
             fail_reason="no_item",
             time_advance=0,
         )
+    # ★ 다듬기 마지막(비전투 흥정): "흥정/깎" 의도면 barter 코드 판정 → 「」 가격 명시.
+    if any(k in ctx.user_input for k in ("흥정", "깎", "값을", "협상")):
+        from service.sim.barter import compute_barter, format_barter_fact
+
+        base_price = _estimate_item_price(item)
+        result = compute_barter(base_price, player_level=ctx.player_level)
+        return ActionResult(
+            narrative=format_barter_fact(result, item),
+            inventory_add=[item] if result.success else [],
+            time_advance=1,
+            success=result.success,
+            fail_reason=None if result.success else "barter_failed",
+        )
     return ActionResult(
         narrative=f"나는 상인에게 동전을 건네고 {item}을 손에 넣었다.",
         inventory_add=[item],
@@ -1380,6 +1393,17 @@ def _extract_grade_from_item_name(item_name: str) -> int | None:
         if 1 <= grade <= 9:
             return grade
     return None
+
+
+def _estimate_item_price(item_name: str) -> int:
+    """아이템 기본가 추정(흥정 base_price — 코드 계산). 등급 있으면 9-등급 역수로 가중.
+
+    9등급(약)=낮은가 … 1등급(강)=높은가. 등급 없으면 기본 50 스톤.
+    """
+    grade = _extract_grade_from_item_name(item_name)
+    if grade is None:
+        return 50
+    return (10 - grade) * 30  # 9등급 30 … 1등급 270 스톤
 
 
 async def handle_exchange_mage_stones(ctx: ActionContext) -> ActionResult:
