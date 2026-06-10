@@ -585,14 +585,14 @@ def _build_attack_narrative(
         for drop in essence_drops:
             parts.append(f" {drop}이(가) 바닥에 떨어졌다.")
     else:
+        # ★ 다듬기 1순위: 명중/피해를 「」 시스템 판정으로 명시(코드 계산 결과 — 게임感).
+        #   치명타/약점은 판정 라벨에 함께 표기해 한 줄로 가독.
+        verdict = "치명타" if player_log.critical_hit else (
+            "약점 적중" if player_log.weakness_hit else "명중")
         parts.append(
             f"나는 {player_log.target_name}을(를) 공격했다."
-            f" {player_log.damage_dealt} 피해를 줬다."
+            f" 「{verdict} — 피해 {player_log.damage_dealt}」"
         )
-        if player_log.critical_hit:
-            parts.append(" 「치명타!」")
-        if player_log.weakness_hit:
-            parts.append(" 약점이 적중했다.")
 
     for log in enemy_logs:
         if log.notes and "hp +" in log.notes:
@@ -605,7 +605,7 @@ def _build_attack_narrative(
         elif log.damage_received > 0:
             parts.append(
                 f" {log.actor}이(가) {log.action_name}으로 반격했다."
-                f" 나는 {log.damage_received} 피해를 받았다."
+                f" 「피격 — 피해 {log.damage_received}」"
             )
             if log.resist_reduced > 0:
                 parts.append(
