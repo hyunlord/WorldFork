@@ -104,10 +104,10 @@ def _gm_client(pivotal: bool) -> LocalLLMClient:
     return get_gemma4_12b() if _use_gemma_pivotal() else get_qwen36_27b_q3()
 
 
-# GM 서사 temperature — 27B/9B는 0.8. Gemma 4는 공식 권장 1.0으로 변주를 높여
-#   짧은 constrained 프롬프트(예: 부족장 대화)에서 반복 narration을 줄인다
-#   (산문 품질 무손상 — 디코딩 eval 확인). 게임 서사 다양성에도 기여.
-_GM_TEMPERATURE = 0.8
+# GM 서사 temperature — Gemma 4는 공식 권장 1.0. 단순 tier(9B)는 0.9로 변주를 높여
+#   같은 행동 반복(예: 부족장 대화 2회)에서 동일 narration을 줄인다(meaningful_progression
+#   flaky 완화 — history 주입은 되나 9B 저변주가 우연히 유사 서사 산출). 품질 무손상 범위.
+_GM_TEMPERATURE = 0.9
 _GEMMA_GM_TEMPERATURE = 1.0
 
 

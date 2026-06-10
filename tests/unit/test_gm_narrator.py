@@ -96,9 +96,9 @@ def test_routing_pivotal_27b_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_gm_temperature_per_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Gemma pivotal = 공식 권장 1.0(변주↑), 27B 폴백/단순 9B = 0.8
+    # Gemma pivotal = 공식 권장 1.0(변주↑), 27B 폴백/단순 9B = 0.9(반복 완화)
     monkeypatch.delenv("GEMMA_GM", raising=False)
     assert _gm_temperature(True) == 1.0  # Gemma
-    assert _gm_temperature(False) == 0.8  # 9B
+    assert _gm_temperature(False) == 0.9  # 9B
     monkeypatch.setenv("GEMMA_GM", "0")
-    assert _gm_temperature(True) == 0.8  # 27B 폴백
+    assert _gm_temperature(True) == 0.9  # 27B 폴백
