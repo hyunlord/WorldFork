@@ -356,3 +356,23 @@ SmolLM3 -0.59 < Bllossom -1.42 < Qwen3-4B -0.21 < Qwen3-8B +0.04 < Qwen3.5-4B(v3
 
 **도구**: build_canon_direct.py(.local), train_unsloth --data. llama.cpp convert에 9B-Base
 tokenizer hash(1444df5) qwen35 pre 등록(로컬 llama.cpp 패치).
+
+## 16. ★ 깨끗한 재평가 — 4.92/+0.59 think 부풀림 정정 (2026-06-10)
+
+**발견**: 9B canon GM은 thinking-on(주입 ChatML 템플릿이 enable_thinking 무시) → eval(max_tokens
+200)서 think 텍스트가 채점에 포함돼 점수 부풀림. base(Qwen3.5-9B-Base)는 think 안 해 불공정.
+
+**수정**: run_eval._stream_call에 `<think>` strip 추가(공정 — 모든 eval) + eval_ab `--no-think`
+(user에 /no_think — thinking 토큰 소진 방지, 게임 배포 일치). 둘 다 적용 후 재평가:
+
+| 데이터(9B) | think 포함(기존) | ★ 깨끗(--no-think+strip) |
+|---|---|---|
+| base | 4.33 | 4.42~4.50 |
+| canon(원작 직접) | **4.92** | **4.50** (Δ +0.08) |
+| v3(35B 증류) | (-0.50) | 4.25 (Δ −0.25) |
+
+**★ 정정 결론**: 4.92→실제 4.50(think가 ~0.42 부풀림). 천장 돌파 +0.59→실제 **+0.08**(modest).
+단 **방향은 실재**: 원작 직접(+0.08) > 35B 증류(−0.25), 격차 +0.33 — 강한 9B에 증류는 해롭고
+원작은 약간 이롭다. 그러나 base 점수 자체가 run간 ±0.1 변동이라 +0.08은 marginal.
+**게임 함의**: 9B canon 깨끗 4.50 ≈ 12B 4.5 — 4.92 우위는 환상. 현 배선(12B pivotal +
+4B Q8 빠른tier) 유지가 타당. ★ qwen3.5 배포엔 thinking 억제(/no_think + strip) 필수.

@@ -43,6 +43,8 @@ def main() -> None:
     ap.add_argument("--name", help="base 이름(예: smollm3) — base/gm 페어 자동 구성")
     ap.add_argument("--base-ep", default="http://127.0.0.1:8088")
     ap.add_argument("--gm-ep", default="http://127.0.0.1:8087")
+    ap.add_argument("--no-think", action="store_true",
+                    help="user에 /no_think 추가(thinking 배포 일치 — think 토큰 소진 방지)")
     args = ap.parse_args()
 
     if args.name:
@@ -72,6 +74,8 @@ def main() -> None:
             user = _GM_USER.format(history="(없음 — 첫 행동)", phase=scen["phase"],
                                    location=scen["location"], surroundings=scen["surroundings"],
                                    fact=scen["fact"], action=scen["user"])
+            if args.no_think:
+                user += " /no_think"
             best = ""
             for _ in range(sampling["runs"]):
                 try:

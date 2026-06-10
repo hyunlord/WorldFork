@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import sys
 import time
@@ -80,6 +81,10 @@ def _stream_call(
                 ntok += 1
     total = time.time() - t0
     text = "".join(pieces).strip()
+    # ★ thinking 텍스트는 서사가 아님 — 채점 전 <think> 제거(공정: think-on 모델 부풀림 차단)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"^.*?</think>", "", text, flags=re.DOTALL)  # 닫힘만 있는 경우
+    text = re.sub(r"<think>.*", "", text, flags=re.DOTALL).strip()  # 미완 think
     tps = (ntok / total) if total > 0 else 0.0
     return {"text": text, "ttft": ttft, "tps": tps, "tokens": ntok, "total_s": total}
 
