@@ -331,3 +331,28 @@ vLLM/sglang에 tf5.5+FLA 최적 커널+GB10 sm_121 지원이 모두 갖춰져야
 
 **배선 함의**: 4B 빠른 tier는 **Q4 36.4 t/s**(12B 16의 2.3×)가 현실값(100+ 아님). 속도가 더
 중요하면 표준 arch(Qwen3-8B 등 — Gated Delta Net 없음)가 llama.cpp서 더 빠를 수 있음(후속 비교).
+
+## 15. ★ 원작 직접 데이터 — 9B 천장 돌파 (2026-06-10)
+
+**가설**: v3는 원작→35B 증류(rewrite)라 천장 ~4.15. 강한 base(Qwen3.5-9B 4.33~4.58)는 v3로
+오히려 -0.50 음성(증류 천장에 눌림). 원작 직접(output=원작 prose 원문, 증류 0)은 35B 손실 없어
+9B base 위에서 양성 가능?
+
+**데이터**: build_canon_direct.py — output=원작 chunk 원문(instruction만 labeler 역생성),
+cjk=0 필터(한국 web novel 한자 0.3%뿐). canon_direct.jsonl 1500쌍(한자0/중복0/원작 prose).
+★ 저작권: .local 전용(git 금지), zip 공유 시 본문 제외.
+
+**9B Unsloth SFT(원작 직접, ~0.67ep) A/B(judge gemma+27B self제외)**:
+| 데이터 | 9B base | gm | Δ overall | 문체 | persona |
+|---|---|---|---|---|---|
+| v3(35B 증류) | ~4.58 | ~4.08 | **−0.50** ✗ | | |
+| **원작 직접** | 4.33 | **4.92** | **+0.59** ★ | 3.67→4.67(+1.0) | 3.67→5.0(+1.33) |
+
+**★ 천장 돌파 확정**: 원작 직접 9B = **+0.59**(매트릭스 최대 양성) + 최고 절대품질 4.92
+(persona·고증·시스템 5.0, 문체 4.67, 순도 98.75%). v3 -0.50 → 원작직접 +0.59 완전 반전 —
+**증류 데이터의 천장이 진짜 병목이었음**(35B 증류 < 원작 prose). 전체 매트릭스 최종:
+SmolLM3 -0.59 < Bllossom -1.42 < Qwen3-4B -0.21 < Qwen3-8B +0.04 < Qwen3.5-4B(v3) +0.16
+< **Qwen3.5-9B(원작직접) +0.59**. 강한 base + 무증류 원작 = 최적. 게임 GM 최고 후보(9B 4.92).
+
+**도구**: build_canon_direct.py(.local), train_unsloth --data. llama.cpp convert에 9B-Base
+tokenizer hash(1444df5) qwen35 pre 등록(로컬 llama.cpp 패치).

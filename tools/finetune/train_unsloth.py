@@ -31,9 +31,9 @@ _SYS = (
 )
 
 
-def load_pairs() -> list[dict[str, list[dict[str, str]]]]:
+def load_pairs(data: Path = DATA) -> list[dict[str, list[dict[str, str]]]]:
     rows = []
-    with DATA.open(encoding="utf-8") as f:
+    with data.open(encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -55,6 +55,7 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--max-seq", type=int, default=1024)
+    ap.add_argument("--data", default=str(DATA), help="학습 데이터 jsonl(원작 직접=canon_direct)")
     ap.add_argument("--no-4bit", action="store_true", help="bf16 로드(임베딩 resize 안정 — gemma4)")
     args = ap.parse_args()
 
@@ -114,7 +115,7 @@ def main() -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         use_gradient_checkpointing="unsloth",
     )
-    rows = load_pairs()
+    rows = load_pairs(Path(args.data))
     n_eval = max(20, len(rows) // 20)
     train_ds = Dataset.from_list(rows[:-n_eval])
     eval_ds = Dataset.from_list(rows[-n_eval:])
