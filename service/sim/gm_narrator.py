@@ -17,9 +17,8 @@ from typing import Any
 from core.llm.client import Prompt
 from core.llm.local_client import (
     LocalLLMClient,
-    get_gemma4_12b,
     get_qwen35_9b_q3,
-    get_qwen36_27b_q3,
+    pivotal_gm_client,
 )
 from service.sim.types import PlayerActionType
 
@@ -81,27 +80,25 @@ def is_pivotal_gm(
     return False
 
 
-# pivotal GM 모델 — Gemma 4 12B(기본, ~15 t/s·서사 우위) ↔ 27B(폴백).
-#   GEMMA_GM=0 으로 즉시 27B 되돌림(서빙 문제 시 안전). 단순 경로는 9B 유지.
-def _use_gemma_pivotal() -> bool:
-    return os.environ.get("GEMMA_GM", "1") != "0"
+# pivotal GM 모델 — ★ 측정 교체(2026-06): 27B Q2(8082)가 Gemma 12B Q4를 속도+6축 둘 다
+#   우위(cross-model verify). 기본 27B Q2, PIVOTAL=gemma 로 12B 복귀(가역). 단순 경로는 9B.
+_PIVOTAL_LABEL: dict[str, str] = {"gemma": "gemma", "27b_q3": "27b", "27b_q2": "27b-q2"}
 
 
 def gm_model_label(pivotal: bool) -> str:
     """라우팅 관측 라벨 — 응답 gm_model 필드용."""
     if not pivotal:
         return "9b"
-    return "gemma" if _use_gemma_pivotal() else "27b"
+    return _PIVOTAL_LABEL.get(os.environ.get("PIVOTAL", "27b_q2"), "27b-q2")
 
 
 def _gm_client(pivotal: bool) -> LocalLLMClient:
-    """pivotal → Gemma 4 12B(기본·품질) 또는 27B(GEMMA_GM=0 폴백) / 단순 → 원본 9B(빠름).
-    ★ 6축 재평가(ba2ba8f): 파인튜닝은 6축서 원본보다 낮음(원본 ≥ FT) → 파인튜닝 접고 원본 배선.
-    원본 4B-base는 instruct 아니라 빈출력, 4B-Instruct는 gated → 단순 tier도 검증된 원본 9B 유지.
-    pivotal = 원본 Gemma 12B(6축 최고 서사). 모두 thinking off·스트리밍·schema."""
+    """pivotal → 측정 우위 27B Q2(기본, PIVOTAL env로 가역) / 단순 → 원본 9B(빠름).
+    ★ 27B Q2 교체: decode 19.0 vs 12B Q4 16.7 t/s + 6축 양 판정자 우위 + 한자 0.
+    단순 tier는 검증된 원본 9B 유지. 모두 thinking off·스트리밍·schema."""
     if not pivotal:
         return get_qwen35_9b_q3()
-    return get_gemma4_12b() if _use_gemma_pivotal() else get_qwen36_27b_q3()
+    return pivotal_gm_client()
 
 
 # GM 서사 temperature — Gemma 4는 공식 권장 1.0. 단순 tier(9B)는 0.9로 변주를 높여
@@ -112,7 +109,8 @@ _GEMMA_GM_TEMPERATURE = 1.0
 
 
 def _gm_temperature(pivotal: bool) -> float:
-    if pivotal and _use_gemma_pivotal():
+    # Gemma 명시 선택 시만 공식 권장 1.0. 기본 27B Q2·9B = 0.9(6축 eval 검증).
+    if pivotal and os.environ.get("PIVOTAL", "27b_q2") == "gemma":
         return _GEMMA_GM_TEMPERATURE
     return _GM_TEMPERATURE
 

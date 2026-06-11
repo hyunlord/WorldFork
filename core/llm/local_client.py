@@ -15,6 +15,7 @@ Phase A.3-b 추가:
 """
 
 import json
+import os
 import re
 import time
 from collections.abc import AsyncIterator
@@ -325,12 +326,30 @@ def get_gemma4_12b() -> LocalLLMClient:
 
 
 def get_qwen36_27b_q2() -> LocalLLMClient:
-    """Qwen3.6-27B Q2_K_XL — 본인 직관 baseline, 14.5 tok/s (port 8082)."""
+    """Qwen3.6-27B Q2_K_XL — pivotal GM (port 8082).
+
+    ★ 측정 교체(2026-06): 27B Q2가 Gemma 12B Q4를 decode(19.0 vs 16.7 t/s)와
+      6축(양 판정자 우위, 한자 0) 둘 다 우위 — Qwen3.6 GDN arch가 토큰당 효율.
+    """
     return LocalLLMClient(
         model_key="qwen36-27b-q2",
         base_url="http://localhost:8082",
         model_name_in_request="qwen36-27b-q2",
     )
+
+
+def pivotal_gm_client() -> LocalLLMClient:
+    """pivotal GM 모델 — 측정 우위 27B Q2(8082)가 기본. 가역 env 게이트.
+
+    PIVOTAL=gemma → Gemma 12B Q4(8085) 복귀 / PIVOTAL=27b_q3 → 옛 27B(8081, sglang).
+    cross-model verify(Qwen·Gemma 판정 모두 27B Q2 우위)로 교체 — service/sim 공유.
+    """
+    kind = os.environ.get("PIVOTAL", "27b_q2")
+    if kind == "gemma":
+        return get_gemma4_12b()
+    if kind == "27b_q3":
+        return get_qwen36_27b_q3()
+    return get_qwen36_27b_q2()
 
 
 def get_qwen35_9b_q3() -> LocalLLMClient:

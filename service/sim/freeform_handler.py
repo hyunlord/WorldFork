@@ -8,32 +8,25 @@ async router에서 asyncio.to_thread로 wrap (sync).
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import LocalLLMClient, get_gemma4_12b, get_qwen35_9b_q3
+from core.llm.local_client import LocalLLMClient, get_qwen35_9b_q3, pivotal_gm_client
 from service.api.schemas.freeform_action import ExtractedEntities, StateDelta
 from service.canon.context import get_entity_index
 from service.canon.entity_index import EntityRef
 from service.sim.combat import CombatTurnLog
 
 
-def _gemma_on() -> bool:
-    """GEMMA_GM 정합 — pivotal에 원본 Gemma 12B(기본) 사용 여부."""
-    return os.environ.get("GEMMA_GM", "1") != "0"
-
-
 def _freeform_client(pivotal: bool) -> LocalLLMClient:
-    """기동 모델 라우팅 — 단순(자유 입력)=9B 빠름 / pivotal(전투 통합)=12B 품질.
+    """기동 모델 라우팅 — 단순(자유 입력)=9B 빠름 / pivotal(전투 통합)=측정 우위 pivotal.
 
-    ★ 도그푸딩 발견 버그 수정: 종전 무조건 get_qwen36_27b_q3()(:8081, 의도 OFF)를
-      호출해 Connection refused. GB10 비공존으로 27B는 상시 미기동이므로 기동 모델
-      (9B 8083 / 12B 8085)만 사용한다. 자유 입력 fallback은 속도 우선 9B로 라우팅.
+    ★ pivotal은 공유 pivotal_gm_client(기본 27B Q2, PIVOTAL env로 가역). 자유 입력
+      fallback은 속도 우선 9B. (종전 미기동 27B :8081 호출 버그는 이미 해소.)
     """
-    if pivotal and _gemma_on():
-        return get_gemma4_12b()
+    if pivotal:
+        return pivotal_gm_client()
     return get_qwen35_9b_q3()
 
 

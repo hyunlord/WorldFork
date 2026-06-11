@@ -393,7 +393,9 @@ async def _measure(frontend_url: str, headless: bool) -> dict[str, bool]:
                 #   GEMMA_GM=0 폴백 시 27B), 던전 진입(비전투 단순) = 빠른 tier(Qwen3.5-4B
                 #   Q8 GM-LoRA '4b', 구 9B 호환). 둘이 갈리면 라우팅 작동(결정적).
                 results["hybrid_routing"] = (
-                    route_dialogue in ("gemma", "27b") and route_entry in ("9b", "4b")
+                    # ★ pivotal 라벨: 27b-q2(현 기본 측정 우위)/gemma/27b(가역 PIVOTAL env)
+                    route_dialogue in ("gemma", "27b", "27b-q2")
+                    and route_entry in ("9b", "4b")
                 )
                 # ★ 게임 화면 픽셀화 — DungeonView가 문자(@/g/b) 대신 픽셀 스프라이트
                 #   img를 렌더(던전 floor 1+에서 표시). assets/pixel img 존재 = 픽셀 게임

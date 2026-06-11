@@ -6,11 +6,10 @@ LLM 실패 시 호출자가 fallback 담당.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import LocalLLMClient, get_gemma4_12b, get_qwen35_9b_q3
+from core.llm.local_client import LocalLLMClient, get_qwen35_9b_q3, pivotal_gm_client
 from service.canon.boss_narrative import (
     RIFT_NAMES,
     BossNarrativeContext,
@@ -57,13 +56,12 @@ _CHAMBER_SCHEMA: dict[str, Any] = {
 
 
 def _running_client(pivotal: bool) -> LocalLLMClient:
-    """기동 모델 라우팅 — 보스 등장(pivotal)=12B 품질 / chamber 진입(빈번)=9B 빠름.
+    """기동 모델 라우팅 — 보스 등장(pivotal)=측정 우위 pivotal / chamber 진입(빈번)=9B 빠름.
 
-    ★ 도그푸딩 버그 수정: 종전 get_qwen36_27b_q3()(:8081, 상시 OFF) 호출로
-      Connection refused/공백. 기동 모델(9B 8083 / 12B 8085)만 사용.
+    ★ pivotal은 공유 pivotal_gm_client(기본 27B Q2, PIVOTAL env로 가역).
     """
-    if pivotal and os.environ.get("GEMMA_GM", "1") != "0":
-        return get_gemma4_12b()
+    if pivotal:
+        return pivotal_gm_client()
     return get_qwen35_9b_q3()
 
 

@@ -25,12 +25,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLAMA_SERVER="${LLAMA_SERVER:-/home/hyunlord/repos/llama.cpp/build/bin/llama-server}"
 MODEL_9B="${MODEL_9B:-/home/hyunlord/models/gguf/qwen35-9b/Qwen3.5-9B-UD-Q3_K_XL.gguf}"
 MODEL_GEMMA="${MODEL_GEMMA:-/home/hyunlord/models/poc/gemma-4-12B-it-Q4_K_M.gguf}"
+MODEL_27B_Q2="${MODEL_27B_Q2:-/home/hyunlord/models/gguf/qwen36-27b/Qwen3.6-27B-UD-Q2_K_XL.gguf}"
 # ★ 6축 재평가(ba2ba8f): 파인튜닝 접음(원본 ≥ FT). 4B-base는 instruct 아니라 빈출력 → 빠른 tier는
 #   검증된 원본 9B(ensure_9b) 유지. ensure_4b는 미호출(레거시, 함수만 잔존).
 MODEL_4B="${MODEL_4B:-/home/hyunlord/models/finetune/qwen35-4b-base-q8.gguf}"
 PORT_9B=8083
 PORT_4B=8088      # 빠른 tier GM (Qwen3.5-4B Q8 GM-LoRA) — local_client get_qwen35_4b_gm 정합
-PORT_GEMMA=8085   # pivotal GM (Gemma 4 12B) — local_client get_gemma4_12b 정합
+PORT_GEMMA=8085   # pivotal GM 폴백 (Gemma 4 12B) — PIVOTAL=gemma 시 사용
+PORT_27B_Q2=8082  # ★ pivotal GM 기본 (Qwen3.6-27B Q2) — 측정 우위, local_client get_qwen36_27b_q2 정합
 PORT_FE=4000
 PORT_BACKEND=8090
 PORT_27B=8081
@@ -158,6 +160,39 @@ ensure_gemma() {
 }
 
 
+# ─── Qwen3.6-27B Q2 (8082) llama-server — ★ pivotal GM 기본(측정 우위) ───
+#   PIVOTAL=gemma(런타임)면 게임이 12B로 가므로 skip 가능(ENSURE_27B_Q2=0).
+ensure_27b_q2() {
+    if [ "${ENSURE_27B_Q2:-1}" != "1" ] || [ "${PIVOTAL:-27b_q2}" = "gemma" ]; then
+        echo "[ensure] 27B Q2 (8082) skip (ENSURE_27B_Q2=0 또는 PIVOTAL=gemma)"
+        return 0
+    fi
+    if _check "$PORT_27B_Q2" "/health"; then
+        echo "[ensure] 27B Q2 (8082) ✅ 이미 UP"
+        return 0
+    fi
+    if [ ! -x "$LLAMA_SERVER" ]; then
+        echo "[ensure] 27B Q2 (8082) ⚠️  llama-server 바이너리 없음: $LLAMA_SERVER"
+        return 1
+    fi
+    if [ ! -f "$MODEL_27B_Q2" ]; then
+        echo "[ensure] 27B Q2 (8082) ⚠️  model 파일 없음: $MODEL_27B_Q2"
+        return 1
+    fi
+    echo "[ensure] 27B Q2 (8082) DOWN → llama-server 자동 start..."
+    nohup "$LLAMA_SERVER" \
+        -m "$MODEL_27B_Q2" \
+        --port "$PORT_27B_Q2" \
+        --host 127.0.0.1 \
+        -ngl 99 \
+        -c 8192 \
+        --jinja \
+        > /tmp/llama_27b_q2.log 2>&1 &
+    disown
+    _wait_health "27B Q2" "$PORT_27B_Q2" "/health" "$GEMMA_HEALTH_TIMEOUT"
+}
+
+
 # ─── frontend (4000) next dev ───
 # 포트 3000은 ml-hub-frontend(docker) 점유 → WorldFork는 4000 사용
 ensure_frontend() {
@@ -232,6 +267,7 @@ main() {
     echo "=== ensure_services — Ship Gate 전 인프라 헬스체크 ==="
     local warn=0
     ensure_9b || warn=1
+    ensure_27b_q2 || warn=1
     ensure_gemma || warn=1
     ensure_backend || warn=1
     ensure_frontend || warn=1
