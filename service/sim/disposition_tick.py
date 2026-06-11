@@ -113,7 +113,11 @@ def step_tick(world: TickWorld) -> TickResult:
     world.tick += 1
     comp = world.companion
     view = build_view(world)
-    action = default_action(comp.disposition, view)
+    # ★ Phase 1: 지시 해석이 설정한 명령(current_order)이 있으면 그것을 따른다(코드 반영).
+    #   없으면 성향 자율(default_action). 거부된 지시는 order=None이라 자율로 떨어진다.
+    action = comp.current_order if comp.current_order is not None else default_action(
+        comp.disposition, view
+    )
     note = ""
 
     if action is DispoAction.CHARGE:

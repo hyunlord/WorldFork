@@ -56,7 +56,11 @@ class Disposition:
 
 @dataclass
 class Companion:
-    """파티원 — 성향 + 게임 상태(위치/HP). Phase 0은 1명으로 검증."""
+    """파티원 — 성향 + 게임 상태(위치/HP). Phase 0은 1명으로 검증.
+
+    current_order — Phase 1 지시 해석이 설정하는 현재 명령(코드 틱 반영). None이면
+    성향 자율(default_action). 거부 시 None 유지.
+    """
 
     name: str
     disposition: Disposition
@@ -64,6 +68,7 @@ class Companion:
     hp: int = 100
     max_hp: int = 100
     attack: int = 12
+    current_order: DispoAction | None = None
 
 
 @dataclass
