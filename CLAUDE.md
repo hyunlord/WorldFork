@@ -4,11 +4,25 @@
 
 ## 프로젝트 개요
 
-LLM 기반 한국어 인터랙티브 게임. 사용자가 좋아하는 작품 세계관에 들어가서 캐릭터로 살아보는 서비스.
+세계관 속에서 사는 **자율 파티 시뮬레이션 게임** (한국어). 파티원이 성향대로 자율 행동하고,
+플레이어가 자연어로 개입하면 그 지시를 성향대로 해석(순응/변형/거부)한다.
 
-## 현재 위치
+## 현재 방향 (★ V3 — 뒤집기)
 
-Tier 0 (검증 단계) — `docs/ROADMAP.md` 5장 참조
+현행 로드맵: [`docs/ROADMAP_V3.md`](docs/ROADMAP_V3.md) — 자율 파티 RTwP + 성향 엔진.
+설계: [`docs/DESIGN_disposition_engine.md`](docs/DESIGN_disposition_engine.md).
+**다음 단계: Phase 0 (성향 코어).**
+
+> ⚠️ **V1/V2(턴제 텍스트 어드벤처)는 폐기.** `docs/ROADMAP.md`(V1) / `docs/ROADMAP_V2_BARBARIAN.md`(V2)는
+> 역사 참고용. 턴제·정적 선택지·매 행동 LLM 서사 루프로 회귀하지 말 것(도그푸딩 결과 "지루").
+
+### V3 정수 (★ 회귀 방지 — 모든 작업에 적용)
+
+- **게임 코어 = 코드** (즉각·결정적). HP/명중/피해/위치/플래그는 코드가 확정.
+- **LLM = 성향 동료의 영혼** (분기점·개입·갈등·결정적 서사만).
+- ★ **매 행동 LLM 호출 금지** — 평소는 성향별 코드 패턴(0토큰), LLM은 결정적 순간만.
+- **성향 5축**(충성/저돌/지혜/변덕/유대)이 자율 행동 + 지시 해석을 좌우.
+- **틱 기반 RTwP**로 시작, 실시간은 나중.
 
 ## 핵심 원칙 (모든 작업에 적용)
 
@@ -23,14 +37,14 @@ Tier 0 (검증 단계) — `docs/ROADMAP.md` 5장 참조
 9. **CLI 활용** (claude-code / codex-cli / gemini-cli 정액제)
 10. **외부 패키지 0건 streak** (`docs/HARNESS_LAYER1_DEV.md` 7장 참조)
 
-## Tier 0 완료 조건 (졸업)
+## 단계 검증 (V3)
 
-`docs/ROADMAP.md` 5장 "Tier 0 졸업 조건" 참조. 핵심:
-- 30분 시나리오 완주 가능
-- 본인 5회 + 친구 3-5명 플레이
-- 친구 3명 이상 끝까지 완주
-- Mechanical check 통과율 80%+
-- Layer 1 ship gate 매 commit 작동
+각 Phase = 직접 플레이로 재미 검증(도그푸딩, 가장 중요). 상세: `docs/ROADMAP_V3.md` 3장.
+공통 졸업 신호:
+- 그 Phase 비전이 직접 플레이에서 "재미있게" 작동
+- Mechanical check / Ship gate 매 commit 작동
+- made-but-never-used 없음(실게임 배선 검증)
+- 재미없으면 그 단계에서 멈추고 조정(이번 여정의 교훈)
 
 ## 코드 품질 요구사항
 
@@ -91,10 +105,6 @@ python -m core.eval.runner --eval-set persona_consistency
 
 ## 다음 작업 알고 싶을 때
 
-1. `docs/ROADMAP.md` 5장 (Tier 0)
-2. 현재 Day 확인 (git log 또는 README 상단 표시)
-3. 해당 Day 산출물 체크리스트 진행
-
-## 본 작업이 어디까지 와야 하는지 모를 때
-
-`docs/PHASE_C_LAUNCH_GUIDE.md` 의 12.1 진행 체크리스트 참조.
+1. `docs/ROADMAP_V3.md` 3장 (Phase별 로드맵) — 현 단계 = Phase 0 (성향 코어)
+2. `docs/DESIGN_disposition_engine.md` 8장 (구현 순서 제안)
+3. 각 Phase 후 직접 플레이로 재미 검증(도그푸딩)
