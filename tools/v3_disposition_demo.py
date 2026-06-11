@@ -61,5 +61,49 @@ def run_demo() -> None:
     print(f"  세계 상태: flags={s.memory.flags} relationships={s.memory.relationships}")
 
 
+def run_party_demo() -> None:
+    """Phase 3 — 파티 3명 자율 + 분기점(LLM 빈도) 측정."""
+    from service.sim.disposition import PRESET_BERSERKER, PRESET_GUARDIAN
+    from service.sim.disposition_tick import TickEnemy
+    from service.sim.party import (
+        PartyWorld,
+        command_all,
+        command_member,
+        detect_branch,
+        party_step,
+    )
+
+    print("\n=== Phase 3 파티 데모 (3명 + LLM 빈도) ===")
+    w = PartyWorld(
+        companions=[
+            Companion("전사", PRESET_BERSERKER, pos=(0, 0)),
+            Companion("정찰꾼", PRESET_SCOUT, pos=(0, 1)),
+            Companion("수호자", PRESET_GUARDIAN, pos=(0, 2)),
+        ],
+    )
+    branch_ticks = 0
+    # 평온 3틱 → 적 출현 → 5틱
+    for t in range(8):
+        if t == 3:
+            w.enemies = [TickEnemy("고블린", pos=(5, 0), hp=40)]
+        results = party_step(w)
+        reasons = [r.value for r in detect_branch(w)]
+        if reasons:
+            branch_ticks += 1
+        acts = ", ".join(r.note for r in results)
+        print(f"  틱 {w.tick}: {acts}{('  ★분기:' + ','.join(reasons)) if reasons else ''}")
+    print(f"  → 8틱 중 분기점(LLM 호출 후보) {branch_ticks}회 — 평소 코드 0토큰, 사건만 LLM")
+
+    # 파티 제어 — 특정 동료 지시(분기점=개입) + 전원 지시(같은 명령, 각자 성향 해석)
+    print("\n[파티 제어] 특정 동료 / 전원 지시:")
+    one = command_member(w, "정찰꾼", "물러서서 함정을 살펴라", "전투 교착")
+    if one is not None:
+        print(f"  정찰꾼 → {one.reaction.value}/{one.action.value}: \"{one.speech[:40]}\"")
+    allr = command_all(w, "전원 후퇴하라", "위험 고조")
+    for name, r in allr.items():
+        print(f"  {name} → {r.reaction.value}/{r.action.value}")
+
+
 if __name__ == "__main__":
     run_demo()
+    run_party_demo()

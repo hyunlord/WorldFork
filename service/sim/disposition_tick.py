@@ -89,42 +89,62 @@ def _step_away(src: tuple[int, int], threat: tuple[int, int]) -> tuple[int, int]
     return (x, y)
 
 
-def _nearest_enemy(world: TickWorld) -> TickEnemy | None:
-    live = [e for e in world.enemies if e.hp > 0]
-    if not live:
-        return None
-    return min(live, key=lambda e: _dist(world.companion.pos, e.pos))
+@dataclass
+class TickContext:
+    """동료가 행동할 공유 세계(동료 제외) — 파티 전원이 같은 ctx를 본다(Phase 3 재사용)."""
+
+    enemies: list[TickEnemy]
+    player_pos: tuple[int, int] = (0, 0)
+    player_hp: int = 100
+    player_max_hp: int = 100
+    unexplored_pos: tuple[int, int] | None = None
 
 
-def build_view(world: TickWorld) -> WorldView:
-    """게임 상태 → 동료 인식(WorldView). 코드가 계산(0토큰)."""
-    enemy = _nearest_enemy(world)
-    ally_danger = world.player_hp <= world.player_max_hp * _DANGER_HP_RATIO
+def _nearest(ctx: TickContext, pos: tuple[int, int]) -> TickEnemy | None:
+    live = [e for e in ctx.enemies if e.hp > 0]
+    return min(live, key=lambda e: _dist(pos, e.pos)) if live else None
+
+
+def build_view_ctx(
+    ctx: TickContext, comp: Companion, *, ally_in_danger: bool | None = None
+) -> WorldView:
+    """공유 ctx + 동료 → 인식(WorldView). 코드 계산(0토큰).
+
+    ally_in_danger 미지정 시 플레이어 HP로 판단. 파티(Phase 3)는 동료 위기까지 포함해 전달.
+    """
+    enemy = _nearest(ctx, comp.pos)
+    danger = (
+        ally_in_danger
+        if ally_in_danger is not None
+        else ctx.player_hp <= ctx.player_max_hp * _DANGER_HP_RATIO
+    )
     return WorldView(
         enemy_near=enemy is not None,
-        enemy_distance=_dist(world.companion.pos, enemy.pos) if enemy else 99,
-        unexplored=world.unexplored_pos is not None,
-        ally_in_danger=ally_danger,
+        enemy_distance=_dist(comp.pos, enemy.pos) if enemy else 99,
+        unexplored=ctx.unexplored_pos is not None,
+        ally_in_danger=danger,
     )
 
 
-def step_tick(world: TickWorld) -> TickResult:
-    """한 틱 진행 — 성향별 기본 행동을 결정·적용(LLM 없이)."""
-    world.tick += 1
-    comp = world.companion
-    view = build_view(world)
-    # ★ Phase 1: 지시 해석이 설정한 명령(current_order)이 있으면 그것을 따른다(코드 반영).
-    #   없으면 성향 자율(default_action). 거부된 지시는 order=None이라 자율로 떨어진다.
-    action = comp.current_order if comp.current_order is not None else default_action(
-        comp.disposition, view
+def act_companion(
+    comp: Companion, ctx: TickContext, *, ally_in_danger: bool | None = None
+) -> tuple[DispoAction, str]:
+    """동료 1명의 한 행동 — 성향(또는 current_order)대로 ctx에 적용(LLM 없이).
+
+    ★ Phase 1 order가 있으면 따르고, 없으면 default_action(성향 자율). 파티(Phase 3)는
+    전원이 이 함수를 같은 ctx로 호출 — 평소 0토큰. ctx.enemies/unexplored_pos를 직접 변경.
+    """
+    view = build_view_ctx(ctx, comp, ally_in_danger=ally_in_danger)
+    action = (
+        comp.current_order
+        if comp.current_order is not None
+        else default_action(comp.disposition, view)
     )
     note = ""
-
     if action is DispoAction.CHARGE:
-        enemy = _nearest_enemy(world)
+        enemy = _nearest(ctx, comp.pos)
         if enemy is not None:
             if _dist(comp.pos, enemy.pos) <= 1:
-                # 저돌성↑ 동료는 결정적 강타(성향이 피해로 — Phase 0은 random 없음).
                 berserk = comp.disposition.aggression >= _BERSERK_CRIT
                 dmg = apply_critical_damage(comp.attack) if berserk else comp.attack
                 enemy.hp -= dmg
@@ -133,32 +153,51 @@ def step_tick(world: TickWorld) -> TickResult:
                 comp.pos = _step_toward(comp.pos, enemy.pos)
                 note = "적에게 돌진"
     elif action is DispoAction.RANGED:
-        enemy = _nearest_enemy(world)
+        enemy = _nearest(ctx, comp.pos)
         if enemy is not None:
-            d = _dist(comp.pos, enemy.pos)
-            if d < _RANGED_KEEP:
+            if _dist(comp.pos, enemy.pos) < _RANGED_KEEP:
                 comp.pos = _step_away(comp.pos, enemy.pos)
                 note = "거리를 벌림"
             else:
-                enemy.hp -= max(1, comp.attack // 2)  # 원거리 — 약한 피해
+                enemy.hp -= max(1, comp.attack // 2)
                 note = f"{enemy.name} 원거리 사격"
     elif action is DispoAction.SCOUT:
-        if world.unexplored_pos is not None:
-            comp.pos = _step_toward(comp.pos, world.unexplored_pos)
-            if comp.pos == world.unexplored_pos:
-                world.unexplored_pos = None  # 정찰 완료
+        if ctx.unexplored_pos is not None:
+            comp.pos = _step_toward(comp.pos, ctx.unexplored_pos)
+            if comp.pos == ctx.unexplored_pos:
+                ctx.unexplored_pos = None
                 note = "정찰 완료"
             else:
                 note = "앞서 정찰"
     elif action is DispoAction.RESCUE:
-        comp.pos = _step_toward(comp.pos, world.player_pos)
+        comp.pos = _step_toward(comp.pos, ctx.player_pos)
         note = "위기의 아군에게"
     elif action is DispoAction.FOLLOW:
-        if _dist(comp.pos, world.player_pos) > 1:
-            comp.pos = _step_toward(comp.pos, world.player_pos)
+        if _dist(comp.pos, ctx.player_pos) > 1:
+            comp.pos = _step_toward(comp.pos, ctx.player_pos)
         note = "플레이어 곁"
+    return action, note
 
-    return TickResult(world.tick, action, comp.pos, note)
+
+def build_view(world: TickWorld) -> WorldView:
+    """단일 동료 인식(하위호환) — TickWorld → WorldView."""
+    ctx = TickContext(
+        world.enemies, world.player_pos, world.player_hp,
+        world.player_max_hp, world.unexplored_pos,
+    )
+    return build_view_ctx(ctx, world.companion)
+
+
+def step_tick(world: TickWorld) -> TickResult:
+    """한 틱 진행(단일 동료) — act_companion 위임. 동작 불변(Phase 0)."""
+    world.tick += 1
+    ctx = TickContext(
+        world.enemies, world.player_pos, world.player_hp,
+        world.player_max_hp, world.unexplored_pos,
+    )
+    action, note = act_companion(world.companion, ctx)
+    world.unexplored_pos = ctx.unexplored_pos  # 정찰 완료 반영(쓰기 back)
+    return TickResult(world.tick, action, world.companion.pos, note)
 
 
 def run_ticks(world: TickWorld, n: int) -> list[TickResult]:
