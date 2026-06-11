@@ -207,10 +207,11 @@ class TestFreeformRouter:
             reason="공격 명확",
         )
         client = TestClient(_app())
+        # ★ mechanical 비매칭 입력(달려든다) — LLM classify_intent(mock) 경로 검증.
         r = client.post(
             "/api/v2/freeform_action",
             json={
-                "user_input": "고블린을 공격",
+                "user_input": "고블린에게 달려든다",
                 "encounters": [{"name": "고블린", "hostile": True}],
             },
         )

@@ -44,6 +44,30 @@ class TestMechanicalRest:
         assert m.matched_action == PlayerActionType.REST.value
 
 
+class TestMechanicalAttack:
+    def test_attack_verb(self) -> None:
+        m = mechanical_classify("고블린을 공격한다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.ATTACK.value
+
+    def test_axe_swing(self) -> None:
+        m = mechanical_classify("도끼를 휘두른다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.ATTACK.value
+
+    def test_slash(self) -> None:
+        m = mechanical_classify("칼날늑대를 베어버린다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.ATTACK.value
+
+    def test_dodge_not_attack(self) -> None:
+        # 공격을 피하는 맥락 → 공격 아님(LLM 위임).
+        assert mechanical_classify("적의 공격을 피한다") is None
+
+    def test_flee_not_attack(self) -> None:
+        assert mechanical_classify("공격을 막고 도망친다") is None
+
+
 class TestFallThrough:
     """오탐 방지 — 모호/비방위는 None(LLM 위임)."""
 
@@ -61,10 +85,6 @@ class TestFallThrough:
 
     def test_freeform_action(self) -> None:
         assert mechanical_classify("벽의 이끼를 핥아본다") is None
-
-    def test_attack_not_matched(self) -> None:
-        # ATTACK은 mechanical 미대상(target 추출 위험) → LLM.
-        assert mechanical_classify("고블린을 공격한다") is None
 
     def test_empty(self) -> None:
         assert mechanical_classify("") is None

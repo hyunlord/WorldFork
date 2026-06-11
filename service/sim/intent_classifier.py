@@ -27,6 +27,13 @@ _DIR_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 _MOVE_VERB = re.compile(r"간다|가다|가자|이동|향해|향한|움직|걸어|걷는|나아간|들어간")
 _REST_RE = re.compile(r"휴식|쉰다|쉬다|쉬어|쉬자|잠을 자|잔다|눕는다|드러눕")
+# 공격 — 명확한 타격 동사만(handle_attack이 encounters+user_input으로 대상 결정, entity 불필요).
+_ATTACK_RE = re.compile(
+    r"공격|때리|때려|때린|벤다|베어|베고|찌르|찔러|찌른|휘두|휘둘|"
+    r"내리치|내리친|내려치|내려친|짓밟|도끼로|주먹으로"
+)
+# 방어/회피/도주 맥락이면 공격 아님(오탐 차단 — flee/dodge는 별도 핸들러).
+_NOT_ATTACK_RE = re.compile(r"피하|피한|막아|막은|방어|도망|달아|물러|숨어|숨는")
 
 
 def mechanical_classify(user_input: str) -> IntentMatch | None:
@@ -52,6 +59,13 @@ def mechanical_classify(user_input: str) -> IntentMatch | None:
             matched_action=PlayerActionType.REST.value,
             confidence=0.95,
             reason="기계 분류: 휴식",
+        )
+    # 공격 — 타격 동사 & 방어/회피 맥락 아님. 대상은 handle_attack이 결정(entity 불필요).
+    if _ATTACK_RE.search(text) and not _NOT_ATTACK_RE.search(text):
+        return IntentMatch(
+            matched_action=PlayerActionType.ATTACK.value,
+            confidence=0.95,
+            reason="기계 분류: 공격",
         )
     return None
 
