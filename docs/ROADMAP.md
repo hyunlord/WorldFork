@@ -1,5 +1,9 @@
 # WorldFork — Project Roadmap
 
+> ⚠️ **폐기 (V3로 대체, 2026-06-11)** — 자율 파티 RTwP + 성향 엔진으로 방향 전환.
+> 현행 로드맵은 [`ROADMAP_V3.md`](ROADMAP_V3.md), 설계는 [`DESIGN_disposition_engine.md`](DESIGN_disposition_engine.md) 참조.
+
+
 > **세계관에 들어가서 사는 인터랙티브 게임**
 > 작품 정보를 입력하면 그 세계관에 진입한 것처럼 플레이하는 LLM 기반 게임 서비스
 >

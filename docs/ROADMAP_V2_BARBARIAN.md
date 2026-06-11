@@ -1,5 +1,9 @@
 # WorldFork — ROADMAP V2 (Barbarian Pivot)
 
+> ⚠️ **폐기 (V3로 대체, 2026-06-11)** — 자율 파티 RTwP + 성향 엔진으로 방향 전환.
+> 현행 로드맵은 [`ROADMAP_V3.md`](ROADMAP_V3.md), 설계는 [`DESIGN_disposition_engine.md`](DESIGN_disposition_engine.md) 참조.
+
+
 > **본인 본질 진짜 변화**:
 > 단순 텍스트 어드벤처 → 텍스트 + 사이드뷰 시각화 hybrid 시뮬 RPG
 >
