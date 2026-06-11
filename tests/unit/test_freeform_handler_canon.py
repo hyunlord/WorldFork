@@ -107,19 +107,10 @@ def test_collect_entity_refs_no_index() -> None:
 # ── freeform_action integration ───────────────────────────────────────────────
 
 
-def _mock_generate_json(narrative: str = "투르윈이 전진한다.") -> MagicMock:
+def _mock_generate(narrative: str = "나는 천천히 전진했다. 발끝이 흙을 밟았다.") -> MagicMock:
+    # ★ 자유텍스트 서사(generate) 응답 — free-form은 strict-JSON 폐기, 최소 delta.
     mock_resp = MagicMock()
-    mock_resp.parsed = {
-        "narrative": narrative,
-        "state_delta": {
-            "hp_change": 0,
-            "inventory_add": [],
-            "inventory_remove": [],
-            "location": None,
-            "time_advance": 1,
-            "affinity_changes": {},
-        },
-    }
+    mock_resp.text = narrative
     return mock_resp
 
 
@@ -127,14 +118,14 @@ def test_freeform_action_injects_entity_context() -> None:
     """system prompt에 canon_context가 포함되는지 확인."""
     captured_prompts: list[object] = []
 
-    def _fake_generate_json(prompt: object, **kwargs: object) -> MagicMock:
+    def _fake_generate(prompt: object, **kwargs: object) -> MagicMock:
         captured_prompts.append(prompt)
-        return _mock_generate_json()
+        return _mock_generate()
 
     mock_client = MagicMock()
-    mock_client.generate_json.side_effect = _fake_generate_json
+    mock_client.generate.side_effect = _fake_generate
 
-    with patch("service.sim.freeform_handler.get_qwen36_27b_q3", return_value=mock_client):
+    with patch("service.sim.freeform_handler._freeform_client", return_value=mock_client):
         entities = ExtractedEntities(actor="투르윈", location=None, item=None)
         narrative, delta = freeform_action(
             "투르윈이 2층 입구로 이동",
@@ -154,14 +145,14 @@ def test_freeform_action_no_entities_no_context() -> None:
     """entity 없으면 system에 canon_context 블록 없음."""
     captured_prompts: list[object] = []
 
-    def _fake_generate_json(prompt: object, **kwargs: object) -> MagicMock:
+    def _fake_generate(prompt: object, **kwargs: object) -> MagicMock:
         captured_prompts.append(prompt)
-        return _mock_generate_json()
+        return _mock_generate()
 
     mock_client = MagicMock()
-    mock_client.generate_json.side_effect = _fake_generate_json
+    mock_client.generate.side_effect = _fake_generate
 
-    with patch("service.sim.freeform_handler.get_qwen36_27b_q3", return_value=mock_client):
+    with patch("service.sim.freeform_handler._freeform_client", return_value=mock_client):
         narrative, delta = freeform_action(
             "완전히 새로운 행동",
             rationale=None,

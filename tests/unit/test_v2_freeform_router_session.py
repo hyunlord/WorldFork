@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from service.api.schemas.freeform_action import IntentMatch, StateDelta
+from service.api.schemas.freeform_action import IntentMatch
 from service.api.v2_freeform_router import router as freeform_router
 from service.persistence.sqlite_store import SqliteStore
 from service.sim.session_manager import SessionManager, override_session_manager
@@ -137,24 +137,27 @@ class TestFreeformSessionIntegration:
         assert body["session_id"] is not None
         assert body["session_id"] != "no-such-session-id"
 
-    @patch("service.api.v2_freeform_router.freeform_action")
+    @patch("service.api.v2_freeform_router.stream_freeform_narrative")
     @patch("service.api.v2_freeform_router.classify_intent")
     def test_fallback_path_updates_session(
         self,
         mock_classify: MagicMock,
-        mock_handler: MagicMock,
+        mock_stream: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """fallback path도 세션 상태에 반영된다."""
+        """fallback path도 세션 상태에 반영된다(스트리밍 서사 + 시간 진행)."""
         mock_classify.return_value = IntentMatch(
             matched_action=None,
             confidence=0.2,
             reason="자유",
         )
-        mock_handler.return_value = (
-            "비요른은 손가락으로 공중에 원을 그려본다." * 2,
-            StateDelta(time_advance=1, inventory_add=["이상한 돌멩이"]),
-        )
+
+        # ★ free-form은 토큰 스트리밍 + 최소 delta — mechanical 변화(인벤토리) 없음.
+        async def _fake_stream(*_a: object, **_k: object) -> object:
+            for tok in ["나는 손가락으로 ", "공중에 원을 ", "그려보았다."]:
+                yield tok
+
+        mock_stream.side_effect = _fake_stream
         store = SqliteStore(tmp_path / "test4.db")
         mgr = SessionManager(store)
         override_session_manager(mgr)
@@ -174,4 +177,5 @@ class TestFreeformSessionIntegration:
         body = r.json()
         assert body["resolved_path"] == "fallback"
         assert body["session_state"]["turn_count"] == 1
-        assert "이상한 돌멩이" in body["session_state"]["inventory"]
+        assert "원을" in body["narrative"]  # 스트리밍 서사 반영
+        assert body["state_delta"]["time_advance"] == 1

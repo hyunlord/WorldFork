@@ -8,67 +8,33 @@ async router에서 asyncio.to_thread로 wrap (sync).
 
 from __future__ import annotations
 
+import os
+from collections.abc import AsyncIterator
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import get_qwen36_27b_q3
+from core.llm.local_client import LocalLLMClient, get_gemma4_12b, get_qwen35_9b_q3
 from service.api.schemas.freeform_action import ExtractedEntities, StateDelta
 from service.canon.context import get_entity_index
 from service.canon.entity_index import EntityRef
 from service.sim.combat import CombatTurnLog
 
-FREEFORM_SYSTEM_TEMPLATE = (
-    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 생성. "
-    "서사 규칙: 1인칭 시점('나는'/'내가' 사용), 문어체 어미(~다/~었다, ~니다/~습니다 금지), "
-    "시스템 메시지만 「...」 안에 합쇼체 허용, 화자 prefix 금지. "
-    "{canon_context}"
-    "state_delta는 minimal."
-)
 
-FREEFORM_USER_TEMPLATE = """\
-행동: {user_input}
-{rationale_block}
-JSON 출력:"""
+def _gemma_on() -> bool:
+    """GEMMA_GM 정합 — pivotal에 원본 Gemma 12B(기본) 사용 여부."""
+    return os.environ.get("GEMMA_GM", "1") != "0"
 
-FREEFORM_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "narrative": {"type": "string", "minLength": 10, "maxLength": 2000},
-        "state_delta": {
-            "type": "object",
-            "properties": {
-                "hp_change": {"type": "integer", "minimum": -100, "maximum": 100},
-                "inventory_add": {
-                    "type": "array",
-                    "items": {"type": "string", "maxLength": 100},
-                    "maxItems": 10,
-                },
-                "inventory_remove": {
-                    "type": "array",
-                    "items": {"type": "string", "maxLength": 100},
-                    "maxItems": 10,
-                },
-                "location": {"type": ["string", "null"], "maxLength": 100},
-                "time_advance": {"type": "integer", "minimum": 0, "maximum": 24},
-                "affinity_changes": {
-                    "type": "object",
-                    "additionalProperties": {"type": "integer"},
-                },
-            },
-            "required": [
-                "hp_change",
-                "inventory_add",
-                "inventory_remove",
-                "location",
-                "time_advance",
-                "affinity_changes",
-            ],
-            "additionalProperties": False,
-        },
-    },
-    "required": ["narrative", "state_delta"],
-    "additionalProperties": False,
-}
+
+def _freeform_client(pivotal: bool) -> LocalLLMClient:
+    """기동 모델 라우팅 — 단순(자유 입력)=9B 빠름 / pivotal(전투 통합)=12B 품질.
+
+    ★ 도그푸딩 발견 버그 수정: 종전 무조건 get_qwen36_27b_q3()(:8081, 의도 OFF)를
+      호출해 Connection refused. GB10 비공존으로 27B는 상시 미기동이므로 기동 모델
+      (9B 8083 / 12B 8085)만 사용한다. 자유 입력 fallback은 속도 우선 9B로 라우팅.
+    """
+    if pivotal and _gemma_on():
+        return get_gemma4_12b()
+    return get_qwen35_9b_q3()
 
 
 def _build_canon_context(refs: list[EntityRef]) -> str:
@@ -111,37 +77,82 @@ def _collect_entity_refs(
     return refs[:5]
 
 
+_NARRATIVE_ONLY_SYSTEM = (
+    "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 생성. "
+    "1인칭('나는'/'내가'), 문어체 어미(~다/~었다, ~니다 금지), 화자 prefix 금지. "
+    "{canon_context}행동을 3-4 문장 in-world 서사로만 묘사(분석·설명 금지)."
+)
+
+
 def freeform_action(
     user_input: str,
     rationale: str | None,
     extracted_entities: ExtractedEntities | None = None,
 ) -> tuple[str, StateDelta]:
-    """27B sync 호출. (narrative, state_delta) 반환."""
-    client = get_qwen36_27b_q3()
+    """기동 모델(9B 빠름) sync 호출. (narrative, state_delta) 반환.
+
+    ★ 도그푸딩 속도+견고화: 종전 strict-JSON(narrative+state_delta) 문법 제약은 9B Q3
+      에서 느리고(16s+) 간헐 HTTP 500/truncation. free-form은 '분류 안 된 flavor 행동'
+      이라 mechanical delta가 거의 불필요(의미 있는 효과는 분류된 intent 핸들러가 처리).
+      → 문법 제약 없는 자유 서사 1회(빠름 ~4-5s·견고) + 최소 delta(시간만 진행).
+      모델 불응이어도 502 없이 안전 서사로 턴 진행.
+    """
+    client = _freeform_client(pivotal=False)
 
     refs = _collect_entity_refs(user_input, extracted_entities)
     canon_context = _build_canon_context(refs)
-
-    system = FREEFORM_SYSTEM_TEMPLATE.format(canon_context=canon_context)
+    system = _NARRATIVE_ONLY_SYSTEM.format(canon_context=canon_context)
     rationale_block = f"의도: {rationale}\n" if rationale else ""
 
-    prompt = Prompt(
-        system=system,
-        user=FREEFORM_USER_TEMPLATE.format(
-            user_input=user_input,
-            rationale_block=rationale_block,
-        ),
+    try:
+        text_resp = client.generate(
+            Prompt(
+                system=system,
+                user=f"{rationale_block}행동: {user_input}\n서사:",
+            ),
+            max_tokens=320,
+            temperature=0.7,
+        )
+        narrative = text_resp.text.strip()
+        if len(narrative) >= 10:
+            return (narrative, StateDelta(time_advance=1))
+    except Exception:  # noqa: BLE001 — 모델 flake → 안전 서사(502 금지)
+        pass
+
+    return (
+        f"나는 {user_input.strip()}. 그러나 뚜렷한 변화는 일어나지 않았다.",
+        StateDelta(time_advance=1),
     )
-    response = client.generate_json(
-        prompt,
-        schema=FREEFORM_SCHEMA,
-        max_tokens=1500,
-        temperature=0.7,
-    )
-    parsed = response.parsed
-    narrative = str(parsed["narrative"])
-    delta = StateDelta.model_validate(parsed["state_delta"])
-    return (narrative, delta)
+
+
+async def stream_freeform_narrative(
+    user_input: str,
+    rationale: str | None,
+    extracted_entities: ExtractedEntities | None = None,
+) -> AsyncIterator[str]:
+    """free-form narrative 토큰 스트리밍(평문). 실패 시 무출력(호출자 sync 폴백).
+
+    ★ 도그푸딩 속도: 메인 분류 경로(stream_gm_narrative)와 동일하게 첫 토큰을 즉시
+      노출해 체감 지연을 ~1s로. 호출자가 토큰을 누적해 최종 narrative로 쓴다.
+    """
+    try:
+        client = _freeform_client(pivotal=False)
+        refs = _collect_entity_refs(user_input, extracted_entities)
+        canon_context = _build_canon_context(refs)
+        system = _NARRATIVE_ONLY_SYSTEM.format(canon_context=canon_context)
+        rationale_block = f"의도: {rationale}\n" if rationale else ""
+        agen = client.astream(
+            Prompt(system=system, user=f"{rationale_block}행동: {user_input}\n서사:"),
+            max_tokens=320,
+            temperature=0.7,
+        )
+    except Exception:  # noqa: BLE001 — 시작 실패 → 무출력(호출자 폴백)
+        return
+    try:
+        async for piece in agen:
+            yield piece
+    except Exception:  # noqa: BLE001 — 도중 오류 → 부분 출력으로 종료
+        return
 
 
 # ─── combat narrative ──────────────────────────────────────────────────────────
@@ -168,9 +179,9 @@ def compose_combat_narrative(
     enemy_logs: list[CombatTurnLog],
     essence_drops: list[str],
 ) -> str:
-    """27B 전투 narrative 생성 (sync). 실패 시 빈 문자열 반환."""
+    """기동 모델(12B pivotal) 전투 narrative 생성 (sync). 실패 시 빈 문자열 반환."""
     try:
-        client = get_qwen36_27b_q3()
+        client = _freeform_client(pivotal=True)
         flow_lines: list[str] = []
         flow_lines.append(
             f"비요른 ({player_log.action_name}) → "
@@ -196,7 +207,7 @@ def compose_combat_narrative(
         response = client.generate_json(
             prompt,
             schema=_COMBAT_NARRATIVE_SCHEMA,
-            max_tokens=600,
+            max_tokens=400,  # ★ 속도: 600→400 (4-6 문장 통합 충분)
             temperature=0.7,
         )
         result = str(response.parsed.get("narrative", ""))

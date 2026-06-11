@@ -32,7 +32,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from core.llm.local_client import get_qwen35_9b_q3, get_qwen36_27b_q3
+from core.llm.local_client import get_qwen35_9b_q3
 from service.game.gm_agent import GMAgent
 from service.game.state_v2 import (
     Character,
@@ -138,16 +138,15 @@ class _V2StateHolder:
         return self._sim_gm_agent
 
     def get_gm_narrator(self) -> GMAgent:
-        """GMAgent lazy init — 27B SGLang FP8 + MTP (port 8081) for V2 narrative.
+        """GMAgent lazy init — 기동 9B(8083, 38 t/s)로 V2 구조화 액션 narrative.
 
-        ★ Phase 9.18-c — §A 해소 본격.
-        - verify_llm=None (★ V2 본격 verify mechanism 미정의)
-        - Cross-Model 강제 본격 본격 본격 (★ GMAgent 본격 verify_llm None 본격 본격)
-        - 27B Q3 ~14 tok/s × 400 max_tokens ≈ 23s/turn
+        ★ 도그푸딩 버그 수정: 종전 미기동 27B(:8081, ~14 t/s·23s/turn) 호출로
+          Connection refused + 과도한 지연. 기동 9B로 라우팅(에러 해소 + 속도).
+        - verify_llm=None (V2 verify mechanism 미정의)
         """
         if self._gm_narrator is None:
             self._gm_narrator = GMAgent(
-                game_llm=get_qwen36_27b_q3(),
+                game_llm=get_qwen35_9b_q3(),
                 verify_llm=None,
             )
         return self._gm_narrator

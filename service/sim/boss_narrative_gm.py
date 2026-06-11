@@ -6,10 +6,11 @@ LLM 실패 시 호출자가 fallback 담당.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import get_qwen36_27b_q3
+from core.llm.local_client import LocalLLMClient, get_gemma4_12b, get_qwen35_9b_q3
 from service.canon.boss_narrative import (
     RIFT_NAMES,
     BossNarrativeContext,
@@ -55,9 +56,20 @@ _CHAMBER_SCHEMA: dict[str, Any] = {
 }
 
 
+def _running_client(pivotal: bool) -> LocalLLMClient:
+    """기동 모델 라우팅 — 보스 등장(pivotal)=12B 품질 / chamber 진입(빈번)=9B 빠름.
+
+    ★ 도그푸딩 버그 수정: 종전 get_qwen36_27b_q3()(:8081, 상시 OFF) 호출로
+      Connection refused/공백. 기동 모델(9B 8083 / 12B 8085)만 사용.
+    """
+    if pivotal and os.environ.get("GEMMA_GM", "1") != "0":
+        return get_gemma4_12b()
+    return get_qwen35_9b_q3()
+
+
 def compose_boss_encounter_narrative_sync(ctx: BossNarrativeContext) -> str:
-    """27B 동기 호출 — tier별 보스 등장 narrative."""
-    client = get_qwen36_27b_q3()
+    """기동 모델(12B) 동기 호출 — tier별 보스 등장 narrative."""
+    client = _running_client(pivotal=True)
 
     sys_msg = format_system_message(ctx.tier, ctx.rift_name, ctx.boss_name)
     grade_str = f"{ctx.boss_grade}등급" if ctx.boss_grade else "등급 미상"
@@ -90,8 +102,8 @@ def compose_chamber_entry_narrative_sync(
     sub_area_name: str,
     is_variant_rift: bool,
 ) -> str:
-    """27B 동기 호출 — chamber 진입 narrative."""
-    client = get_qwen36_27b_q3()
+    """기동 모델(9B 빠름) 동기 호출 — chamber 진입 narrative."""
+    client = _running_client(pivotal=False)
 
     rift_name = RIFT_NAMES.get(rift_id, rift_id)
     clues = build_visual_clues(rift_id, is_variant_rift)

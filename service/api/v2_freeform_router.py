@@ -27,7 +27,7 @@ from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
 from service.sim.encounter_narrative import compose_encounter_line
 from service.sim.equipment import equipment_set_from_dict
-from service.sim.freeform_handler import freeform_action
+from service.sim.freeform_handler import freeform_action, stream_freeform_narrative
 from service.sim.gm_narrator import (
     GM_NARRATE_ACTIONS,
     build_gm_canon,
@@ -36,7 +36,7 @@ from service.sim.gm_narrator import (
     is_pivotal_gm,
     stream_gm_narrative,
 )
-from service.sim.intent_classifier import classify_intent
+from service.sim.intent_classifier import classify_intent, mechanical_classify
 from service.sim.session_manager import SessionState, get_session_manager
 from service.sim.spawn_trigger import determine_location_type, trigger_spawn
 from service.sim.story_progression import (
@@ -344,13 +344,17 @@ async def _run_action_stream(
                 max_hp=req.max_hp,
             )
 
-    try:
-        intent = await asyncio.to_thread(classify_intent, req.user_input)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"intent classifier failed: {exc}",
-        ) from exc
+    # ★ 도그푸딩 속도: 명백한 행동(방위 이동·휴식)은 0토큰 규칙으로 즉시 분류해
+    #   ~6s LLM classify를 건너뛴다(원칙 #5 Mechanical 우선). 모호하면 LLM.
+    intent = mechanical_classify(req.user_input)
+    if intent is None:
+        try:
+            intent = await asyncio.to_thread(classify_intent, req.user_input)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"intent classifier failed: {exc}",
+            ) from exc
 
     ctx = _build_context(req, session_state)
     ctx.extracted_entities = intent.entities
@@ -569,18 +573,23 @@ async def _run_action_stream(
         )
         return
 
-    try:
+    # ★ 도그푸딩 속도: free-form도 메인 경로처럼 토큰 스트리밍(첫 토큰 ~1s 체감).
+    #   스트림 무출력 시에만 sync freeform_action 백업(안전 서사 보장 — 502 금지).
+    fb_pieces: list[str] = []
+    async for piece in stream_freeform_narrative(
+        req.user_input, req.rationale, intent.entities
+    ):
+        fb_pieces.append(piece)
+        yield ("token", piece)
+    narrative = "".join(fb_pieces).strip()
+    state_delta = StateDelta(time_advance=1)
+    if len(narrative) < 10:
         narrative, state_delta = await asyncio.to_thread(
             freeform_action,
             req.user_input,
             req.rationale,
             intent.entities,
         )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"free-form handler failed: {exc}",
-        ) from exc
 
     resolved_path_fb: Literal["intent", "fallback"] = "fallback"
     final_narrative_fb = narrative

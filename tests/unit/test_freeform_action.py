@@ -172,30 +172,23 @@ class TestClassifyIntent:
 
 
 class TestFreeformHandler:
-    @patch("service.sim.freeform_handler.get_qwen36_27b_q3")
+    @patch("service.sim.freeform_handler._freeform_client")
     def test_narrative_and_delta(self, mock_factory: MagicMock) -> None:
+        # ★ free-form은 strict-JSON 폐기 → 자유텍스트 서사(generate) + 최소 delta.
+        #   mechanical 효과(inventory 등)는 분류된 intent 핸들러 담당.
         client = MagicMock()
-        client.generate_json.return_value = _json_response(
-            {
-                "narrative": "비요른은 분수에 손을 담그며 잠시 생각에 잠긴다." * 2,
-                "state_delta": {
-                    "hp_change": 0,
-                    "inventory_add": ["젖은 천"],
-                    "inventory_remove": [],
-                    "location": None,
-                    "time_advance": 1,
-                    "affinity_changes": {},
-                },
-            }
-        )
+        text_resp = MagicMock()
+        text_resp.text = "나는 분수에 손을 담그며 잠시 생각에 잠겼다."
+        client.generate.return_value = text_resp
         mock_factory.return_value = client
 
         narrative, delta = freeform_action(
             "분수에 손을 담근다", rationale="잠시 휴식"
         )
         assert "분수" in narrative
-        assert delta.inventory_add == ["젖은 천"]
         assert delta.time_advance == 1
+        # 최소 delta — free-form은 인벤토리 등 mechanical 변화를 만들지 않는다.
+        assert delta.inventory_add == []
 
 
 # ---------------------------------------------------------------------------
@@ -228,22 +221,25 @@ class TestFreeformRouter:
         assert body["confidence"] == 0.92
         assert body["state_delta"]["time_advance"] == 1
 
-    @patch("service.api.v2_freeform_router.freeform_action")
+    @patch("service.api.v2_freeform_router.stream_freeform_narrative")
     @patch("service.api.v2_freeform_router.classify_intent")
     def test_fallback_path_low_confidence(
         self,
         mock_classify: MagicMock,
-        mock_handler: MagicMock,
+        mock_stream: MagicMock,
     ) -> None:
         mock_classify.return_value = IntentMatch(
             matched_action=None,
             confidence=0.18,
             reason="자유 행동",
         )
-        mock_handler.return_value = (
-            "비요른은 분수에 손을 담그며 생각에 잠긴다." * 2,
-            StateDelta(inventory_add=["젖은 천"], time_advance=1),
-        )
+        # ★ free-form은 토큰 스트리밍(체감 ~1s) + 최소 delta(시간만) — 인벤토리 등
+        #   mechanical 변화는 분류된 intent 핸들러 담당.
+        async def _fake_stream(*_a: object, **_k: object) -> object:
+            for tok in ["비요른은 분수에 ", "손을 담그며 ", "생각에 잠긴다."]:
+                yield tok
+
+        mock_stream.side_effect = _fake_stream
         client = TestClient(_app())
         r = client.post(
             "/api/v2/freeform_action",
@@ -259,14 +255,15 @@ class TestFreeformRouter:
         assert body["confidence"] == 0.18
         assert body["fallback_reason"] == "자유 행동"
         assert "분수" in body["narrative"]
-        assert body["state_delta"]["inventory_add"] == ["젖은 천"]
+        assert body["state_delta"]["time_advance"] == 1
+        assert body["state_delta"]["inventory_add"] == []
 
-    @patch("service.api.v2_freeform_router.freeform_action")
+    @patch("service.api.v2_freeform_router.stream_freeform_narrative")
     @patch("service.api.v2_freeform_router.classify_intent")
     def test_matched_action_but_low_confidence_fallback(
         self,
         mock_classify: MagicMock,
-        mock_handler: MagicMock,
+        mock_stream: MagicMock,
     ) -> None:
         """matched_action 있어도 confidence < threshold 면 fallback."""
         mock_classify.return_value = IntentMatch(
@@ -274,10 +271,12 @@ class TestFreeformRouter:
             confidence=0.42,
             reason="모호",
         )
-        mock_handler.return_value = (
-            "비요른은 적을 살피며 자세를 가다듬는다." * 2,
-            StateDelta(time_advance=1),
-        )
+
+        async def _fake_stream(*_a: object, **_k: object) -> object:
+            for tok in ["비요른은 적을 ", "살피며 자세를 ", "가다듬는다."]:
+                yield tok
+
+        mock_stream.side_effect = _fake_stream
         client = TestClient(_app())
         r = client.post(
             "/api/v2/freeform_action",

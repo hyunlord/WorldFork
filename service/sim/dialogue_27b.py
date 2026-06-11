@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.llm.client import Prompt
-from core.llm.local_client import get_qwen36_27b_q3
+from core.llm.local_client import get_qwen35_9b_q3
 
 _DIALOGUE_SYSTEM = (
     "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 생성. "
@@ -33,13 +33,15 @@ def compose_dialogue_narrative(
     role_tone_hint: str = "",
     race_ability_hint: str = "",
 ) -> str:
-    """27B NPC 대화 narrative 생성 (sync). 실패 시 빈 문자열 반환.
+    """기동 모델(9B) NPC 대화 narrative 생성 (sync). 실패 시 빈 문자열 반환.
 
     role_tone_hint — taxonomy role 정합 어조 (★ I-E2 정합).
     race_ability_hint — 종족 ability_tiers 특성 (★ I-G1 정합).
     """
     try:
-        client = get_qwen36_27b_q3()
+        # ★ 도그푸딩 버그 수정: 종전 미기동 27B(:8081) 호출 → 항상 빈 문자열(깊은 대화 사망).
+        #   NPC 대화는 9B(8083)의 설계 역할(38 t/s, 빠름) — 기동 모델로 라우팅.
+        client = get_qwen35_9b_q3()
         info_lines = [f"NPC: {npc_name}"]
         if npc_role:
             info_lines.append(f"역할: {npc_role}")

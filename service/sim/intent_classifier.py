@@ -7,6 +7,7 @@ async router에서 asyncio.to_thread 로 wrap 호출 (sync).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from core.llm.client import Prompt
@@ -14,6 +15,45 @@ from core.llm.local_client import get_qwen35_9b_q3
 from service.api.schemas.freeform_action import ExtractedEntities, IntentMatch
 from service.sim.llm_helpers import strip_thinking_tags
 from service.sim.types import PlayerActionType
+
+# ─── Mechanical 사전분류 (★ 원칙 #5: 0토큰 게이트) ────────────────────────────────
+# 명백한 고빈도 행동은 6s LLM classify를 건너뛴다. 모호하면 None → LLM fall-through.
+# 오탐 방지: 방위는 '쪽/으로/편' 접미(동료·동굴·서재 등 배제) + 이동 동사 동시 충족만.
+_DIR_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("north", r"북(?:쪽|으로|편|녘|방)"),
+    ("south", r"남(?:쪽|으로|편|녘|방)"),
+    ("east", r"동(?:쪽|으로|편|녘|방)"),
+    ("west", r"서(?:쪽|으로|편|녘|방)"),
+)
+_MOVE_VERB = re.compile(r"간다|가다|가자|이동|향해|향한|움직|걸어|걷는|나아간|들어간")
+_REST_RE = re.compile(r"휴식|쉰다|쉬다|쉬어|쉬자|잠을 자|잔다|눕는다|드러눕")
+
+
+def mechanical_classify(user_input: str) -> IntentMatch | None:
+    """규칙 기반 0토큰 분류 — 명백한 행동만. 모호하면 None(LLM fall-through).
+
+    ★ 도그푸딩 속도: classify_intent(9B JSON, ~6s prefill 바운드)가 매 턴 병목.
+      방위 이동·휴식 등 패턴이 명확한 고빈도 행동을 LLM 없이 즉시 분류한다.
+    """
+    text = user_input.strip()
+    # 방위 이동 — 방위 접미 + 이동 동사 동시. (동료/동굴 등은 '동쪽/동으로'와 불일치)
+    if _MOVE_VERB.search(text):
+        for direction, pat in _DIR_PATTERNS:
+            if re.search(pat, text):
+                return IntentMatch(
+                    matched_action=PlayerActionType.MOVE.value,
+                    confidence=0.95,
+                    reason="기계 분류: 방위 이동",
+                    entities=ExtractedEntities(direction=direction),
+                )
+    # 휴식 — entity 불필요, 패턴 명확.
+    if _REST_RE.search(text):
+        return IntentMatch(
+            matched_action=PlayerActionType.REST.value,
+            confidence=0.95,
+            reason="기계 분류: 휴식",
+        )
+    return None
 
 _ACTION_DESCRIPTIONS: dict[PlayerActionType, str] = {
     PlayerActionType.ACTIVATE_LIGHT: "횃불 / 정령 빛 활성화",

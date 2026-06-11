@@ -44,7 +44,7 @@ class TestComposeBossEncounterNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("예상한 대로 블라터가 등장했다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
@@ -64,7 +64,7 @@ class TestComposeBossEncounterNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("전례 없는 캠보르미어가 모습을 드러냈다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
@@ -83,7 +83,7 @@ class TestComposeBossEncounterNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("보스가 등장했다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
@@ -99,7 +99,7 @@ class TestComposeChamberEntryNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("외곽 검문소에 들어섰다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
@@ -118,7 +118,7 @@ class TestComposeChamberEntryNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("문고리 색상이 이상하다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
@@ -139,7 +139,7 @@ class TestComposeChamberEntryNarrative(unittest.TestCase):
         mock_resp = _mock_json_response("빙하굴에 들어섰다.")
 
         with patch(
-            "service.sim.boss_narrative_gm.get_qwen36_27b_q3"
+            "service.sim.boss_narrative_gm._running_client"
         ) as mock_client_fn:
             mock_client = MagicMock()
             mock_client.generate_json.return_value = mock_resp
