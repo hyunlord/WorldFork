@@ -735,9 +735,9 @@ class PredictRequest(BaseModel):
     actions: list[str] = Field(default_factory=list, max_length=4)
 
 
-# 비용·경합 균형 — 상위 후보 1개만 예측. 예측은 유휴 GPU를 점유하므로(생성 ~10s),
-# 여러 개면 미예측 행동 클릭 시 경합으로 느려질 수 있다. 최우선 후보 1개로 최소화.
-_PREDICT_MAX = 1
+# ★ 예측 확대 — 추천 3개 다 예측(적중률 1/3→3/3). 출력 길이 최적화로 예측 1개 생성이
+#   ~3.6s(종전 11.5s)로 짧아져 GPU 경합이 완화돼 3개로 확대 가능(곱셈 효과).
+_PREDICT_MAX = 3
 
 
 async def _predict_one(real_session_id: str, action: str) -> bool:

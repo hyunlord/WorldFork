@@ -494,7 +494,7 @@ export default function GamePage() {
     }
     const ac = new AbortController();
     const timer = setTimeout(() => {
-      void predictActions(sid, suggestedActions.slice(0, 1), {
+      void predictActions(sid, suggestedActions.slice(0, 3), {
         signal: ac.signal,
       });
     }, 1500);

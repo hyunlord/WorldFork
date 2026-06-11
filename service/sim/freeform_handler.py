@@ -73,7 +73,8 @@ def _collect_entity_refs(
 _NARRATIVE_ONLY_SYSTEM = (
     "한국 web novel '게임 속 바바리안으로 살아남기' 본문 어조 narrative 생성. "
     "1인칭('나는'/'내가'), 문어체 어미(~다/~었다, ~니다 금지), 화자 prefix 금지. "
-    "{canon_context}행동을 3-4 문장 in-world 서사로만 묘사(분석·설명 금지)."
+    "{canon_context}행동을 ★ 2-3 문장으로 간결히 in-world 서사로만 묘사 — 군더더기 없이 "
+    "감각 디테일 1가지만 또렷이(분석·설명 금지)."
 )
 
 
@@ -103,7 +104,7 @@ def freeform_action(
                 system=system,
                 user=f"{rationale_block}행동: {user_input}\n서사:",
             ),
-            max_tokens=320,
+            max_tokens=160,  # ★ 출력 단축(간결 프롬프트 ~60-80토큰, 캡 여유)
             temperature=0.7,
         )
         narrative = text_resp.text.strip()
@@ -136,7 +137,7 @@ async def stream_freeform_narrative(
         rationale_block = f"의도: {rationale}\n" if rationale else ""
         agen = client.astream(
             Prompt(system=system, user=f"{rationale_block}행동: {user_input}\n서사:"),
-            max_tokens=320,
+            max_tokens=160,  # ★ 출력 단축(간결 프롬프트 ~60-80토큰, 캡 여유)
             temperature=0.7,
         )
     except Exception:  # noqa: BLE001 — 시작 실패 → 무출력(호출자 폴백)

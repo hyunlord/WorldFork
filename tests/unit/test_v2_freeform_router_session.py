@@ -218,7 +218,7 @@ class TestPredictiveCache:
         # 1. 예측 생성(유휴) — dry-run 1회 생성
         pr = client.post(
             "/api/v2/freeform_action/predict",
-            json={"session_id": state.session_id, "actions": ["주변을 살핀다"]},
+            json={"session_id": state.session_id, "actions": ["허공에 노래한다"]},
         )
         assert pr.status_code == 200
         assert pr.json()["predicted"] == 1
@@ -228,7 +228,7 @@ class TestPredictiveCache:
         # 2. 같은 행동 제출 → 캐시 히트(재생성 없음 — 호출 카운트 불변)
         hit = client.post(
             "/api/v2/freeform_action",
-            json={"user_input": "주변을 살핀다", "session_id": state.session_id},
+            json={"user_input": "허공에 노래한다", "session_id": state.session_id},
         )
         assert hit.status_code == 200
         body = hit.json()

@@ -76,8 +76,8 @@ class TestFallThrough:
         assert mechanical_classify("동료에게 간다") is None
 
     def test_cave_not_east(self) -> None:
-        # '동굴' — 방위 아님.
-        assert mechanical_classify("동굴을 살펴본다") is None
+        # '동굴로 간다' — '동' 있으나 방위 접미 없음 → east-move 오탐 금지(탐색/이동 동사도 없음).
+        assert mechanical_classify("동굴이 어둡다") is None
 
     def test_direction_without_verb(self) -> None:
         # 방위만, 이동 동사 없음 → 모호 → LLM.
@@ -88,3 +88,35 @@ class TestFallThrough:
 
     def test_empty(self) -> None:
         assert mechanical_classify("") is None
+
+
+class TestMechanicalExploreDialogue:
+    def test_explore_look_around(self) -> None:
+        m = mechanical_classify("주변을 둘러본다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.EXPLORE.value
+
+    def test_explore_examine(self) -> None:
+        m = mechanical_classify("주변을 살핀다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.EXPLORE.value
+
+    def test_dialogue_talk(self) -> None:
+        m = mechanical_classify("부족장에게 말을 건다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.DIALOGUE.value
+
+    def test_dialogue_converse(self) -> None:
+        m = mechanical_classify("대화를 시도한다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.DIALOGUE.value
+
+    def test_attack_priority_over_dialogue(self) -> None:
+        # 적을 공격(전투 우선) — '대화' 단어 없으면 attack.
+        m = mechanical_classify("적을 공격한다")
+        assert m is not None
+        assert m.matched_action == PlayerActionType.ATTACK.value
+
+    def test_freeform_still_misses(self) -> None:
+        # 자유 입력은 여전히 LLM 위임.
+        assert mechanical_classify("벽의 이끼를 핥아본다") is None

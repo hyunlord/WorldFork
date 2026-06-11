@@ -34,6 +34,10 @@ _ATTACK_RE = re.compile(
 )
 # 방어/회피/도주 맥락이면 공격 아님(오탐 차단 — flee/dodge는 별도 핸들러).
 _NOT_ATTACK_RE = re.compile(r"피하|피한|막아|막은|방어|도망|달아|물러|숨어|숨는")
+# 탐색 — 추천 버튼 다수("주변을 둘러본다/살핀다/탐색"). handle_explore는 entity 불필요.
+_EXPLORE_RE = re.compile(r"둘러본|둘러보|살핀다|살펴본|살펴보|탐색|훑어본|훑어보|주위를 본")
+# 대화 — "X에게 말을 건다/대화". handle_dialogue가 actor 없으면 현재 NPC 기본 선택.
+_DIALOGUE_RE = re.compile(r"말을 건|말을 걸|말을 붙|대화를 시도|대화한다|대화를 건|이야기를 나눈")
 
 
 def mechanical_classify(user_input: str) -> IntentMatch | None:
@@ -66,6 +70,20 @@ def mechanical_classify(user_input: str) -> IntentMatch | None:
             matched_action=PlayerActionType.ATTACK.value,
             confidence=0.95,
             reason="기계 분류: 공격",
+        )
+    # 대화 — 추천 버튼("X에게 말을 건다"). 공격 다음(전투 우선). actor 없으면 핸들러가 NPC 선택.
+    if _DIALOGUE_RE.search(text):
+        return IntentMatch(
+            matched_action=PlayerActionType.DIALOGUE.value,
+            confidence=0.9,
+            reason="기계 분류: 대화",
+        )
+    # 탐색 — 추천 버튼("주변을 둘러본다/살핀다"). handle_explore는 entity 불필요.
+    if _EXPLORE_RE.search(text):
+        return IntentMatch(
+            matched_action=PlayerActionType.EXPLORE.value,
+            confidence=0.9,
+            reason="기계 분류: 탐색",
         )
     return None
 
