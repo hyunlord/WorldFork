@@ -156,6 +156,20 @@ _GM_SCHEMA: dict[str, Any] = {
 #   (4.33→5.00, 군더더기↓=임팩트↑) + 생성 1.7x 단축(6.2→3.6s). 캡도 128로(rambling 차단).
 #   모든 경로(intent/예측/free-form) 동시 단축 — 예측 빨라져 경합↓·확대 가능(곱셈).
 GM_MAX_TOKENS = 128
+# ★ 장면별 적응 길이(외부 재평가 반영): 사교(대화/통신)는 색채·뉘앙스가 자산이라 여유를
+#   준다. 액션·묘사(전투/탐험/이동)는 단축이 win-win(임팩트). 흥정은 handler 자체 서사라
+#   이 경로와 무관(GM_MAX_TOKENS 영향 X). intent 기반으로 캡만 달리해 프롬프트는 공유.
+_GM_MAX_TOKENS_SOCIAL = 192
+_SOCIAL_GM_ACTIONS: frozenset[PlayerActionType] = frozenset(
+    {PlayerActionType.DIALOGUE, PlayerActionType.COMMUNICATE}
+)
+
+
+def gm_max_tokens(action_type: PlayerActionType | None) -> int:
+    """장면별 GM 서사 캡 — 사교(대화/통신)는 길게, 그 외는 단축."""
+    if action_type in _SOCIAL_GM_ACTIONS:
+        return _GM_MAX_TOKENS_SOCIAL
+    return GM_MAX_TOKENS
 
 
 # 비요른 persona 앵커 — canon_facts는 원작 주인공(한스 계열)이라 게임 플레이어
@@ -312,6 +326,7 @@ async def stream_gm_narrative(
     canon: str = "",
     story_phase: str = "",
     pivotal: bool = True,
+    max_tokens: int = GM_MAX_TOKENS,
 ) -> AsyncIterator[str]:
     """누적 맥락 GM narrative 토큰 스트리밍 (평문). 실패 시 무출력.
 
@@ -319,6 +334,7 @@ async def stream_gm_narrative(
     JSON 래핑을 빼 토큰을 즉시 노출 — 호출자가 누적해 최종 narrative로 쓴다.
     스트림 시작/도중 오류는 삼켜 무출력으로 끝낸다(호출자가 handler로 fallback).
     pivotal — True면 27B(품질·기본값), False면 9B(단순·빠름). 라우팅 3단계.
+    max_tokens — 장면별 적응 캡(gm_max_tokens). 사교는 길게, 액션은 단축.
     """
     try:
         client = _gm_client(pivotal)
@@ -327,7 +343,7 @@ async def stream_gm_narrative(
             recent_turns, canon, story_phase,
         )
         agen = client.astream(
-            prompt, max_tokens=GM_MAX_TOKENS, temperature=_gm_temperature(pivotal)
+            prompt, max_tokens=max_tokens, temperature=_gm_temperature(pivotal)
         )
     except Exception:
         return

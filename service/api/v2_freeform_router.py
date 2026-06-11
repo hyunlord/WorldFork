@@ -35,6 +35,7 @@ from service.sim.gm_narrator import (
     GM_NARRATE_ACTIONS,
     build_gm_canon,
     compose_gm_narrative,
+    gm_max_tokens,
     gm_model_label,
     is_pivotal_gm,
     stream_gm_narrative,
@@ -489,6 +490,8 @@ async def _run_action_stream(
                 canon,
                 PHASE_LABEL.get(session_state.story_phase, ""),
                 pivotal=pivotal,
+                # ★ 장면별 적응 길이 — 사교(대화)는 길게, 액션은 단축(외부 재평가 반영).
+                max_tokens=gm_max_tokens(action_type),
             ):
                 pieces.append(delta)
                 yield ("token", delta)
