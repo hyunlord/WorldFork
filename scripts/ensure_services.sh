@@ -160,11 +160,11 @@ ensure_gemma() {
 }
 
 
-# ─── Qwen3.6-27B Q2 (8082) llama-server — ★ pivotal GM 기본(측정 우위) ───
-#   PIVOTAL=gemma(런타임)면 게임이 12B로 가므로 skip 가능(ENSURE_27B_Q2=0).
+# ─── Qwen3.6-27B Q2 (8082) llama-server — ★ pivotal 품질 모드(PIVOTAL=27b_q2) ───
+#   기본은 Gemma(속도 우선)라 평소 skip. PIVOTAL=27b_q2 일 때만 기동.
 ensure_27b_q2() {
-    if [ "${ENSURE_27B_Q2:-1}" != "1" ] || [ "${PIVOTAL:-27b_q2}" = "gemma" ]; then
-        echo "[ensure] 27B Q2 (8082) skip (ENSURE_27B_Q2=0 또는 PIVOTAL=gemma)"
+    if [ "${ENSURE_27B_Q2:-1}" != "1" ] || [ "${PIVOTAL:-gemma}" != "27b_q2" ]; then
+        echo "[ensure] 27B Q2 (8082) skip (기본 Gemma — PIVOTAL=27b_q2 시만 기동)"
         return 0
     fi
     if _check "$PORT_27B_Q2" "/health"; then

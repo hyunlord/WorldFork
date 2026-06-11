@@ -80,8 +80,9 @@ def is_pivotal_gm(
     return False
 
 
-# pivotal GM 모델 — ★ 측정 교체(2026-06): 27B Q2(8082)가 Gemma 12B Q4를 속도+6축 둘 다
-#   우위(cross-model verify). 기본 27B Q2, PIVOTAL=gemma 로 12B 복귀(가역). 단순 경로는 9B.
+# pivotal GM 모델 — ★ 측정 정정(2026-06): 27B Q2는 6축 품질↑(4.93 vs 4.62)이나 decode
+#   9.3 t/s로 Gemma 12B Q4(16.8)보다 1.8x 느림(앞선 '19' 오측 정정). 속도 우선 → 기본 Gemma.
+#   PIVOTAL=27b_q2 로 품질 모드 선택(가역). 단순 경로는 9B.
 _PIVOTAL_LABEL: dict[str, str] = {"gemma": "gemma", "27b_q3": "27b", "27b_q2": "27b-q2"}
 
 
@@ -89,13 +90,13 @@ def gm_model_label(pivotal: bool) -> str:
     """라우팅 관측 라벨 — 응답 gm_model 필드용."""
     if not pivotal:
         return "9b"
-    return _PIVOTAL_LABEL.get(os.environ.get("PIVOTAL", "27b_q2"), "27b-q2")
+    return _PIVOTAL_LABEL.get(os.environ.get("PIVOTAL", "gemma"), "27b-q2")
 
 
 def _gm_client(pivotal: bool) -> LocalLLMClient:
-    """pivotal → 측정 우위 27B Q2(기본, PIVOTAL env로 가역) / 단순 → 원본 9B(빠름).
-    ★ 27B Q2 교체: decode 19.0 vs 12B Q4 16.7 t/s + 6축 양 판정자 우위 + 한자 0.
-    단순 tier는 검증된 원본 9B 유지. 모두 thinking off·스트리밍·schema."""
+    """pivotal → Gemma 12B Q4(기본·속도 16.8 t/s, PIVOTAL=27b_q2로 품질 모드) / 단순 → 9B.
+    ★ 27B Q2는 6축↑이나 1.8x 느려 기본 Gemma(속도 우선). 단순 tier는 검증된 원본 9B.
+    모두 thinking off·스트리밍·schema."""
     if not pivotal:
         return get_qwen35_9b_q3()
     return pivotal_gm_client()
@@ -110,7 +111,7 @@ _GEMMA_GM_TEMPERATURE = 1.0
 
 def _gm_temperature(pivotal: bool) -> float:
     # Gemma 명시 선택 시만 공식 권장 1.0. 기본 27B Q2·9B = 0.9(6축 eval 검증).
-    if pivotal and os.environ.get("PIVOTAL", "27b_q2") == "gemma":
+    if pivotal and os.environ.get("PIVOTAL", "gemma") == "gemma":
         return _GEMMA_GM_TEMPERATURE
     return _GM_TEMPERATURE
 

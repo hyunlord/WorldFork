@@ -77,28 +77,28 @@ def test_history_passed_to_prompt() -> None:
     assert "확정사실" in captured["user"]
 
 
-def test_routing_pivotal_27b_q2_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    # ★ 기본(PIVOTAL 미설정): pivotal → 측정 우위 27B Q2(8082), 단순 → 원본 9B(8083)
+def test_routing_pivotal_gemma_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # ★ 기본(PIVOTAL 미설정): pivotal → Gemma 12B(8085, 속도 우선), 단순 → 원본 9B(8083)
     monkeypatch.delenv("PIVOTAL", raising=False)
-    assert gm_model_label(True) == "27b-q2"
+    assert gm_model_label(True) == "gemma"
     assert gm_model_label(False) == "9b"
-    assert "8082" in _gm_client(True)._base_url
+    assert "8085" in _gm_client(True)._base_url
     assert "8083" in _gm_client(False)._base_url
 
 
-def test_routing_pivotal_gemma_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    # PIVOTAL=gemma 복귀(가역): pivotal → Gemma 12B(8085)
-    monkeypatch.setenv("PIVOTAL", "gemma")
-    assert gm_model_label(True) == "gemma"
-    assert "8085" in _gm_client(True)._base_url
+def test_routing_pivotal_27b_q2_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    # PIVOTAL=27b_q2 품질 모드(가역): pivotal → 27B Q2(8082)
+    monkeypatch.setenv("PIVOTAL", "27b_q2")
+    assert gm_model_label(True) == "27b-q2"
+    assert "8082" in _gm_client(True)._base_url
     # 단순 경로는 토글 무관 원본 9B 유지
     assert gm_model_label(False) == "9b"
 
 
 def test_gm_temperature_per_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    # ★ 기본 27B Q2 pivotal·단순 9B = 0.9(6축 eval 검증). PIVOTAL=gemma 만 1.0(공식 권장).
+    # ★ 기본 Gemma pivotal = 1.0(공식 권장). 단순 9B·27B Q2 모드 = 0.9(eval 검증).
     monkeypatch.delenv("PIVOTAL", raising=False)
-    assert _gm_temperature(True) == 0.9  # 27B Q2
+    assert _gm_temperature(True) == 1.0  # Gemma(기본)
     assert _gm_temperature(False) == 0.9  # 9B
-    monkeypatch.setenv("PIVOTAL", "gemma")
-    assert _gm_temperature(True) == 1.0  # Gemma 복귀
+    monkeypatch.setenv("PIVOTAL", "27b_q2")
+    assert _gm_temperature(True) == 0.9  # 27B Q2 모드

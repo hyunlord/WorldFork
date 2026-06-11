@@ -326,10 +326,11 @@ def get_gemma4_12b() -> LocalLLMClient:
 
 
 def get_qwen36_27b_q2() -> LocalLLMClient:
-    """Qwen3.6-27B Q2_K_XL — pivotal GM (port 8082).
+    """Qwen3.6-27B Q2_K_XL — pivotal 품질 모드 (port 8082, PIVOTAL=27b_q2).
 
-    ★ 측정 교체(2026-06): 27B Q2가 Gemma 12B Q4를 decode(19.0 vs 16.7 t/s)와
-      6축(양 판정자 우위, 한자 0) 둘 다 우위 — Qwen3.6 GDN arch가 토큰당 효율.
+    ★ 측정 정정(2026-06): 6축 품질↑(4.93 vs Gemma 4.62, cross-verify)이나 decode
+      9.3 t/s로 Gemma 12B Q4(16.8)보다 1.8x 느림 — 큰 모델 = 대역폭 바운드(앞선
+      '19 t/s' 오측 정정). 속도 우선 기본은 Gemma, 품질 필요 시 이 모드 선택.
     """
     return LocalLLMClient(
         model_key="qwen36-27b-q2",
@@ -339,12 +340,12 @@ def get_qwen36_27b_q2() -> LocalLLMClient:
 
 
 def pivotal_gm_client() -> LocalLLMClient:
-    """pivotal GM 모델 — 측정 우위 27B Q2(8082)가 기본. 가역 env 게이트.
+    """pivotal GM 모델 — 기본 Gemma 12B Q4(속도 우선). 가역 env 게이트.
 
-    PIVOTAL=gemma → Gemma 12B Q4(8085) 복귀 / PIVOTAL=27b_q3 → 옛 27B(8081, sglang).
-    cross-model verify(Qwen·Gemma 판정 모두 27B Q2 우위)로 교체 — service/sim 공유.
+    PIVOTAL=27b_q2 → 27B Q2(8082, 6축↑·1.8x 느림) / PIVOTAL=27b_q3 → 옛 27B(8081).
+    service/sim 의 pivotal narrative 경로(gm/freeform/boss) 공유.
     """
-    kind = os.environ.get("PIVOTAL", "27b_q2")
+    kind = os.environ.get("PIVOTAL", "gemma")
     if kind == "gemma":
         return get_gemma4_12b()
     if kind == "27b_q3":

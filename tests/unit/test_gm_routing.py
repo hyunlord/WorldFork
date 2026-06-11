@@ -41,11 +41,11 @@ def test_dungeon_entry_9b() -> None:
 
 
 def test_model_label(monkeypatch: pytest.MonkeyPatch) -> None:
-    # ★ 기본: pivotal → 측정 우위 27B Q2, 단순 → 원본 9B(빠른 tier)
+    # ★ 기본: pivotal → Gemma 12B(속도 우선), 단순 → 원본 9B(빠른 tier)
     monkeypatch.delenv("PIVOTAL", raising=False)
-    assert gm_model_label(True) == "27b-q2"
-    assert gm_model_label(False) == "9b"
-    # PIVOTAL=gemma 복귀(가역): pivotal → Gemma
-    monkeypatch.setenv("PIVOTAL", "gemma")
     assert gm_model_label(True) == "gemma"
+    assert gm_model_label(False) == "9b"
+    # PIVOTAL=27b_q2 품질 모드(가역): pivotal → 27B Q2
+    monkeypatch.setenv("PIVOTAL", "27b_q2")
+    assert gm_model_label(True) == "27b-q2"
     assert gm_model_label(False) == "9b"
