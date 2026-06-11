@@ -37,6 +37,7 @@ import type {
   StatusBarData,
 } from "@/components/game/types";
 import { DEMO_ESSENCE } from "@/lib/game/mockData";
+import { predictActions } from "@/lib/api/freeform";
 import { buildDungeonView } from "@/lib/game/dungeonView";
 import { useFreeformAction } from "@/lib/hooks/useFreeformAction";
 import { useGameState } from "@/lib/hooks/useGameState";
@@ -482,6 +483,26 @@ export default function GamePage() {
     }
     return [];
   }, [freeform.lastResponse, inVillage]);
+
+  // ★ 예측 생성 — 한 턴을 그린 뒤 사용자가 읽는 유휴 동안 최우선 추천을 미리 생성.
+  //   1.5s 지연 = 즉시 클릭하지 않고 읽는 중일 때만 예측(불필요 생성/경합 최소화).
+  //   클릭이 예측과 맞으면 서버 캐시 히트로 0초 — decode 천장 우회(자유 입력은 폴백).
+  useEffect(() => {
+    const sid = freeform.lastResponse?.session_id;
+    if (!sid || freeform.loading || executing || suggestedActions.length === 0) {
+      return;
+    }
+    const ac = new AbortController();
+    const timer = setTimeout(() => {
+      void predictActions(sid, suggestedActions.slice(0, 1), {
+        signal: ac.signal,
+      });
+    }, 1500);
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, [freeform.lastResponse, freeform.loading, executing, suggestedActions]);
 
   // ★ NPC 대화(case A) — handle_dialogue narrative의 큰따옴표 발화 감지 → 전용 UI
   const dialogueData = useMemo<ParsedDialogue>(

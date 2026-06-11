@@ -78,6 +78,32 @@ export async function postFreeformAction(
   return (await resp.json()) as FreeformActionResponse;
 }
 
+/**
+ * 예측 생성 — 유휴 시간에 추천 버튼을 미리 생성(클릭 시 캐시 히트 0초).
+ *
+ * 한 턴을 그린 뒤 사용자가 읽는 동안 호출한다. 서버가 dry-run으로 미리 생성·캐시하고,
+ * 실제 제출(postFreeformAction)이 캐시를 투명하게 확인한다. best-effort — 실패해도
+ * 실 플레이에 무영향. 자유 입력은 예측 불가라 캐시 미스(기존 경로).
+ */
+export async function predictActions(
+  sessionId: string,
+  actions: string[],
+  init?: { signal?: AbortSignal },
+): Promise<void> {
+  if (!sessionId || actions.length === 0) return;
+  try {
+    await fetch(`${API_URL}/api/v2/freeform_action/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, actions }),
+      cache: "no-store",
+      signal: init?.signal,
+    });
+  } catch {
+    // 예측은 보조 — 실패 무시(실 플레이 무영향).
+  }
+}
+
 export interface FreeformStreamHandlers {
   /** narrative 토큰 delta — 점진 노출용 */
   onToken?: (text: string) => void;

@@ -10,10 +10,12 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from copy import deepcopy
 from typing import Literal, cast
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from service.api.schemas.freeform_action import (
     FreeformActionRequest,
@@ -22,6 +24,7 @@ from service.api.schemas.freeform_action import (
     StateDelta,
 )
 from service.canon.context import get_canon_facts, get_spawn_table
+from service.sim import predictive_cache
 from service.sim.action_context import ActionContext, ActionResult
 from service.sim.action_handlers import dispatch_action
 from service.sim.dungeon_clock import RETURN_TIME_ADVANCE_HOURS, check_warning, should_force_return
@@ -343,6 +346,17 @@ async def _run_action_stream(
                 current_hp=req.current_hp,
                 max_hp=req.max_hp,
             )
+
+    # ★ 예측 생성 캐시 히트 — 유휴 시간에 미리 생성한 선택지면 즉시 반환(0초 체감).
+    #   turn_count 일치 = 상태 그대로 → 예측한 다음 상태를 커밋. 자유 입력은 미스(폴백).
+    if session_state is not None:
+        cached = predictive_cache.take(
+            session_state.session_id, session_state.turn_count, req.user_input
+        )
+        if cached is not None:
+            await mgr.save_state(cached.next_state)
+            yield ("complete", cached.response)
+            return
 
     # ★ 도그푸딩 속도: 명백한 행동(방위 이동·휴식)은 0토큰 규칙으로 즉시 분류해
     #   ~6s LLM classify를 건너뛴다(원칙 #5 Mechanical 우선). 모호하면 LLM.
@@ -711,3 +725,90 @@ async def freeform_action_stream_endpoint(
             "X-Accel-Buffering": "no",  # nginx/proxy 버퍼링 방지(즉시 flush)
         },
     )
+
+
+# ─── 예측 생성 (서빙 — 체감 0초) ────────────────────────────────────────────────
+class PredictRequest(BaseModel):
+    """유휴 시간 예측 생성 요청 — 다음 후보 행동(추천 버튼)을 미리 생성."""
+
+    session_id: str
+    actions: list[str] = Field(default_factory=list, max_length=4)
+
+
+# 비용·경합 균형 — 상위 후보 1개만 예측. 예측은 유휴 GPU를 점유하므로(생성 ~10s),
+# 여러 개면 미예측 행동 클릭 시 경합으로 느려질 수 있다. 최우선 후보 1개로 최소화.
+_PREDICT_MAX = 1
+
+
+async def _predict_one(real_session_id: str, action: str) -> bool:
+    """행동 1개를 상태 복사본에 dry-run해 캐시. 성공 시 True.
+
+    기존 _run_action_stream을 무수정 재사용 — 복사본을 임시 session_id로 등록해 그 위에서
+    돌리면 영속화가 복사본에만 일어난다(real 세션 무영향). 결과 응답·다음 상태를 real id로
+    고쳐 캐시. turn_count 키라 다음 턴이 진행되면 자동 무효.
+    """
+    mgr = get_session_manager()
+    real = await mgr.get_session(real_session_id)
+    if real is None:
+        return False
+    turn = real.turn_count
+    if predictive_cache.has(real_session_id, turn, action):
+        return False  # 이미 예측됨(중복 생성 방지)
+    # 전투 맥락(적대 조우)은 RNG + 이미 빠른 mechanical → 예측 제외(잘못된 결과 커밋 회피).
+    if any(e.get("hostile") for e in real.encounters):
+        return False
+
+    copy = deepcopy(real)
+    temp_id = f"__pred__{real_session_id}__{turn}__{abs(hash(action))}"
+    copy.session_id = temp_id
+    mgr._cache[temp_id] = copy
+    try:
+        preq = FreeformActionRequest(
+            user_input=action,
+            session_id=temp_id,
+            current_hp=real.current_hp,
+            max_hp=real.max_hp,
+            inventory=list(real.inventory),
+            location=real.location,
+        )
+        response: FreeformActionResponse | None = None
+        async for kind, payload in _run_action_stream(preq):
+            if kind == "complete":
+                response = cast(FreeformActionResponse, payload)
+        next_state = mgr._cache.get(temp_id)
+        if response is None or next_state is None:
+            return False
+        # 커밋용으로 real id 복원 + 응답을 real 기준으로 고쳐 캐시.
+        next_state.session_id = real_session_id
+        fixed = response.model_copy(
+            update={
+                "session_id": real_session_id,
+                "session_state": _session_summary(next_state),
+            }
+        )
+        predictive_cache.put(
+            real_session_id,
+            turn,
+            action,
+            predictive_cache.Prediction(fixed, next_state),
+        )
+        return True
+    finally:
+        mgr._cache.pop(temp_id, None)  # 임시 세션 정리
+
+
+@router.post("/freeform_action/predict")
+async def predict_endpoint(req: PredictRequest) -> dict[str, int]:
+    """유휴 시간 백그라운드 예측 — 추천 버튼 후보를 미리 생성(클릭 시 캐시 히트 0초).
+
+    프론트가 한 턴을 그린 뒤(사용자가 읽는 동안) suggested_actions로 호출한다.
+    실제 행동 제출은 _run_action_stream이 캐시를 투명하게 확인하므로 별도 처리 불필요.
+    """
+    made = 0
+    for action in req.actions[:_PREDICT_MAX]:
+        try:
+            if await _predict_one(req.session_id, action):
+                made += 1
+        except Exception:  # noqa: BLE001 — 예측은 best-effort(실패해도 실 플레이 무영향)
+            continue
+    return {"predicted": made}

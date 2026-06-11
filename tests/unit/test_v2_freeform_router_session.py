@@ -179,3 +179,82 @@ class TestFreeformSessionIntegration:
         assert body["session_state"]["turn_count"] == 1
         assert "원을" in body["narrative"]  # 스트리밍 서사 반영
         assert body["state_delta"]["time_advance"] == 1
+
+
+class TestPredictiveCache:
+    """예측 생성 → 캐시 히트 통합 — 미리 생성한 행동이 즉시(재생성 없이) 반환되는가."""
+
+    @patch("service.api.v2_freeform_router.stream_freeform_narrative")
+    @patch("service.api.v2_freeform_router.classify_intent")
+    def test_predict_then_hit_skips_regeneration(
+        self,
+        mock_classify: MagicMock,
+        mock_stream: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        from service.sim import predictive_cache
+
+        predictive_cache._CACHE.clear()
+        mock_classify.return_value = IntentMatch(
+            matched_action=None, confidence=0.2, reason="자유"
+        )
+        calls = {"n": 0}
+
+        async def _fake_stream(*_a: object, **_k: object) -> object:
+            calls["n"] += 1
+            for tok in ["나는 ", "주변을 ", "살폈다."]:
+                yield tok
+
+        mock_stream.side_effect = _fake_stream
+
+        store = SqliteStore(tmp_path / "pred.db")
+        mgr = SessionManager(store)
+        override_session_manager(mgr)
+        import asyncio
+
+        state = asyncio.run(mgr.create_session())
+        client = TestClient(_app())
+
+        # 1. 예측 생성(유휴) — dry-run 1회 생성
+        pr = client.post(
+            "/api/v2/freeform_action/predict",
+            json={"session_id": state.session_id, "actions": ["주변을 살핀다"]},
+        )
+        assert pr.status_code == 200
+        assert pr.json()["predicted"] == 1
+        gen_after_predict = calls["n"]
+        assert gen_after_predict >= 1  # 예측이 실제로 생성함
+
+        # 2. 같은 행동 제출 → 캐시 히트(재생성 없음 — 호출 카운트 불변)
+        hit = client.post(
+            "/api/v2/freeform_action",
+            json={"user_input": "주변을 살핀다", "session_id": state.session_id},
+        )
+        assert hit.status_code == 200
+        body = hit.json()
+        assert "살폈다" in body["narrative"]
+        assert calls["n"] == gen_after_predict  # ★ 재생성 X — 캐시 히트
+
+    @patch("service.api.v2_freeform_router.classify_intent")
+    def test_freeform_miss_falls_through(
+        self, mock_classify: MagicMock, tmp_path: Path
+    ) -> None:
+        # 예측 안 된 자유 입력 → 캐시 미스 → 정상 분류 경로(폴백).
+        from service.sim import predictive_cache
+
+        predictive_cache._CACHE.clear()
+        mock_classify.return_value = IntentMatch(
+            matched_action="rest", confidence=0.91, reason="휴식"
+        )
+        store = SqliteStore(tmp_path / "miss.db")
+        mgr = SessionManager(store)
+        override_session_manager(mgr)
+        import asyncio
+
+        state = asyncio.run(mgr.create_session())
+        client = TestClient(_app())
+        r = client.post(
+            "/api/v2/freeform_action",
+            json={"user_input": "잠시 쉰다", "session_id": state.session_id},
+        )
+        assert r.status_code == 200
