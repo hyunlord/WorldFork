@@ -23,6 +23,7 @@ from service.api.v2_character_router import router as v2_character_router
 from service.api.v2_freeform_router import router as v2_freeform_router
 from service.api.v2_session_router import router as v2_session_router
 from service.api.v2_state_router import router as v2_state_router
+from service.api.v3_session_router import router as v3_session_router
 from service.canon.context import (
     clear_canon_facts,
     clear_entity_index,
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(v2_state_router)
     # ★ Phase D: 자연어 인터프리터 (★ intent + free-form fallback)
     app.include_router(v2_freeform_router)
+    app.include_router(v3_session_router)
     # ★ Phase D step 4: 세션 관리 endpoints
     app.include_router(v2_session_router)
     # ★ audit-step4-2: runtime canon reload
