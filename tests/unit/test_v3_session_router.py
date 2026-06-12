@@ -30,7 +30,12 @@ def test_start_returns_party() -> None:
     body = r.json()
     assert len(body["party"]) == 3
     assert {m["name"] for m in body["party"]} == {"투르윈", "셰인", "가론"}
-    assert len(body["grid"]) == 6  # 렌더 그리드
+    # 탑다운 픽셀 렌더 데이터(ASCII 폐기) — 타일맵 크기만큼 rows.
+    dungeon = body["dungeon"]
+    assert len(dungeon["rows"]) == 8  # 수정 동굴 세로 8
+    assert all(len(r) == 12 for r in dungeon["rows"])  # 가로 12
+    types = {t["type"] for row in dungeon["rows"] for t in row}
+    assert "player" in types and "wall" in types and "floor" in types
 
 
 def test_tick_advances_autonomously() -> None:

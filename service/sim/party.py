@@ -18,6 +18,7 @@ from core.llm.local_client import LocalLLMClient
 from service.sim.disposition import Companion, DispoAction, default_action
 from service.sim.disposition_command import CommandResponse, apply_order, interpret_command
 from service.sim.disposition_tick import (
+    Blocked,
     TickContext,
     TickEnemy,
     TickResult,
@@ -47,13 +48,14 @@ class PartyWorld:
     player_hp: int = 100
     player_max_hp: int = 100
     unexplored_pos: tuple[int, int] | None = None
+    blocked: Blocked | None = None  # 타일맵 충돌(None이면 무한 평면 — 테스트 기본)
     tick: int = 0
     _prev_live: int = 0  # NEW_ENEMY 감지용(직전 생존 적 수)
 
     def context(self) -> TickContext:
         return TickContext(
             self.enemies, self.player_pos, self.player_hp,
-            self.player_max_hp, self.unexplored_pos,
+            self.player_max_hp, self.unexplored_pos, self.blocked,
         )
 
 

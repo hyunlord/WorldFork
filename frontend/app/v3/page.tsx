@@ -6,6 +6,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { DungeonView } from "@/components/game/DungeonView";
+import type { DungeonViewData } from "@/components/game/types";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8090";
 
 interface Member {
@@ -29,7 +32,7 @@ interface Render {
   flags: Record<string, string>;
   relationships: Record<string, number>;
   branch: string[];
-  grid: string[];
+  dungeon: DungeonViewData;
   log: string[];
 }
 
@@ -106,10 +109,9 @@ export default function V3Page() {
             )}
           </p>
 
-          <pre style={{ background: "#15151c", padding: 12, lineHeight: 1.4, fontSize: 18 }}>
-            {state.grid.join("\n")}
-          </pre>
-          <p style={{ fontSize: 12, color: "#888" }}>@ 나 · 첫 글자 동료 · E 적 · · 미탐색</p>
+          <div style={{ height: 320, marginBottom: 8 }}>
+            <DungeonView data={state.dungeon} />
+          </div>
 
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <div>

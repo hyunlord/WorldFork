@@ -10,6 +10,7 @@ Phase 0 검증: 같은 세계라도 성향이 다른 동료는 다른 궤적/행
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from service.sim.combat import apply_critical_damage
@@ -89,6 +90,39 @@ def _step_away(src: tuple[int, int], threat: tuple[int, int]) -> tuple[int, int]
     return (x, y)
 
 
+# 이동 보조 — 벽을 아는 한 칸 전진. blocked=None이면 Phase 0(_step_toward/away)과 동일.
+Blocked = Callable[[tuple[int, int]], bool]
+
+
+def _advance(
+    src: tuple[int, int],
+    dst: tuple[int, int],
+    blocked: Blocked | None,
+    *,
+    away: bool = False,
+) -> tuple[int, int]:
+    """dst 쪽(또는 away면 반대)으로 한 칸 — 벽이면 수직 축으로 우회, 둘 다 막히면 정지.
+
+    blocked 미지정 시 _step_toward/_step_away와 바이트 동일(Phase 0 궤적 불변).
+    """
+    x, y = src
+    dx = 0 if x == dst[0] else (1 if dst[0] > x else -1)
+    dy = 0 if y == dst[1] else (1 if dst[1] > y else -1)
+    if away:
+        dx, dy = -dx, -dy
+        if dx == 0 and dy == 0:
+            dx = 1  # 겹침 — 임의 방향(_step_away 정합)
+    cands: list[tuple[int, int]] = []
+    if dx != 0:  # x축 우선(_step_toward 규칙)
+        cands.append((x + dx, y))
+    if dy != 0:
+        cands.append((x, y + dy))
+    for c in cands:
+        if blocked is None or not blocked(c):
+            return c
+    return src  # 모두 벽 → 제자리
+
+
 @dataclass
 class TickContext:
     """동료가 행동할 공유 세계(동료 제외) — 파티 전원이 같은 ctx를 본다(Phase 3 재사용)."""
@@ -98,6 +132,7 @@ class TickContext:
     player_hp: int = 100
     player_max_hp: int = 100
     unexplored_pos: tuple[int, int] | None = None
+    blocked: Blocked | None = None  # 타일맵 충돌(None이면 무한 평면 — Phase 0 동작)
 
 
 def _nearest(ctx: TickContext, pos: tuple[int, int]) -> TickEnemy | None:
@@ -150,31 +185,31 @@ def act_companion(
                 enemy.hp -= dmg
                 note = f"{enemy.name} 타격 {dmg}{' (강타)' if berserk else ''}"
             else:
-                comp.pos = _step_toward(comp.pos, enemy.pos)
+                comp.pos = _advance(comp.pos, enemy.pos, ctx.blocked)
                 note = "적에게 돌진"
     elif action is DispoAction.RANGED:
         enemy = _nearest(ctx, comp.pos)
         if enemy is not None:
             if _dist(comp.pos, enemy.pos) < _RANGED_KEEP:
-                comp.pos = _step_away(comp.pos, enemy.pos)
+                comp.pos = _advance(comp.pos, enemy.pos, ctx.blocked, away=True)
                 note = "거리를 벌림"
             else:
                 enemy.hp -= max(1, comp.attack // 2)
                 note = f"{enemy.name} 원거리 사격"
     elif action is DispoAction.SCOUT:
         if ctx.unexplored_pos is not None:
-            comp.pos = _step_toward(comp.pos, ctx.unexplored_pos)
+            comp.pos = _advance(comp.pos, ctx.unexplored_pos, ctx.blocked)
             if comp.pos == ctx.unexplored_pos:
                 ctx.unexplored_pos = None
                 note = "정찰 완료"
             else:
                 note = "앞서 정찰"
     elif action is DispoAction.RESCUE:
-        comp.pos = _step_toward(comp.pos, ctx.player_pos)
+        comp.pos = _advance(comp.pos, ctx.player_pos, ctx.blocked)
         note = "위기의 아군에게"
     elif action is DispoAction.FOLLOW:
         if _dist(comp.pos, ctx.player_pos) > 1:
-            comp.pos = _step_toward(comp.pos, ctx.player_pos)
+            comp.pos = _advance(comp.pos, ctx.player_pos, ctx.blocked)
         note = "플레이어 곁"
     return action, note
 

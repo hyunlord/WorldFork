@@ -22,6 +22,7 @@ from service.sim.disposition import (
     PRESET_SCOUT,
     Companion,
 )
+from service.sim.dungeon_map import crystal_cave
 from service.sim.party import (
     PartyWorld,
     command_all,
@@ -33,7 +34,19 @@ from service.sim.world_memory import WorldState, judge_permanence, npc_attitude,
 
 router = APIRouter(prefix="/api/v3", tags=["v3-rtwp"])
 
-_GRID_W, _GRID_H = 10, 6
+# 슬라이스 고정 타일맵(미궁 1층 수정 동굴) — 세션 공유. 충돌·광원의 단일 출처.
+_MAP = crystal_cave()
+
+# 적 종류 → 픽셀 스프라이트(public/assets/pixel/<sprite>.png). 미정의는 enemy 기본.
+_ENEMY_SPRITE = {"고블린": "goblin", "노움": "gnome", "구울": "wraith"}
+
+# DungeonView 범례 — 게임 화면 명칭(원작: 비요른). 동료/적은 일반 라벨(unmaskIp는 다음 단계).
+_LEGEND: list[dict[str, str]] = [
+    {"ch": "@", "type": "player", "label": "비요른"},
+    {"ch": "n", "type": "npc", "label": "동료"},
+    {"ch": "E", "type": "enemy", "label": "적"},
+    {"ch": ">", "type": "stair", "label": "계단"},
+]
 
 
 @dataclass
@@ -52,36 +65,57 @@ def _new_id() -> str:
 
 
 def _new_party() -> PartyWorld:
+    """파티 = 비요른(플레이어) + 투르윈/셰인/가론(V3 동료). 좌표는 수정 동굴 바닥에 배치."""
+    stair = _MAP.stair()
     return PartyWorld(
         companions=[
             Companion("투르윈", PRESET_BERSERKER, pos=(1, 2), hp=120, max_hp=120, attack=16),
-            Companion("셰인", PRESET_SCOUT, pos=(1, 3), hp=80, max_hp=80, attack=10),
-            Companion("가론", PRESET_GUARDIAN, pos=(1, 4), hp=140, max_hp=140, attack=12),
+            Companion("셰인", PRESET_SCOUT, pos=(2, 2), hp=80, max_hp=80, attack=10),
+            Companion("가론", PRESET_GUARDIAN, pos=(1, 3), hp=140, max_hp=140, attack=12),
         ],
-        player_pos=(0, 3),
-        unexplored_pos=(8, 3),
+        player_pos=(2, 3),
+        unexplored_pos=stair,
+        blocked=_MAP.is_blocked,
     )
 
 
-def _ascii(s: _Session) -> list[str]:
-    """최소 2D 렌더 — @ 플레이어 / 동료 이름 첫 글자 / E 적 / · 미탐색."""
-    grid = [["." for _ in range(_GRID_W)] for _ in range(_GRID_H)]
+def _dungeon(s: _Session) -> DungeonData:
+    """탑다운 픽셀 렌더 데이터 — 타일맵 지형 위에 파티/적 엔티티를 얹는다.
+
+    수정 광원 밖(is_lit=False)은 어둠(blank). 엔티티는 항상 표시(시야의 주체).
+    """
     w = s.world
-    if w.unexplored_pos is not None:
-        ux, uy = w.unexplored_pos
-        if 0 <= ux < _GRID_W and 0 <= uy < _GRID_H:
-            grid[uy][ux] = "·"
-    px, py = w.player_pos
-    if 0 <= px < _GRID_W and 0 <= py < _GRID_H:
-        grid[py][px] = "@"
-    for e in w.enemies:
-        if e.hp > 0 and 0 <= e.pos[0] < _GRID_W and 0 <= e.pos[1] < _GRID_H:
-            grid[e.pos[1]][e.pos[0]] = "E"
+    # 엔티티 점유: (x, y) → (TileType, sprite). 동료가 플레이어와 겹치면 동료 우선.
+    occ: dict[tuple[int, int], tuple[str, str]] = {w.player_pos: ("player", "player")}
     for c in w.companions:
-        cx, cy = c.pos
-        if 0 <= cx < _GRID_W and 0 <= cy < _GRID_H:
-            grid[cy][cx] = c.name[0]
-    return ["".join(row) for row in grid]
+        occ[c.pos] = ("npc", "npc")
+    for e in w.enemies:
+        if e.hp > 0:
+            occ[e.pos] = ("enemy", _ENEMY_SPRITE.get(e.name, "enemy"))
+
+    rows: list[list[TileModel]] = []
+    for y in range(_MAP.height):
+        row: list[TileModel] = []
+        for x in range(_MAP.width):
+            ent = occ.get((x, y))
+            if ent is not None:
+                row.append(TileModel(ch="@", type=ent[0], sprite=ent[1]))
+                continue
+            ch = _MAP.char(x, y)
+            if _MAP.is_wall(x, y):
+                row.append(
+                    TileModel(ch="#", type="wall")
+                    if _MAP.is_lit(x, y)
+                    else TileModel(ch=" ", type="blank")
+                )
+            elif ch == ">":
+                row.append(TileModel(ch=">", type="stair", sprite="stair"))
+            elif _MAP.is_lit(x, y):
+                row.append(TileModel(ch=".", type="floor"))
+            else:
+                row.append(TileModel(ch=" ", type="blank"))
+        rows.append(row)
+    return DungeonData(turn=w.tick, rows=rows, legend=_LEGEND)
 
 
 class MemberView(BaseModel):
@@ -99,6 +133,22 @@ class EnemyView(BaseModel):
     hp: int
 
 
+class TileModel(BaseModel):
+    """DungeonView 한 칸 — 프론트 components/game/types.ts Tile과 정합."""
+
+    ch: str
+    type: str  # wall/floor/player/enemy/npc/item/stair/door/blank
+    sprite: str | None = None
+
+
+class DungeonData(BaseModel):
+    """탑다운 픽셀 렌더 데이터 — 프론트 DungeonViewData와 정합."""
+
+    turn: int
+    rows: list[list[TileModel]]
+    legend: list[dict[str, str]] = Field(default_factory=list)
+
+
 class RenderState(BaseModel):
     session_id: str
     tick: int
@@ -107,7 +157,7 @@ class RenderState(BaseModel):
     flags: dict[str, str]
     relationships: dict[str, int]
     branch: list[str]  # 분기점(일시정지 권장 — LLM 개입 후보)
-    grid: list[str]
+    dungeon: DungeonData  # 탑다운 픽셀 렌더(ASCII 폐기)
     log: list[str] = Field(default_factory=list)
 
 
@@ -132,7 +182,7 @@ def _render(sid: str, s: _Session, log: list[str] | None = None) -> RenderState:
         flags=dict(s.memory.flags),
         relationships=dict(s.memory.relationships),
         branch=[r.value for r in detect_branch(w)],
-        grid=_ascii(s),
+        dungeon=_dungeon(s),
         log=log or [],
     )
 
@@ -166,7 +216,7 @@ async def tick(req: TickRequest) -> RenderState:
     s = _get(req.session_id)
     log: list[str] = []
     if req.spawn_enemy and not s.world.enemies:
-        s.world.enemies = [TickEnemy("고블린", pos=(7, 3), hp=40)]
+        s.world.enemies = [TickEnemy("고블린", pos=(9, 2), hp=40)]
         log.append("고블린이 어둠 속에서 모습을 드러냈다!")
     for _ in range(req.steps):
         results = party_step(s.world)
