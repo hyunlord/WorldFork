@@ -31,11 +31,12 @@ _BERSERK_CRIT = 80
 
 @dataclass
 class TickEnemy:
-    """틱 루프용 최소 적 — 위치/HP만(전투 로직은 combat.py 재사용)."""
+    """틱 루프용 최소 적 — 위치/HP/공격력(반격은 enemy_step, combat primitive 재사용)."""
 
     name: str
     pos: tuple[int, int]
     hp: int = 30
+    attack: int = 6
 
 
 @dataclass

@@ -2,8 +2,8 @@
 
 V3 엔진 4조각(자율/지시/영구/파티)을 HTTP 플레이 루프로 잇는다. 서버가 PartyWorld +
 WorldState를 세션별로 들고, 평소 tick(party_step, 코드 0토큰)으로 진행하다 플레이어가
-일시정지하고 자연어 지시(command, Phase 1 LLM)하면 성향대로 반영한다. 영구(Phase 2)는
-flags/relationships로 렌더에 노출. 어떤 클라이언트로도 플레이하도록 ASCII 그리드를 함께 준다.
+일시정지하고 자연어 지시(command, Phase 1 LLM)하면 성향대로 반영한다. 영구는
+flags/relationships로 렌더에 노출. 렌더는 탑다운 픽셀(DungeonViewData), 적은 enemy_step 반격.
 
 ★ DispositionSession/party의 프로덕션 호출자(made-but-never-used 해소). 풀 UI는 후속 —
 MVP는 핵심 경험(자율 파티 + 일시정지 지시 + 영구)만.
@@ -28,8 +28,10 @@ from service.sim.party import (
     command_all,
     command_member,
     detect_branch,
+    enemy_step,
     party_step,
 )
+from service.sim.status import StatusType
 from service.sim.world_memory import WorldState, judge_permanence, npc_attitude, record
 
 router = APIRouter(prefix="/api/v3", tags=["v3-rtwp"])
@@ -125,6 +127,8 @@ class MemberView(BaseModel):
     max_hp: int
     order: str | None
     disposition: dict[str, int]
+    downed: bool = False  # 전투불능(HP 0) — '쓰러짐' 표시
+    bleeding: bool = False  # 출혈 상태이상 보유
 
 
 class EnemyView(BaseModel):
@@ -154,6 +158,9 @@ class RenderState(BaseModel):
     tick: int
     party: list[MemberView]
     enemies: list[EnemyView]
+    player_hp: int
+    player_max_hp: int
+    defeat: bool  # 비요른 HP 0 — 슬라이스 패배(자동 진행 정지)
     flags: dict[str, str]
     relationships: dict[str, int]
     branch: list[str]  # 분기점(일시정지 권장 — LLM 개입 후보)
@@ -175,10 +182,15 @@ def _render(sid: str, s: _Session, log: list[str] | None = None) -> RenderState:
                     "지혜": c.disposition.wisdom, "변덕": c.disposition.whimsy,
                     "유대": c.disposition.bond,
                 },
+                downed=c.downed,
+                bleeding=any(st.type is StatusType.BLEED for st in c.status),
             )
             for c in w.companions
         ],
         enemies=[EnemyView(name=e.name, pos=e.pos, hp=e.hp) for e in w.enemies if e.hp > 0],
+        player_hp=w.player_hp,
+        player_max_hp=w.player_max_hp,
+        defeat=w.defeat,
         flags=dict(s.memory.flags),
         relationships=dict(s.memory.relationships),
         branch=[r.value for r in detect_branch(w)],
@@ -216,12 +228,23 @@ async def tick(req: TickRequest) -> RenderState:
     s = _get(req.session_id)
     log: list[str] = []
     if req.spawn_enemy and not s.world.enemies:
-        s.world.enemies = [TickEnemy("고블린", pos=(9, 2), hp=40)]
-        log.append("고블린이 어둠 속에서 모습을 드러냈다!")
+        # HP/공격력은 원거리 견제를 버티고 멜레까지 도달해 반격하도록(일방 전투 방지).
+        s.world.enemies = [
+            TickEnemy("고블린", pos=(9, 2), hp=90, attack=9),
+            TickEnemy("고블린", pos=(9, 4), hp=90, attack=9),
+        ]
+        log.append("고블린 둘이 어둠 속에서 모습을 드러냈다!")
     for _ in range(req.steps):
+        if s.world.defeat:
+            break  # 패배 — 더 진행하지 않음(자동 진행 정지)
         results = party_step(s.world)
         log.extend(r.note for r in results if r.note.split(": ", 1)[-1])
-    return _render(req.session_id, s, log[-8:])
+        log.extend(enemy_step(s.world))  # ★ 적 반격(명중/피해/출혈)
+        dead = [e.name for e in s.world.enemies if e.hp <= 0]
+        if dead:
+            s.world.enemies = [e for e in s.world.enemies if e.hp > 0]  # 정리(드롭 Phase 3)
+            log.extend(f"{n} 처치" for n in dead)
+    return _render(req.session_id, s, log[-10:])
 
 
 class CommandRequest(BaseModel):

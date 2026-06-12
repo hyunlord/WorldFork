@@ -52,7 +52,7 @@ def test_spawn_triggers_branch() -> None:
     body = c.post(
         "/api/v3/session/tick", json={"session_id": sid, "spawn_enemy": True}
     ).json()
-    assert len(body["enemies"]) == 1
+    assert len(body["enemies"]) >= 1  # 고블린 다수 스폰(멜레 도달 위해)
     assert "new_enemy" in body["branch"] or "conflict" in body["branch"]
 
 

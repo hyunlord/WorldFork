@@ -9,8 +9,10 @@ Phase 0은 '게임 먼저': 코드만으로 동료가 성향대로 자율 행동
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+
+from service.sim.status import StatusEffect
 
 # 성향 임계 — 높음/낮음 경계. DESIGN 2장 기본 패턴 매핑에 사용.
 _HIGH = 60
@@ -69,6 +71,12 @@ class Companion:
     max_hp: int = 100
     attack: int = 12
     current_order: DispoAction | None = None
+    status: list[StatusEffect] = field(default_factory=list)  # 출혈 등(Phase 2 enemy_step)
+
+    @property
+    def downed(self) -> bool:
+        """전투불능(HP 0) — 틱 행동 중지, 렌더 '쓰러짐'. 제거/부활 없음(슬라이스)."""
+        return self.hp <= 0
 
 
 @dataclass
