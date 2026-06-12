@@ -49,50 +49,54 @@ export default function V3Page() {
   const [target, setTarget] = useState("all");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const sid = state?.session_id;
 
-  const start = useCallback(async () => {
+  // ★ 실패가 silent로 죽지 않게 — 모든 호출을 감싸 에러를 화면에 노출(진단 가능).
+  const run = useCallback(async (fn: () => Promise<Render>) => {
     setBusy(true);
+    setErr(null);
     try {
-      setState(await call("/session/start", {}));
+      setState(await fn());
+    } catch (e) {
+      setErr(`백엔드 통신 실패: ${API_URL} — ${String(e)}`);
     } finally {
       setBusy(false);
     }
   }, []);
+
+  const start = useCallback(() => run(() => call("/session/start", {})), [run]);
 
   useEffect(() => {
     void start();
   }, [start]);
 
   const tick = useCallback(
-    async (spawn: boolean) => {
+    (spawn: boolean) => {
       if (!sid) return;
-      setBusy(true);
-      try {
-        setState(await call("/session/tick", { session_id: sid, steps: 1, spawn_enemy: spawn }));
-      } finally {
-        setBusy(false);
-      }
+      void run(() => call("/session/tick", { session_id: sid, steps: 1, spawn_enemy: spawn }));
     },
-    [sid],
+    [sid, run],
   );
 
-  const sendCommand = useCallback(async () => {
+  const sendCommand = useCallback(() => {
     if (!sid || !text.trim()) return;
-    setBusy(true);
-    try {
-      setState(await call("/session/command", { session_id: sid, target, text }));
-      setText("");
-    } finally {
-      setBusy(false);
-    }
-  }, [sid, target, text]);
+    void run(() => call("/session/command", { session_id: sid, target, text })).then(() =>
+      setText(""),
+    );
+  }, [sid, target, text, run]);
 
   return (
     <main style={{ fontFamily: "monospace", padding: 24, background: "#0b0b10", color: "#d8d8e0", minHeight: "100vh" }}>
       <h1 style={{ color: "#e8a838" }}>WorldFork · V3 RTwP (자율 파티 MVP)</h1>
+      {err && (
+        <div style={{ background: "#3a1515", color: "#ff9090", padding: 10, marginBottom: 12 }}>
+          ⚠ {err}
+          <button onClick={() => start()} style={{ marginLeft: 12 }}>다시 시작</button>
+        </div>
+      )}
       {!state ? (
-        <p>세션 시작 중…</p>
+        <p>{busy ? "세션 시작 중…" : <button onClick={() => start()}>세션 시작</button>}</p>
       ) : (
         <>
           <p>
@@ -135,8 +139,8 @@ export default function V3Page() {
           </div>
 
           <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button onClick={() => void tick(false)} disabled={busy}>▶ 진행(틱)</button>
-            <button onClick={() => void tick(true)} disabled={busy}>적 출현</button>
+            <button onClick={() => tick(false)} disabled={busy}>▶ 진행(틱)</button>
+            <button onClick={() => tick(true)} disabled={busy}>적 출현</button>
           </div>
 
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
@@ -148,11 +152,11 @@ export default function V3Page() {
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void sendCommand()}
+              onKeyDown={(e) => e.key === "Enter" && sendCommand()}
               placeholder="예: 전원 후퇴하라 / 함정을 살펴라"
               style={{ flex: 1, padding: 6, background: "#15151c", color: "#d8d8e0", border: "1px solid #333" }}
             />
-            <button onClick={() => void sendCommand()} disabled={busy}>지시</button>
+            <button onClick={() => sendCommand()} disabled={busy}>지시</button>
           </div>
 
           <div style={{ marginTop: 16 }}>
