@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 from service.sim.narrative_gm import (
     GMStateDelta,
+    extract_narration,
     gm_beat,
     parse_beat_result,
     parse_beat_text,
@@ -120,6 +121,24 @@ class TestParseBeatText:
 
         with pytest.raises(ValueError):
             parse_beat_text("JSON이 전혀 없는 텍스트")
+
+
+class TestExtractNarration:
+    """스트리밍 점진 표시 — 누적 JSON에서 narration을 현재까지 디코드."""
+
+    def test_partial_stream(self) -> None:
+        # 아직 닫히지 않은 narration도 현재까지 반환(흐르는 표시).
+        assert extract_narration('{"narration": "나는 도끼를') == "나는 도끼를"
+
+    def test_closed_string(self) -> None:
+        full = '{"narration": "도끼를 들었다.", "choices": []}'
+        assert extract_narration(full) == "도끼를 들었다."
+
+    def test_escapes_decoded(self) -> None:
+        assert extract_narration('{"narration": "줄1\\n줄2 \\"인용\\""') == '줄1\n줄2 "인용"'
+
+    def test_no_narration_key(self) -> None:
+        assert extract_narration('{"choices": []}') is None
 
 
 class TestGmBeatCall:

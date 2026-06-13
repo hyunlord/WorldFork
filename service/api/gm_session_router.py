@@ -8,6 +8,7 @@ NARRATIVE_DESIGN 코어: GM이 비트를 펼치고(narration/choices), state_del
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -25,10 +26,11 @@ from service.sim.disposition_command import (
 )
 from service.sim.intent_classifier import classify_intent, mechanical_classify
 from service.sim.loot import Inventory
-from service.sim.narrative_combat import Foe, resolve_round
+from service.sim.narrative_combat import Foe, RoundResult, resolve_round
 from service.sim.narrative_gm import (
     GMBeatResult,
     astream_gm_beat,
+    extract_narration,
     gm_beat,
     parse_beat_text,
 )
@@ -51,6 +53,12 @@ _ENTER_WORDS = ("진입", "들어", "미궁", "내려", "나아간", "전진", "
 router = APIRouter(prefix="/api/gm", tags=["gm-narrative"])
 
 _HISTORY_MAX = 6  # GM 맥락용 최근 서술 보관 수
+
+# ★ 영구 세계(§6 PERSISTENT) — 세션을 넘어 유지(flags·관계). 새 런(start)이 이어받는다.
+#   소지금·인벤은 §6상 캐릭터 귀속(PER-RUN, 사망 시 소멸)이나 슬라이스엔 사망이 없어 함께 유지
+#   — 사망/세이브(§6) 구현 시 PER-RUN으로 재분류. 캐릭터 상태(hp/무기/비트/적)는 런마다 리셋.
+_PERSISTENT_WORLD = WorldState()
+_PERSISTENT_INV = Inventory()
 
 
 def _new_kaira() -> Companion:
@@ -289,9 +297,12 @@ def _run_beat(s: _GMSession, action: str) -> None:
 
 @router.post("/session/start", response_model=GMRender)
 async def start() -> GMRender:
-    """새 서사 세션 — 비트1(성인식) GM 장면을 연다."""
+    """새 서사 세션(런) — 영구 세계(flags·관계·소지금) 이어받고, 캐릭터 상태는 리셋.
+
+    비트1(성인식) GM 장면을 연다. world/inv는 영구 싱글톤 공유 → 세션을 넘어 유지(§6).
+    """
     sid = _new_id()
-    s = _GMSession()
+    s = _GMSession(world=_PERSISTENT_WORLD, inv=_PERSISTENT_INV)
     _SESSIONS[sid] = s
     _run_beat(s, action="(성인식 장면을 연다)")
     return _render(sid, s)
@@ -326,10 +337,10 @@ def _resolve_action(s: _GMSession, req: ActRequest) -> str:
     return action
 
 
-def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
-    """첫 조우 한 라운드 — 코드 판정(권위) → GM 서술(라운드당 1회, 확정 결과만).
+def _apply_combat(s: _GMSession, action: str) -> RoundResult:
+    """한 라운드 코드 판정(권위) — 플레이어+카이라 성향+적. 처치 시 마무리로 전환.
 
-    적 처치 시 first_foe_resolved → 마무리(AFTERMATH)로 전환하고 GM이 마무리를 연다.
+    GM 서술은 호출자(비스트림/스트림)가 confirmed=rr.lines로 별도 수행(라운드당 1회).
     """
     assert s.foe is not None
     rr = resolve_round(
@@ -350,7 +361,21 @@ def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
         s.world.flags["first_foe_resolved"] = "true"
         s.foe = None
         _advance_if_done(s, action, None)  # → AFTERMATH
-    # GM 서술(1회) — 확정 결과만(코드가 권위). narration/choices/illustration만 취한다.
+    return rr
+
+
+def _absorb_narration(s: _GMSession, result: GMBeatResult, illust_fallback: str) -> None:
+    """전투 GM 서술 흡수 — 코드가 권위라 narration/choices/illustration만 취한다."""
+    s.last = result
+    if result.narration:
+        s.history.append(result.narration)
+        s.history[:] = s.history[-_HISTORY_MAX:]
+    s.last_illustration = result.illustration or illust_fallback
+
+
+def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
+    """첫 조우 한 라운드(비스트림) — 코드 판정 → GM 서술(확정 결과만)."""
+    rr = _apply_combat(s, action)
     result = gm_beat(
         s.beat,
         hp=s.hp,
@@ -362,11 +387,7 @@ def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
         action=action,
         confirmed=rr.lines,
     )
-    s.last = result
-    if result.narration:
-        s.history.append(result.narration)
-        s.history[:] = s.history[-_HISTORY_MAX:]
-    s.last_illustration = result.illustration or rr.illustration  # GM 유효 지정 우선
+    _absorb_narration(s, result, rr.illustration)
     return _render(sid, s)
 
 
@@ -386,17 +407,29 @@ async def act(req: ActRequest) -> GMRender:
 
 @router.post("/session/act/stream")
 async def act_stream(req: ActRequest) -> StreamingResponse:
-    """★ Phase 2 보강 B — narration 토큰 스트리밍(체감 지연 완화).
+    """★ narration 스트리밍 플레이 경로(/gm 페이지) — 체감 지연 완화.
 
-    토큰을 SSE ``data:``로 흘려 보내고, 스트림 종료 후 누적 텍스트를 파싱해 state_delta·
-    카이라 반응까지 반영한 최종 렌더를 ``event: done``으로 보낸다(구조화 파싱은 종료 후).
-    화면 점진 표시는 Phase 4 /gm 페이지. 신뢰 경로는 비스트리밍 /session/act(guided JSON).
+    narration을 정제해 SSE ``data:{narration}``로 흘리고, 종료 후 파싱해 상태 반영한 최종
+    렌더를 ``event: done``으로 보낸다. 전투면 코드 판정(권위) 먼저 → GM은 확정 결과 서술.
+    비전투면 카이라 성향 반응을 GM 스트림과 병렬(지연 완화). 신뢰 파싱 경로는 비스트림 /act.
     """
     s = _get(req.session_id)
-    action = _resolve_action(s, req)
+    combat = s.beat is Beat.FIRST_ENCOUNTER and s.foe is not None and s.foe.alive
+    action = _action_text(s, req) if combat else _resolve_action(s, req)
 
     async def _gen() -> AsyncIterator[str]:
+        confirmed: list[str] | None = None
+        illust_fallback: str | None = None
+        kaira_task: asyncio.Task[None] | None = None
+        if combat:
+            rr = await asyncio.to_thread(_apply_combat, s, action)  # 코드 판정(+카이라)
+            confirmed, illust_fallback = rr.lines, rr.illustration
+        elif kaira_present(s.beat):
+            # 비전투 카이라 반응을 GM 스트림과 병렬(지연 완화)
+            kaira_task = asyncio.create_task(asyncio.to_thread(_kaira_react, s, action))
+
         buf: list[str] = []
+        emitted = ""
         async for token in astream_gm_beat(
             s.beat,
             hp=s.hp,
@@ -406,16 +439,25 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
             flags=dict(s.world.flags),
             history="\n".join(s.history),
             action=action,
+            confirmed=confirmed,
         ):
             buf.append(token)
-            yield f"data: {json.dumps({'token': token}, ensure_ascii=False)}\n\n"
+            narr = extract_narration("".join(buf))
+            if narr is not None and len(narr) > len(emitted):
+                chunk = json.dumps({"narration": narr[len(emitted):]}, ensure_ascii=False)
+                yield f"data: {chunk}\n\n"
+                emitted = narr
+        if kaira_task is not None:
+            await kaira_task
         try:
             result = parse_beat_text("".join(buf))
         except (ValueError, json.JSONDecodeError):
             yield f"event: error\ndata: {json.dumps({'detail': '파싱 실패'})}\n\n"
             return
-        _apply_delta(s, result)
-        _kaira_react(s, action)
+        if combat:
+            _absorb_narration(s, result, illust_fallback or "ui_combat_bjorn_action")
+        else:
+            _apply_delta(s, result)
         final = _render(req.session_id, s).model_dump()
         yield f"event: done\ndata: {json.dumps(final, ensure_ascii=False)}\n\n"
 

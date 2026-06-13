@@ -227,6 +227,40 @@ def build_gm_prompt(
     )
 
 
+def extract_narration(text: str) -> str | None:
+    """누적 JSON에서 narration 값을 현재까지 디코드(스트리밍 점진 표시용).
+
+    아직 닫히지 않은 문자열도 best-effort로 돌려준다(최종 정본은 parse_beat_text). 화면에
+    narration이 흐르게 하는 용도 — 미완 escape는 잘라낸다.
+    """
+    key = text.find('"narration"')
+    if key < 0:
+        return None
+    colon = text.find(":", key + len('"narration"'))
+    if colon < 0:
+        return None
+    open_q = text.find('"', colon + 1)
+    if open_q < 0:
+        return None
+    out: list[str] = []
+    i = open_q + 1
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\":
+            if i + 1 >= n:
+                break  # 미완 escape — 여기서 끊김
+            nxt = text[i + 1]
+            out.append({"n": "\n", "t": "\t", '"': '"', "\\": "\\"}.get(nxt, nxt))
+            i += 2
+            continue
+        if ch == '"':
+            break  # 문자열 종료
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def parse_beat_text(text: str) -> GMBeatResult:
     """누적 텍스트에서 JSON 본문을 관대하게 추출·파싱(스트리밍 종료 후 파싱용).
 
@@ -281,19 +315,21 @@ async def astream_gm_beat(
     flags: dict[str, str],
     history: str,
     action: str,
+    confirmed: list[str] | None = None,
     client: LocalLLMClient | None = None,
 ) -> AsyncIterator[str]:
     """현 비트를 토큰 스트리밍(체감 지연 완화) — 원시 토큰을 그대로 yield.
 
     구조화 파싱은 스트림 종료 후 parse_beat_text(누적)로 한다(스키마 가드 없음 — 신뢰 경로는
-    gm_beat). 호출자가 토큰을 누적해 화면에 점진 표시(Phase 4 /gm 페이지)하고, 끝에 파싱한다.
+    gm_beat). 호출자가 토큰을 누적해 narration을 점진 표시(extract_narration)하고 끝에 파싱한다.
+    confirmed: 전투 라운드 등 코드 확정 결과(서술만).
     """
     cli = client or pivotal_gm_client()
     prompt = build_gm_prompt(
         beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
-        flags=flags, history=history, action=action,
+        flags=flags, history=history, action=action, confirmed=confirmed,
     )
     async for token in cli.astream(
-        prompt, max_tokens=_max_tokens(beat), temperature=0.8
+        prompt, schema=_GM_SCHEMA, max_tokens=_max_tokens(beat), temperature=0.8
     ):
         yield token

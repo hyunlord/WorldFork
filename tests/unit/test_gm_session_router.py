@@ -10,7 +10,12 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from service.api.gm_session_router import _SESSIONS, router
+from service.api.gm_session_router import (
+    _PERSISTENT_INV,
+    _PERSISTENT_WORLD,
+    _SESSIONS,
+    router,
+)
 from service.api.schemas.freeform_action import IntentMatch
 from service.sim.disposition import DispoAction
 from service.sim.disposition_command import CommandReaction, CommandResponse
@@ -25,6 +30,13 @@ def _app() -> FastAPI:
 
 def _client() -> TestClient:
     _SESSIONS.clear()
+    # 영구 세계 격리(세션 간 누수 방지) — 테스트가 싱글톤을 직접 비운다.
+    _PERSISTENT_WORLD.flags.clear()
+    _PERSISTENT_WORLD.npc_memories.clear()
+    _PERSISTENT_WORLD.relationships.clear()
+    _PERSISTENT_INV.stones = 0
+    _PERSISTENT_INV.mana_stones.clear()
+    _PERSISTENT_INV.essences.clear()
     return TestClient(_app())
 
 
@@ -183,6 +195,24 @@ def test_act_requires_input() -> None:
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
     assert c.post("/api/gm/session/act", json={"session_id": sid}).status_code == 400
+
+
+def test_persistent_world_across_sessions() -> None:
+    # ★ 영구 세계(§6) — 새 런(start)이 직전 세션의 flags·관계·소지금을 이어받는다.
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid1 = c.post("/api/gm/session/start").json()["session_id"]
+    act_delta = _beat(flags={"성인식": "완료"}, rel={"카이라": 7})
+    with patch("service.api.gm_session_router.gm_beat", return_value=act_delta), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        c.post("/api/gm/session/act", json={"session_id": sid1, "choice_id": "axe"})
+    # 새 세션(런) — 캐릭터는 리셋되지만 영구 세계는 유지
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        body2 = c.post("/api/gm/session/start").json()
+    assert body2["flags"].get("성인식") == "완료"  # 영구 flag 유지
+    assert body2["relationships"].get("카이라") == 7  # 관계 유지
+    assert body2["beat"] == "coming_of_age"  # 캐릭터(런) 상태는 리셋
 
 
 def test_unknown_session_404() -> None:

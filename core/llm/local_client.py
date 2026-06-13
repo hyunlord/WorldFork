@@ -185,18 +185,29 @@ class LocalLLMClient(LLMClient):
     async def astream(
         self,
         prompt: Prompt,
+        schema: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        """평문 narrative 토큰 스트리밍 (OpenAI-compat ``stream: true``).
+        """평문/구조화 narrative 토큰 스트리밍 (OpenAI-compat ``stream: true``).
 
         SGLang/llama-server가 SSE chunk(`delta.content`)를 점진 전달 → 호출자가
         토큰을 즉시 노출(체감 지연 제거). ``_build_payload``를 재사용하므로
         thinking-off·max_tokens·temperature 기본값이 그대로 적용된다.
         reasoning_content는 별도 필드라 thinking-off 시 content stream은 깨끗하다.
-        JSON schema 강제는 적용하지 않는다(평문 — narrative 자유).
+        ★ schema + supports_json_schema 시 response_format(json_schema)를 함께 보내
+        스트리밍도 유효 JSON을 내게 한다(구조화 서사 GM). 미지정 시 평문(narrative 자유).
         """
         payload = self._build_payload(prompt, **kwargs)
         payload["stream"] = True
+        if schema is not None and self._supports_json_schema:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": kwargs.get("schema_name", "Response"),
+                    "schema": _to_strict_object_schema(schema),
+                    "strict": True,
+                },
+            }
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream(
                 "POST",
