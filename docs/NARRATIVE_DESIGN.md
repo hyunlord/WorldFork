@@ -1,3 +1,5 @@
+> ⬆️ 상위 문서: ENGINE_ARCHITECTURE.md (엔진 비전·아키텍처 북극성). 본 문서는 그 엔진의 서사 코어 설계(범용)이며, grounding/자유/기억 재설계 방향은 ENGINE_ARCHITECTURE §4를 따른다.
+
 # WORLDFORK — 서사 게임 설계 (NARRATIVE DESIGN)
 
 > **코어 설계의 단일 진실(Single Source of Truth).** 2026-06-13 확정.
