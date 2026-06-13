@@ -135,6 +135,9 @@ function playerNameFor(scenario: string, race: string): string {
 const _UNMASK_IP: Record<string, string> = {
   라스카니아: "라프도니아",
   투르윈: "비요른",
+  카이라: "아이나르", // ★ AI GM 슬라이스 동료(/gm) — 화면 원작명
+  실렌: "에르웬",
+  셰인: "에쉬드",
 };
 
 export function unmaskIp(text: string): string {
