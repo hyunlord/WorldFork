@@ -131,6 +131,56 @@ FIRST_FOES: tuple[str, ...] = ("고블린", "칼날늑대")
 
 
 @dataclass(frozen=True)
+class SceneDetail:
+    """비트별 '둘러보면 드러나는' 코드 소유 사실(A3.1).
+
+    ★ 효과=코드 파생: explore가 GM 환각 아닌 이 사실을 공개한다(GM은 서술만). item이
+    있으면 줍기(take) 가능 — 임의 아이템 날조 차단. 변환명·일반 판타지 명칭만(IP 0).
+    """
+
+    key: str  # dedup 키(discovered 추적)
+    detail: str  # 공개 시 GM에 넘길 확정 사실(서술 재료)
+    item: str | None = None  # 줍기 가능하면 아이템명
+
+
+# 비트별 발견 가능 디테일(둘러보기→공개, 줍기→아이템). 코드 소유 — GM이 지어내지 않는다.
+_SCENE_DETAILS: dict[Beat, tuple[SceneDetail, ...]] = {
+    Beat.COMING_OF_AGE: (
+        SceneDetail(
+            "weapon_rack", "무기대에 양손도끼·양손망치·대검이 가지런히 놓여 빛을 받는다."
+        ),
+        SceneDetail("chieftain_gaze", "부족장이 청년들을 차례로 훑어보며 호명을 기다린다."),
+    ),
+    Beat.DUNGEON_ENTRY: (
+        SceneDetail(
+            "crystal_light", "벽을 메운 수정이 맥동하듯 빛을 토해 통로 깊은 곳까지 비춘다."
+        ),
+        SceneDetail(
+            "drag_marks", "바닥에 길게 긁힌 자국이 어둠 속으로 이어진다 — 끌려간 흔적."
+        ),
+        SceneDetail(
+            "crystal_shard",
+            "발치에 손바닥만 한 수정 파편이 떨어져 희미하게 빛난다.",
+            item="수정 파편",
+        ),
+    ),
+    Beat.FIRST_ENCOUNTER: (
+        SceneDetail("foe_shadow", "어둠 속에서 낮은 그르렁거림과 함께 윤곽이 다가온다."),
+        SceneDetail("narrow_path", "통로가 좁아 물러설 곳이 마땅치 않다 — 정면 승부다."),
+    ),
+    Beat.AFTERMATH: (
+        SceneDetail("spoils", "쓰러진 적 곁에 마석과 정수가 흩어져 있다."),
+        SceneDetail("companion_breath", "카이라가 거친 숨을 고르며 곁에 선다."),
+    ),
+}
+
+
+def scene_details(beat: Beat) -> tuple[SceneDetail, ...]:
+    """비트의 발견 가능 디테일(A3.1 효과 매퍼가 explore/take에 쓴다)."""
+    return _SCENE_DETAILS.get(beat, ())
+
+
+@dataclass(frozen=True)
 class BeatChoice:
     """비트 선택지 — ★ 코드 정의(LLM 생성 아님): 즉시 표시·결정적·캐논 grounding."""
 

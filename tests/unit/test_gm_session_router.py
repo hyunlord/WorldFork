@@ -5,7 +5,7 @@ GM은 서술만(flags 지어내기 금지 → 빌드/rite 누적 버그 차단).
 run_flags(런마다 리셋). LLM은 라우터 네임스페이스(gm_beat/interpret_command/resolve_round)를 patch.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -166,6 +166,67 @@ def test_free_input_unclassified_uses_classify_intent() -> None:
             json={"session_id": sid, "free_text": "부족장에게 농담을 던진다"},
         )
     ci.assert_called_once()
+
+
+def test_free_explore_changes_state_and_feeds_confirmed() -> None:
+    # ★ A3.1 — 비전환 자유 입력(둘러보기)도 상태를 바꾸고(progress), 코드 확정 효과를 GM에 전달.
+    c = _client()
+    gm = MagicMock(return_value=_beat())
+    with patch("service.api.gm_session_router.gm_beat", gm):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        with patch("service.api.gm_session_router.interpret_command", return_value=_reaction()):
+            c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+            gm.reset_mock()
+            body = c.post(
+                "/api/gm/session/act",
+                json={"session_id": sid, "free_text": "주변을 둘러본다"},
+            ).json()
+    assert body["beat"] == "dungeon_entry"  # explore는 전환 안 함(머무를 자유)
+    assert int(body["flags"]["scene_progress"]) >= 1  # ★ 0 변화 아님(progress 누적)
+    # ★ 코드 확정 효과(공개된 디테일 + 카이라 반응)가 confirmed로 GM에 전달
+    _, kw = gm.call_args
+    assert kw.get("confirmed")
+
+
+def test_free_explore_dedups_no_repeat() -> None:
+    # ★ 같은 둘러보기 반복 → 다른 디테일 공개(discovered 누적, 반복 방지 coherence).
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        b1 = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "주변을 둘러본다"}
+        ).json()
+        b2 = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "다시 살펴본다"}
+        ).json()
+    # progress가 두 번째에 더 누적(단조)
+    assert int(b2["flags"]["scene_progress"]) > int(b1["flags"]["scene_progress"])
+    assert b2["beat"] == "dungeon_entry"  # 여전히 머무름(둘러보기는 캐논 진행에 모듈)
+
+
+def test_take_code_grants_item_suppresses_gm_dup() -> None:
+    # ★ A3.1 코드 권위 — 코드 take가 아이템을 준 턴엔 GM inventory_add 무시(이중 부여 0).
+    c = _client()
+    gm_with_item = GMBeatResult(
+        narration="수정 파편을 집어 든다.",
+        state_delta=GMStateDelta(inventory_add=["수정 파편"]),  # GM도 같은 물건 시도
+    )
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+    with patch("service.api.gm_session_router.gm_beat", return_value=gm_with_item), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        body = c.post(
+            "/api/gm/session/act",
+            json={"session_id": sid, "free_text": "바닥의 수정 파편을 주워 챙긴다"},
+        ).json()
+    assert body["items"].count("수정 파편") == 1  # 코드 1회만(GM 중복 억제)
 
 
 def test_act_requires_input() -> None:

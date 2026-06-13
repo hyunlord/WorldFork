@@ -43,12 +43,16 @@ from service.sim.opening_canon import (
     beat_choices,
     kaira_present,
     next_beat,
+    scene_details,
 )
+from service.sim.scene_effect import map_effect
 from service.sim.status import StatusEffect, StatusType
 from service.sim.world_memory import WorldState, adjust_relationship
 
 # 미궁 진입 의도 — DUNGEON_ENTRY exit 조건(코드 전환). intent 또는 키워드로 판정.
-_ENTER_INTENTS = frozenset({"enter_dungeon", "move", "enter_next_floor", "explore"})
+# ★ A3.1: explore 제거 — '둘러보기'가 강제 전진하던 레일 차단(승인된 정책: 둘러보기는 캐논
+#   진행에 모듈, 머무를 자유 보존). 전진(move/enter)·진입어만 전환. 전체 progress-gated = A3.2.
+_ENTER_INTENTS = frozenset({"enter_dungeon", "move", "enter_next_floor"})
 _ENTER_WORDS = ("진입", "들어", "미궁", "내려", "나아간", "전진", "안으로", "탐색")
 
 router = APIRouter(prefix="/api/gm", tags=["gm-narrative"])
@@ -76,6 +80,9 @@ class _GMSession:
     weapon: str = ""
     items: list[str] = field(default_factory=list)  # GM이 준 서사 아이템(PER-RUN)
     run_flags: dict[str, str] = field(default_factory=dict)  # ★ PER-RUN 진행/빌드 flag
+    # A3.1 — 비트별 누적 진행도(끌개 토대, 전환 사용은 A3.2) + 공개된 장면 디테일(반복 방지).
+    scene_progress: dict[str, int] = field(default_factory=dict)
+    discovered: dict[str, list[str]] = field(default_factory=dict)
     player_status: list[StatusEffect] = field(default_factory=list)  # 출혈 등
     foe: Foe | None = None  # 첫 조우 전투 적(내러티브 턴)
     history: list[str] = field(default_factory=list)
@@ -152,15 +159,20 @@ class GMRender(BaseModel):
     companion_reaction: CompanionReactionView | None = None  # 카이라 성향 반응
 
 
-def _apply_delta(s: _GMSession, result: GMBeatResult) -> None:
+def _apply_delta(
+    s: _GMSession, result: GMBeatResult, *, suppress_inventory: bool = False
+) -> None:
     """GM 서사 델타 반영 — ★ 관계(영구)·서사 아이템만. flags/HP/무기/전환은 코드 소관(GM 불가).
 
     비트 전환은 코드 exit(_advance_if_done), HP/무기/소지금은 코드. GM은 서술 + 관계/아이템만.
+    suppress_inventory: 코드 효과(take)가 이미 아이템을 부여한 턴 → GM inventory_add 무시
+    (코드 권위 — 같은 물건 이중 부여 차단, A3.1).
     """
     d = result.state_delta
     for name, delta in d.relationship_delta.items():
         adjust_relationship(s.world, name, delta)  # 관계는 영구(PERSISTENT)
-    s.items.extend(d.inventory_add)  # PER-RUN 서사 아이템
+    if not suppress_inventory:
+        s.items.extend(d.inventory_add)  # PER-RUN 서사 아이템(코드 미부여 턴만)
     if result.illustration is not None:
         s.last_illustration = result.illustration
     if result.narration:
@@ -280,8 +292,25 @@ def _render(sid: str, s: _GMSession) -> GMRender:
     )
 
 
-def _run_beat(s: _GMSession, action: str) -> None:
-    """GM 한 비트 호출 → state_delta 반영. 호출자가 _render."""
+def _discovered_texts(s: _GMSession, *, exclude: set[str] | None = None) -> list[str]:
+    """이미 공개된 디테일의 서술 텍스트(반복 방지 프롬프트용). exclude=이번 턴 공개분."""
+    seen = set(s.discovered.get(s.beat.value, [])) - (exclude or set())
+    return [d.detail for d in scene_details(s.beat) if d.key in seen]
+
+
+def _run_beat(
+    s: _GMSession,
+    action: str,
+    confirmed: list[str] | None = None,
+    discovered: list[str] | None = None,
+    *,
+    suppress_inventory: bool = False,
+) -> None:
+    """GM 한 비트 호출 → state_delta 반영. 호출자가 _render.
+
+    confirmed: 자유 행동의 코드 확정 효과(A3.1, 서술만). discovered: 이미 공개된 디테일(반복 방지).
+    suppress_inventory: 코드 take가 아이템을 준 턴 → GM inventory_add 무시(코드 권위).
+    """
     result = gm_beat(
         s.beat,
         hp=s.hp,
@@ -291,8 +320,10 @@ def _run_beat(s: _GMSession, action: str) -> None:
         flags=dict(s.run_flags),
         history="\n".join(s.history),
         action=action,
+        confirmed=confirmed,
+        discovered=discovered,
     )
-    _apply_delta(s, result)
+    _apply_delta(s, result, suppress_inventory=suppress_inventory)
 
 
 @router.post("/session/start", response_model=GMRender)
@@ -326,16 +357,63 @@ def _action_text(s: _GMSession, req: ActRequest) -> str:
     return action
 
 
-def _resolve_action(s: _GMSession, req: ActRequest) -> str:
-    """행동 확정 → 무기 결정적 확정 → 코드 전환(narrate 전). 전환 후 비트를 GM이 서술해 일치."""
+def _apply_scene_effect(
+    s: _GMSession, action: str, intent: IntentMatch | None
+) -> tuple[list[str], bool]:
+    """A3.1 — 자유 행동을 코드 확정 효과로 환원·적용 → (confirmed 라인, 아이템 부여 여부).
+
+    progress(단조)·discovered·서사 아이템·관계만 코드가 바꾼다. hp/무기/flags/전환/stones는
+    여전히 코드 소관(여기서 안 건드림). 전환 판정은 호출자가 _advance_if_done로(A3.1 이진).
+    """
+    key = s.beat.value
+    seen = s.discovered.setdefault(key, [])
+    eff = map_effect(
+        intent,
+        action,
+        s.beat,
+        seen,
+        kaira_name=s.kaira.name if kaira_present(s.beat) else "",
+    )
+    s.scene_progress[key] = s.scene_progress.get(key, 0) + eff.progress_delta  # 단조 누적
+    s.run_flags["scene_progress"] = str(s.scene_progress[key])  # 가시화 + A3.2 토대
+    seen.extend(eff.newly_discovered)
+    s.items.extend(eff.inventory_add)
+    for name, delta in eff.relationship_delta.items():
+        adjust_relationship(s.world, name, delta)  # 관계(영구)
+    return list(eff.confirmed_lines), bool(eff.inventory_add)
+
+
+def _kaira_confirmed_line(s: _GMSession) -> str | None:
+    """직전 카이라 성향 반응을 GM 서술용 확정 라인으로(comply/adapt/refuse가 서술에 닿게)."""
+    r = s.last_reaction
+    if r is None or not r.speech:
+        return None
+    return f"{s.kaira.name}({r.reaction.value}): {r.speech}"
+
+
+def _scene_turn(s: _GMSession, req: ActRequest) -> tuple[str, list[str], list[str], bool]:
+    """비전투 한 턴 — (action, confirmed, discovered_texts, suppress_gm_inventory).
+
+    행동 확정(무기) → 코드 효과 적용(현 비트) → 전환(A3.1 이진) → 카이라 성향 반응 →
+    confirmed(효과+카이라). 플레이어 행동을 history에 누적(coherence). GM은 호출자가 _run_beat.
+    """
     action = _action_text(s, req)
     if s.beat is Beat.COMING_OF_AGE and req.choice_id and not s.weapon:
         weapon = next((w for w in COMING_OF_AGE_WEAPONS if w.id == req.choice_id), None)
         if weapon is not None:
-            s.weapon = weapon.label
+            s.weapon = weapon.label  # ★ 무기는 코드 확정(GM 아님)
     intent = _interpret(action, is_free=bool(req.free_text.strip()))
-    _advance_if_done(s, action, intent)
-    return action
+    prior = set(s.discovered.get(s.beat.value, []))  # 이번 턴 공개분 제외용 스냅샷
+    confirmed, gave_item = _apply_scene_effect(s, action, intent)  # 현 비트 효과(코드 파생)
+    just = set(s.discovered.get(s.beat.value, [])) - prior  # 이번 턴 공개(confirmed에 이미 있음)
+    _advance_if_done(s, action, intent)  # 전환(A3.1 이진 — A3.2가 누적 progress 끌개로)
+    _kaira_react(s, action)  # 카이라 성향 반응(전환 후 비트 기준 — 합류 즉시 반응)
+    kline = _kaira_confirmed_line(s)
+    if kline is not None:
+        confirmed.append(kline)  # GM이 카이라 반응을 '이미 한 말'로 서술
+    s.history.append(f"> {action}")  # ★ 플레이어 행동 누적(현재 GM narration만 → 맥락 보강)
+    s.history[:] = s.history[-_HISTORY_MAX:]
+    return action, confirmed, _discovered_texts(s, exclude=just), gave_item
 
 
 def _apply_combat(s: _GMSession, action: str) -> RoundResult:
@@ -399,10 +477,15 @@ async def act(req: ActRequest) -> GMRender:
     # 첫 조우 + 생존 적 → 내러티브 턴 전투 라운드(코드 판정 + GM 서술 1회)
     if s.beat is Beat.FIRST_ENCOUNTER and s.foe is not None and s.foe.alive:
         return _combat_round(s, req.session_id, _action_text(s, req))
-    # 일반 비트 — 코드 전환(narrate 전) → GM 진전 → 카이라 성향 반응
-    action = _resolve_action(s, req)
-    _run_beat(s, action=action)
-    _kaira_react(s, action)
+    # 일반 비트 — 코드 효과 적용·전환·카이라 반응 → GM이 확정 효과를 서술(A3.1)
+    action, confirmed, discovered, gave_item = _scene_turn(s, req)
+    _run_beat(
+        s,
+        action=action,
+        confirmed=confirmed or None,
+        discovered=discovered or None,
+        suppress_inventory=gave_item,
+    )
     return _render(req.session_id, s)
 
 
@@ -416,18 +499,22 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
     """
     s = _get(req.session_id)
     combat = s.beat is Beat.FIRST_ENCOUNTER and s.foe is not None and s.foe.alive
-    action = _action_text(s, req) if combat else _resolve_action(s, req)
+    # 비전투는 _scene_turn에서 효과 적용·전환·카이라 반응을 마치고 confirmed/discovered를 얻는다
+    # (카이라 반응이 confirmed로 GM 서술에 닿게 — 스트림에서도 일관). 전투는 _gen에서 코드 판정.
+    if combat:
+        action = _action_text(s, req)
+        scene_confirmed: list[str] = []
+        discovered: list[str] = []
+        gave_item = False
+    else:
+        action, scene_confirmed, discovered, gave_item = _scene_turn(s, req)
 
     async def _gen() -> AsyncIterator[str]:
-        confirmed: list[str] | None = None
+        confirmed: list[str] | None = scene_confirmed or None
         illust_fallback: str | None = None
-        kaira_task: asyncio.Task[None] | None = None
         if combat:
             rr = await asyncio.to_thread(_apply_combat, s, action)  # 코드 판정(+카이라)
             confirmed, illust_fallback = rr.lines, rr.illustration
-        elif kaira_present(s.beat):
-            # 비전투 카이라 반응을 GM 스트림과 병렬(지연 완화)
-            kaira_task = asyncio.create_task(asyncio.to_thread(_kaira_react, s, action))
 
         buf: list[str] = []
         emitted = ""
@@ -441,6 +528,7 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
             history="\n".join(s.history),
             action=action,
             confirmed=confirmed,
+            discovered=discovered or None,
         ):
             buf.append(token)
             narr = extract_narration("".join(buf))
@@ -448,8 +536,6 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
                 chunk = json.dumps({"narration": narr[len(emitted):]}, ensure_ascii=False)
                 yield f"data: {chunk}\n\n"
                 emitted = narr
-        if kaira_task is not None:
-            await kaira_task
         try:
             result = parse_beat_text("".join(buf))
         except (ValueError, json.JSONDecodeError):
@@ -458,7 +544,7 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
         if combat:
             _absorb_narration(s, result, illust_fallback or "ui_combat_bjorn_action")
         else:
-            _apply_delta(s, result)
+            _apply_delta(s, result, suppress_inventory=gave_item)
         final = _render(req.session_id, s).model_dump()
         yield f"event: done\ndata: {json.dumps(final, ensure_ascii=False)}\n\n"
 
