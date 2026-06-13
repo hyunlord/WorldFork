@@ -62,59 +62,38 @@ class TestParseBeatResult:
         r = parse_beat_result(
             {
                 "narration": "나는 도끼를 골랐다.",
-                "choices": [
-                    {"id": "a", "label": "돌격"},
-                    {"id": "b", "label": "관망"},
-                ],
                 "state_delta": {
-                    "flags": {"성인식": "완료"},
-                    "hp_change": -5,
                     "relationship_delta": {"카이라": 3},
-                    "inventory_add": ["양손도끼"],
-                    "scene_transition": "dungeon_entry",
+                    "inventory_add": ["행운의 부적"],
                 },
                 "speaker": "투르윈",
             }
         )
         assert r.narration == "나는 도끼를 골랐다."
-        assert len(r.choices) == 2 and r.choices[0].id == "a"
-        assert r.state_delta.flags == {"성인식": "완료"}
-        assert r.state_delta.hp_change == -5
+        # ★ GM은 서술만 — 관계/서사 아이템 델타만(flags/hp/choices 없음)
         assert r.state_delta.relationship_delta == {"카이라": 3}
-        assert r.state_delta.inventory_add == ["양손도끼"]
-        assert r.state_delta.scene_transition == "dungeon_entry"
+        assert r.state_delta.inventory_add == ["행운의 부적"]
         assert r.speaker == "투르윈"
 
     def test_missing_delta_safe_defaults(self) -> None:
-        r = parse_beat_result(
-            {"narration": "장면.", "choices": [{"id": "x", "label": "ㄱ"}]}
-        )
+        r = parse_beat_result({"narration": "장면."})
         assert isinstance(r.state_delta, GMStateDelta)
-        assert r.state_delta.hp_change == 0
-        assert r.state_delta.scene_transition is None
+        assert r.state_delta.relationship_delta == {}
+        assert r.state_delta.inventory_add == []
         assert r.speaker is None
-
-    def test_bad_choices_filtered(self) -> None:
-        r = parse_beat_result(
-            {
-                "narration": "n",
-                "choices": [{"id": "a", "label": "ok"}, {"id": "", "label": ""}, "junk"],
-                "state_delta": {},
-            }
-        )
-        assert len(r.choices) == 1  # 빈/이상 선택지 제거
 
 
 class TestParseBeatText:
     """스트리밍 종료 후 누적 텍스트 파싱(astream은 schema 가드 없음 → 관대 추출)."""
 
     def test_extracts_json_from_noisy_text(self) -> None:
-        noisy = '어쩌고 {"narration": "장면.", "choices": [{"id":"a","label":"ㄱ"},' \
-            '{"id":"b","label":"ㄴ"}], "state_delta": {"flags": {"k": "v"}}} 뒤꼬리'
+        noisy = (
+            '어쩌고 {"narration": "장면.", '
+            '"state_delta": {"relationship_delta": {"카이라": 2}}} 뒤꼬리'
+        )
         r = parse_beat_text(noisy)
         assert r.narration == "장면."
-        assert len(r.choices) == 2
-        assert r.state_delta.flags == {"k": "v"}
+        assert r.state_delta.relationship_delta == {"카이라": 2}
 
     def test_no_json_raises(self) -> None:
         import pytest
@@ -147,8 +126,7 @@ class TestGmBeatCall:
         client.generate_json.return_value = MagicMock(
             parsed={
                 "narration": "부족장이 나를 불렀다.",
-                "choices": [{"id": "axe", "label": "양손도끼"}, {"id": "sword", "label": "대검"}],
-                "state_delta": {"flags": {"성인식": "진행"}},
+                "state_delta": {"relationship_delta": {"카이라": 1}},
             }
         )
         result = gm_beat(
@@ -164,6 +142,6 @@ class TestGmBeatCall:
         )
         # schema 기반 구조화 호출(freeform 아님)
         _, kwargs = client.generate_json.call_args
-        assert "schema" in kwargs and kwargs["schema"]["required"]
-        assert result.choices[0].label == "양손도끼"
-        assert result.state_delta.flags == {"성인식": "진행"}
+        assert "schema" in kwargs and kwargs["schema"]["required"] == ["narration"]
+        assert result.narration == "부족장이 나를 불렀다."
+        assert result.state_delta.relationship_delta == {"카이라": 1}

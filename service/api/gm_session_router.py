@@ -40,6 +40,7 @@ from service.sim.opening_canon import (
     KAIRA_NAME,
     Beat,
     anchor_for,
+    beat_choices,
     kaira_present,
     next_beat,
 )
@@ -54,11 +55,10 @@ router = APIRouter(prefix="/api/gm", tags=["gm-narrative"])
 
 _HISTORY_MAX = 6  # GM 맥락용 최근 서술 보관 수
 
-# ★ 영구 세계(§6 PERSISTENT) — 세션을 넘어 유지(flags·관계). 새 런(start)이 이어받는다.
-#   소지금·인벤은 §6상 캐릭터 귀속(PER-RUN, 사망 시 소멸)이나 슬라이스엔 사망이 없어 함께 유지
-#   — 사망/세이브(§6) 구현 시 PER-RUN으로 재분류. 캐릭터 상태(hp/무기/비트/적)는 런마다 리셋.
+# ★ 영구 세계(§6 PERSISTENT) — 관계·world memory만 세션을 넘어 유지. 새 런(start)이 이어받는다.
+#   ★ PER-RUN(무기·인벤·소지금·빌드/진행 flag = run_flags)은 런마다 완전 리셋(§6 캐릭터 귀속).
+#   GM은 flags를 쓰지 않는다(코드 소관) — 빌드/rite 누적 버그 차단.
 _PERSISTENT_WORLD = WorldState()
-_PERSISTENT_INV = Inventory()
 
 
 def _new_kaira() -> Companion:
@@ -74,7 +74,8 @@ class _GMSession:
     hp: int = 120
     max_hp: int = 120
     weapon: str = ""
-    items: list[str] = field(default_factory=list)  # GM이 준 서사 아이템
+    items: list[str] = field(default_factory=list)  # GM이 준 서사 아이템(PER-RUN)
+    run_flags: dict[str, str] = field(default_factory=dict)  # ★ PER-RUN 진행/빌드 flag
     player_status: list[StatusEffect] = field(default_factory=list)  # 출혈 등
     foe: Foe | None = None  # 첫 조우 전투 적(내러티브 턴)
     history: list[str] = field(default_factory=list)
@@ -152,18 +153,14 @@ class GMRender(BaseModel):
 
 
 def _apply_delta(s: _GMSession, result: GMBeatResult) -> None:
-    """★ state_delta를 실제 세션 상태에 반영(장식 금지) — 이후 비트·서술에 영향.
+    """GM 서사 델타 반영 — ★ 관계(영구)·서사 아이템만. flags/HP/무기/전환은 코드 소관(GM 불가).
 
-    ★ Phase 2: 비트 전환은 LLM scene_transition이 아니라 코드 exit 조건(_advance_if_done)이
-    결정한다(모델 편차로 맴도는 문제 근절). 여기선 flags/HP/관계/아이템만 반영.
+    비트 전환은 코드 exit(_advance_if_done), HP/무기/소지금은 코드. GM은 서술 + 관계/아이템만.
     """
     d = result.state_delta
-    s.world.flags.update(d.flags)
-    if d.hp_change:
-        s.hp = max(0, min(s.max_hp, s.hp + d.hp_change))
     for name, delta in d.relationship_delta.items():
-        adjust_relationship(s.world, name, delta)
-    s.items.extend(d.inventory_add)
+        adjust_relationship(s.world, name, delta)  # 관계는 영구(PERSISTENT)
+    s.items.extend(d.inventory_add)  # PER-RUN 서사 아이템
     if result.illustration is not None:
         s.last_illustration = result.illustration
     if result.narration:
@@ -216,12 +213,14 @@ def _advance_if_done(s: _GMSession, action: str, intent: IntentMatch | None) -> 
             w in action for w in _ENTER_WORDS
         )
         if entered:
-            s.world.flags["entered_floor1"] = "true"
+            s.run_flags["entered_floor1"] = "true"
             done = True
     elif s.beat is Beat.FIRST_ENCOUNTER:
-        done = s.world.flags.get("first_foe_resolved") == "true"  # Phase 3 전투가 설정
+        done = s.run_flags.get("first_foe_resolved") == "true"  # 전투가 설정
     # AFTERMATH = 종착
     if done:
+        if s.beat is Beat.COMING_OF_AGE:
+            s.run_flags["rite_passed"] = "true"  # 코드가 성인식 완료를 기록(GM 아님)
         nxt = next_beat(s.beat)
         if nxt is not None:
             s.beat = nxt
@@ -236,14 +235,15 @@ def _render(sid: str, s: _GMSession) -> GMRender:
         session_id=sid,
         beat=s.beat.value,
         narration=r.narration if r else "",
-        choices=[ChoiceView(id=c.id, label=c.label) for c in (r.choices if r else [])],
+        # ★ 선택지는 코드 정의(즉시·결정적·캐논) — LLM 생성 아님.
+        choices=[ChoiceView(id=c.id, label=c.label) for c in beat_choices(s.beat)],
         speaker=r.speaker if r else None,
         hp=s.hp,
         max_hp=s.max_hp,
         weapon=s.weapon,
         stones=s.inv.stones,
         items=list(s.items),
-        flags=dict(s.world.flags),
+        flags=dict(s.run_flags),
         relationships=dict(s.world.relationships),
         party=[
             MemberView(
@@ -288,7 +288,7 @@ def _run_beat(s: _GMSession, action: str) -> None:
         max_hp=s.max_hp,
         weapon=s.weapon,
         stones=s.inv.stones,
-        flags=dict(s.world.flags),
+        flags=dict(s.run_flags),
         history="\n".join(s.history),
         action=action,
     )
@@ -302,7 +302,8 @@ async def start() -> GMRender:
     비트1(성인식) GM 장면을 연다. world/inv는 영구 싱글톤 공유 → 세션을 넘어 유지(§6).
     """
     sid = _new_id()
-    s = _GMSession(world=_PERSISTENT_WORLD, inv=_PERSISTENT_INV)
+    # 영구 세계(관계)만 이어받고, PER-RUN(무기·인벤·소지금·run_flags·HP)은 fresh default로 리셋.
+    s = _GMSession(world=_PERSISTENT_WORLD)
     _SESSIONS[sid] = s
     _run_beat(s, action="(성인식 장면을 연다)")
     return _render(sid, s)
@@ -315,10 +316,10 @@ class ActRequest(BaseModel):
 
 
 def _action_text(s: _GMSession, req: ActRequest) -> str:
-    """입력(선택지/자유) → 행동 문자열. 비면 400."""
+    """입력(선택지/자유) → 행동 문자열. 선택지는 현 비트 코드 선택지에서 라벨 조회. 비면 400."""
     action = req.free_text.strip()
-    if not action and req.choice_id and s.last is not None:
-        chosen = next((c for c in s.last.choices if c.id == req.choice_id), None)
+    if not action and req.choice_id:
+        chosen = next((c for c in beat_choices(s.beat) if c.id == req.choice_id), None)
         action = chosen.label if chosen else req.choice_id
     if not action:
         raise HTTPException(status_code=400, detail="choice_id 또는 free_text 필요")
@@ -358,7 +359,7 @@ def _apply_combat(s: _GMSession, action: str) -> RoundResult:
     s.player_status = rr.player_status
     s.last_reaction = rr.kaira_reaction
     if rr.foe_defeated:
-        s.world.flags["first_foe_resolved"] = "true"
+        s.run_flags["first_foe_resolved"] = "true"
         s.foe = None
         _advance_if_done(s, action, None)  # → AFTERMATH
     return rr
@@ -382,7 +383,7 @@ def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
         max_hp=s.max_hp,
         weapon=s.weapon,
         stones=s.inv.stones,
-        flags=dict(s.world.flags),
+        flags=dict(s.run_flags),
         history="\n".join(s.history),
         action=action,
         confirmed=rr.lines,
@@ -436,7 +437,7 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
             max_hp=s.max_hp,
             weapon=s.weapon,
             stones=s.inv.stones,
-            flags=dict(s.world.flags),
+            flags=dict(s.run_flags),
             history="\n".join(s.history),
             action=action,
             confirmed=confirmed,

@@ -1,8 +1,8 @@
-"""AI GM 슬라이스 Phase 1·2 — /api/gm 세션 라우터 테스트.
+"""AI GM 슬라이스 — /api/gm 세션 라우터 테스트.
 
-start → 비트1 구조화 출력. act → ★ 혼합 입력(선택지/자유) + state_delta 실제 구동 +
-★ 코드 구동 비트 전환(LLM 의존 폐기) + ★ 카이라 성향 반응 노출. LLM은 라우터 네임스페이스
-(gm_beat/interpret_command/classify_intent)를 patch해 결정적으로.
+★ 코드 권위: 선택지=코드 정의(beat_choices), 비트 전환=코드 exit, 무기/HP/소지금=코드.
+GM은 서술만(flags 지어내기 금지 → 빌드/rite 누적 버그 차단). 영구=관계만, PER-RUN=무기/인벤/
+run_flags(런마다 리셋). LLM은 라우터 네임스페이스(gm_beat/interpret_command/resolve_round)를 patch.
 """
 
 from unittest.mock import patch
@@ -10,16 +10,12 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from service.api.gm_session_router import (
-    _PERSISTENT_INV,
-    _PERSISTENT_WORLD,
-    _SESSIONS,
-    router,
-)
+from service.api.gm_session_router import _PERSISTENT_WORLD, _SESSIONS, router
 from service.api.schemas.freeform_action import IntentMatch
 from service.sim.disposition import DispoAction
 from service.sim.disposition_command import CommandReaction, CommandResponse
-from service.sim.narrative_gm import GMBeatResult, GMChoice, GMStateDelta
+from service.sim.narrative_combat import RoundResult
+from service.sim.narrative_gm import GMBeatResult, GMStateDelta
 
 
 def _app() -> FastAPI:
@@ -30,92 +26,57 @@ def _app() -> FastAPI:
 
 def _client() -> TestClient:
     _SESSIONS.clear()
-    # 영구 세계 격리(세션 간 누수 방지) — 테스트가 싱글톤을 직접 비운다.
+    # 영구 세계(관계)만 격리 — PER-RUN(인벤/무기/run_flags)은 세션마다 fresh라 리셋 불필요.
     _PERSISTENT_WORLD.flags.clear()
     _PERSISTENT_WORLD.npc_memories.clear()
     _PERSISTENT_WORLD.relationships.clear()
-    _PERSISTENT_INV.stones = 0
-    _PERSISTENT_INV.mana_stones.clear()
-    _PERSISTENT_INV.essences.clear()
     return TestClient(_app())
 
 
-def _beat(
-    narration: str = "「성인식이 시작됩니다.」 부족장이 나를 호명했다.",
-    flags: dict[str, str] | None = None,
-    hp_change: int = 0,
-    rel: dict[str, int] | None = None,
-) -> GMBeatResult:
+def _beat(narration: str = "「성인식이 시작됩니다.」 부족장이 나를 호명했다.",
+          rel: dict[str, int] | None = None) -> GMBeatResult:
+    # ★ GM은 서술만 — choices/flags/hp 없음. 관계 델타만 선택적.
     return GMBeatResult(
         narration=narration,
-        choices=[GMChoice("axe", "양손도끼를 든다"), GMChoice("sword", "대검을 든다")],
-        state_delta=GMStateDelta(
-            flags=flags or {}, hp_change=hp_change, relationship_delta=rel or {}
-        ),
+        state_delta=GMStateDelta(relationship_delta=rel or {}),
     )
 
 
-def _reaction() -> CommandResponse:
-    return CommandResponse(
-        CommandReaction.ADAPT,
-        DispoAction.CHARGE,
-        "신중함은 사치다",
-        "물러서다니, 내 도끼가 먼저 나선다!",
-    )
+def _reaction(action: DispoAction = DispoAction.CHARGE) -> CommandResponse:
+    return CommandResponse(CommandReaction.ADAPT, action, "신중함은 사치", "내 도끼가 먼저다!")
 
 
-def test_start_opens_beat1_no_companion_reaction() -> None:
+def test_start_code_choices_no_gm_flags() -> None:
     c = _client()
-    started = _beat(flags={"성인식": "진행"})
-    with patch("service.api.gm_session_router.gm_beat", return_value=started):
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         body = c.post("/api/gm/session/start").json()
     assert body["beat"] == "coming_of_age"
-    assert len(body["choices"]) == 2
-    assert body["flags"]["성인식"] == "진행"  # state_delta 반영
-    assert body["party"][0]["name"] == "카이라"  # 변환명(화면 unmask)
+    # ★ 코드 정의 선택지(즉시·결정적) — 원작 무기군 3개, id=axe/hammer/greatsword
+    ids = {ch["id"] for ch in body["choices"]}
+    assert ids == {"axe", "hammer", "greatsword"}
+    assert body["flags"] == {}  # ★ GM이 flag 안 만듦(오염 0)
+    assert body["weapon"] == "" and body["stones"] == 0  # PER-RUN 초기값
     assert body["companion_reaction"] is None  # 성인식엔 카이라 미동행
 
 
-def test_weapon_choice_advances_and_reacts() -> None:
+def test_weapon_choice_commits_and_advances() -> None:
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
-    # 무기 선택 → 무기 확정 + 코드 전환(coming_of_age→dungeon_entry) + 카이라 반응(동행 시작)
-    dungeon_beat = _beat(narration="수정이 빛나는 미궁 1층.", hp_change=-3, rel={"카이라": 5})
-    with patch("service.api.gm_session_router.gm_beat", return_value=dungeon_beat), patch(
+    rel_beat = _beat(rel={"카이라": 5})
+    with patch("service.api.gm_session_router.gm_beat", return_value=rel_beat), patch(
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ):
-        body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"}
-        ).json()
-    assert body["weapon"] == "양손도끼"  # 결정적 확정
-    assert body["beat"] == "dungeon_entry"  # ★ 코드 전환(무기 확정 = 성인식 완료)
-    assert body["hp"] == 117  # state_delta hp_change -3 구동
-    assert body["relationships"]["카이라"] == 5
-    # ★ 카이라 성향 반응 노출(차별점)
-    cr = body["companion_reaction"]
-    assert cr is not None and cr["reaction"] == "adapt" and cr["action"] == "charge"
-    assert "도끼" in cr["speech"]
+        body = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"}).json()
+    assert body["weapon"] == "양손도끼"  # 결정적 확정(코드)
+    assert body["beat"] == "dungeon_entry"  # 코드 전환
+    assert body["flags"].get("rite_passed") == "true"  # 코드가 성인식 완료 기록
+    assert body["relationships"]["카이라"] == 5  # GM 관계 델타(영구)
+    # 무기 중복 금지 — 한 무기만
+    assert "대검" not in body["weapon"] and "방패" not in str(body["items"])
 
 
-def test_free_input_mechanical_advances_dungeon() -> None:
-    # 미궁 진입 비트에서 자유 입력 "북쪽으로 간다" → mechanical move → entered → first_encounter
-    c = _client()
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
-        sid = c.post("/api/gm/session/start").json()["session_id"]
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
-        "service.api.gm_session_router.interpret_command", return_value=_reaction()
-    ):
-        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})  # →dungeon
-        body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "free_text": "북쪽으로 간다"}
-        ).json()
-    assert _SESSIONS[sid].world.flags.get("entered_floor1") == "true"
-    assert body["beat"] == "first_encounter"  # ★ 코드 전환(진입 의도)
-
-
-def test_first_encounter_no_advance_without_kill() -> None:
-    # 첫 조우 → 적 처치(first_foe_resolved) 전엔 코드 전환 안 함(Phase 3가 설정).
+def test_free_input_advances_to_encounter_and_spawns_foe() -> None:
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
@@ -123,71 +84,87 @@ def test_first_encounter_no_advance_without_kill() -> None:
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ):
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
-        c.post("/api/gm/session/act", json={"session_id": sid, "free_text": "북쪽으로 간다"})
         body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "free_text": "도끼로 벤다"}
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "미궁 깊숙이 나아간다"}
         ).json()
-    assert body["beat"] == "first_encounter"  # 처치 전 → 그대로
+    assert body["beat"] == "first_encounter"
+    assert body["foe"] is not None and body["foe"]["name"] == "고블린"
 
 
-def test_free_input_unclassified_uses_classify_intent() -> None:
-    # mechanical 미분류 자유 입력 → classify_intent(LLM, patch) 호출됨(장면 내 해석).
+def test_combat_round_survive_stays() -> None:
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
-    fake_intent = IntentMatch(matched_action=None, confidence=0.3, reason="자유")
+    survive = RoundResult(
+        lines=["투르윈의 양손도끼가 고블린에게 16 피해"], player_hp=110, player_status=[],
+        foe_hp=20, kaira_reaction=_reaction(), foe_defeated=False, drops=[],
+        illustration="ui_combat_monster_goblin",
+    )
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
-        "service.api.gm_session_router.classify_intent", return_value=fake_intent
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ), patch("service.api.gm_session_router.resolve_round", return_value=survive):
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+        body = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "charge"}).json()
+    assert body["beat"] == "first_encounter"  # 처치 전 → 그대로
+    assert body["hp"] == 110  # 코드 판정 반영
+
+
+def test_combat_kill_to_aftermath_with_drop() -> None:
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+    killed = RoundResult(
+        lines=["「고블린을 쓰러뜨렸다.」"], player_hp=120, player_status=[], foe_hp=0,
+        kaira_reaction=_reaction(), foe_defeated=True,
+        drops=["「9등급 마석 획득 — +20 스톤」"], illustration="ui_combat_vfx_axe_strike",
+    )
+
+    def _kill(**kw: object) -> RoundResult:
+        inv = kw["inv"]
+        inv.stones += 20  # type: ignore[union-attr,operator]
+        return killed
+
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ), patch("service.api.gm_session_router.resolve_round", side_effect=_kill):
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+        body = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "charge"}).json()
+    assert body["beat"] == "aftermath"  # ★ 처치 → 코드 전환(4비트 완결)
+    assert body["foe"] is None and body["stones"] >= 20
+
+
+def test_persistent_relationships_perrun_reset() -> None:
+    # ★ 관계는 영구(이월), 무기·run_flags·소지금은 PER-RUN(리셋).
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid1 = c.post("/api/gm/session/start").json()["session_id"]
+    rel_beat = _beat(rel={"카이라": 7})
+    with patch("service.api.gm_session_router.gm_beat", return_value=rel_beat), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        c.post("/api/gm/session/act", json={"session_id": sid1, "choice_id": "axe"})
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        body2 = c.post("/api/gm/session/start").json()
+    assert body2["relationships"].get("카이라") == 7  # 관계 이월(영구)
+    assert body2["weapon"] == "" and body2["flags"] == {}  # PER-RUN 리셋(무기·진행 flag)
+    assert body2["beat"] == "coming_of_age"
+
+
+def test_free_input_unclassified_uses_classify_intent() -> None:
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+    fake = IntentMatch(matched_action=None, confidence=0.3, reason="자유")
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.classify_intent", return_value=fake
     ) as ci:
         c.post(
             "/api/gm/session/act",
             json={"session_id": sid, "free_text": "부족장에게 농담을 던진다"},
         )
-    ci.assert_called_once()  # mechanical 미분류 → LLM 해석 fallback
-
-
-def test_combat_round_then_aftermath() -> None:
-    # 첫 조우 진입 → 전투 라운드(코드 판정) → 처치 → 마무리(AFTERMATH) 전환 + 드롭.
-    c = _client()
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
-        sid = c.post("/api/gm/session/start").json()["session_id"]
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
-        "service.api.gm_session_router.interpret_command", return_value=_reaction()
-    ):
-        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})  # →dungeon
-        body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "free_text": "미궁으로 들어간다"}
-        ).json()
-    assert body["beat"] == "first_encounter"
-    assert body["foe"] is not None and body["foe"]["name"] == "고블린"  # 적 등장
-    # 전투 라운드 — resolve_round patch(처치 결과)로 결정적
-    from service.sim.narrative_combat import RoundResult
-
-    killed = RoundResult(
-        lines=["투르윈의 양손도끼가 고블린에게 40 피해 (치명타!)", "「고블린을 쓰러뜨렸다.」"],
-        player_hp=120,
-        player_status=[],
-        foe_hp=0,
-        kaira_reaction=_reaction(),
-        foe_defeated=True,
-        drops=["「9등급 마석 획득 — +20 스톤」"],
-        illustration="ui_combat_vfx_axe_strike",
-    )
-
-    def _kill(**kw: object) -> RoundResult:
-        kw["inv"].stones += 20  # type: ignore[union-attr,operator]
-        return killed
-
-    with patch("service.api.gm_session_router.resolve_round", side_effect=_kill), patch(
-        "service.api.gm_session_router.gm_beat", return_value=_beat(narration="고블린이 쓰러졌다.")
-    ):
-        body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "free_text": "도끼로 벤다"}
-        ).json()
-    assert body["beat"] == "aftermath"  # ★ 처치 → 코드 전환(4비트 완결)
-    assert body["foe"] is None
-    assert body["stones"] >= 20  # 드롭 반영
-    assert body["illustration"] == "ui_combat_vfx_axe_strike"
+    ci.assert_called_once()
 
 
 def test_act_requires_input() -> None:
@@ -195,24 +172,6 @@ def test_act_requires_input() -> None:
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
     assert c.post("/api/gm/session/act", json={"session_id": sid}).status_code == 400
-
-
-def test_persistent_world_across_sessions() -> None:
-    # ★ 영구 세계(§6) — 새 런(start)이 직전 세션의 flags·관계·소지금을 이어받는다.
-    c = _client()
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
-        sid1 = c.post("/api/gm/session/start").json()["session_id"]
-    act_delta = _beat(flags={"성인식": "완료"}, rel={"카이라": 7})
-    with patch("service.api.gm_session_router.gm_beat", return_value=act_delta), patch(
-        "service.api.gm_session_router.interpret_command", return_value=_reaction()
-    ):
-        c.post("/api/gm/session/act", json={"session_id": sid1, "choice_id": "axe"})
-    # 새 세션(런) — 캐릭터는 리셋되지만 영구 세계는 유지
-    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
-        body2 = c.post("/api/gm/session/start").json()
-    assert body2["flags"].get("성인식") == "완료"  # 영구 flag 유지
-    assert body2["relationships"].get("카이라") == 7  # 관계 유지
-    assert body2["beat"] == "coming_of_age"  # 캐릭터(런) 상태는 리셋
 
 
 def test_unknown_session_404() -> None:

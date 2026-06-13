@@ -34,11 +34,11 @@ _GM_SYSTEM = (
     "★ 플레이어 입력이 현 장면에서 불가능하거나 장면 밖이면(예: 동굴에서 갑자기 왕을 만난다) "
     "막지 말고, 그 시도를 장면 안의 결과로 받아 재유도한다(장면 밖으로 끌려가지 않음).\n\n"
     "# 출력 계약 (엄수)\n"
+    "★ 너는 '서술'만 한다. 선택지·상태 수치·무기/아이템 보유·진행 단계는 코드가 정한다 — "
+    "지어내지 마라(특히 무기·장비·성인식 완료 여부). 주어진 [무기]·[상태]에만 맞춰 묘사한다.\n"
     "- narration: 장면 서술(2~5문장, 전투·중대 장면은 더 길게 허용).\n"
-    "- choices: 서로 결과가 다른 선택지 2~4개(겉만 다른 선택 금지). 각 {{id, label}}.\n"
-    "- state_delta: 이 장면이 실제로 바꾸는 상태. flags(키:값 문자열), hp_change(정수), "
-    "relationship_delta(이름:정수), inventory_add(문자열 배열), scene_transition(다음 비트로 "
-    "넘어갈 때만 그 비트명). ★ 장식 금지 — 실제 변화가 있을 때만 채운다.\n"
+    "- state_delta: 관계 변화만 선택적으로. relationship_delta(이름:정수), "
+    "inventory_add(서사상 자연히 얻은 물건만). ★ flags·hp·무기는 넣지 마라(코드 소관).\n"
     "- speaker: 핵심 화자 이름(포트레이트용, 없으면 생략).\n"
     "- illustration: 이 순간에 띄울 스틸(아래 목록 중 하나만, 없으면 생략): {illustrations}."
 )
@@ -74,33 +74,17 @@ _GM_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "narration": {"type": "string", "minLength": 20, "maxLength": 1600},
-        "choices": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 4,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "label": {"type": "string"},
-                },
-                "required": ["id", "label"],
-            },
-        },
         "state_delta": {
             "type": "object",
             "properties": {
-                "flags": {"type": "object"},
-                "hp_change": {"type": "integer"},
                 "relationship_delta": {"type": "object"},
                 "inventory_add": {"type": "array", "items": {"type": "string"}},
-                "scene_transition": {"type": "string"},
             },
         },
         "speaker": {"type": "string"},
         "illustration": {"type": "string"},
     },
-    "required": ["narration", "choices", "state_delta"],
+    "required": ["narration"],
 }
 
 # 비트별 토큰 캡 — 구조화 출력(narration+choices+state_delta JSON 봉투)은 평문 서술보다
@@ -118,30 +102,18 @@ def _max_tokens(beat: Beat) -> int:
 
 
 @dataclass
-class GMChoice:
-    """선택지 — 서로 결과가 다른 행동."""
-
-    id: str
-    label: str
-
-
-@dataclass
 class GMStateDelta:
-    """이 비트가 구동하는 실제 상태 변화(장식 아님)."""
+    """GM이 줄 수 있는 서사 변화 — 관계·서사 아이템만(★ flags·hp·무기는 코드 소관)."""
 
-    flags: dict[str, str] = field(default_factory=dict)
-    hp_change: int = 0
     relationship_delta: dict[str, int] = field(default_factory=dict)
     inventory_add: list[str] = field(default_factory=list)
-    scene_transition: str | None = None
 
 
 @dataclass
 class GMBeatResult:
-    """GM 한 비트 출력 — 서술 + 선택지 + 상태 변화(+화자·일러스트)."""
+    """GM 한 비트 출력 — 서술(+관계/아이템 델타·화자·일러스트). 선택지·진행은 코드."""
 
     narration: str
-    choices: list[GMChoice]
     state_delta: GMStateDelta
     speaker: str | None = None
     illustration: str | None = None  # 띄울 스틸 키(_ILLUSTRATIONS 검증 통과만)
@@ -155,33 +127,18 @@ def parse_beat_result(parsed: dict[str, Any]) -> GMBeatResult:
     """GM JSON → 타입드 결과. 누락·이상치는 안전 기본값으로 좁힌다(freeform 방지)."""
     raw_delta = parsed.get("state_delta") or {}
     delta = GMStateDelta(
-        flags={
-            str(k): str(v) for k, v in (raw_delta.get("flags") or {}).items()
-        },
-        hp_change=_coerce_int(raw_delta.get("hp_change")),
         relationship_delta={
             str(k): _coerce_int(v)
             for k, v in (raw_delta.get("relationship_delta") or {}).items()
         },
         inventory_add=[str(x) for x in (raw_delta.get("inventory_add") or [])],
-        scene_transition=(
-            str(raw_delta["scene_transition"])
-            if raw_delta.get("scene_transition")
-            else None
-        ),
     )
-    choices = [
-        GMChoice(str(c["id"]), str(c["label"]))
-        for c in (parsed.get("choices") or [])
-        if isinstance(c, dict) and c.get("id") and c.get("label")
-    ]
     raw_illust = parsed.get("illustration")
     illustration = (
         str(raw_illust) if raw_illust and str(raw_illust) in _ILLUSTRATIONS else None
     )
     return GMBeatResult(
         narration=str(parsed.get("narration", "")).strip(),
-        choices=choices,
         state_delta=delta,
         speaker=str(parsed["speaker"]) if parsed.get("speaker") else None,
         illustration=illustration,

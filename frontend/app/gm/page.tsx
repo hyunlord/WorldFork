@@ -207,12 +207,10 @@ export default function GMPage() {
                 </div>
               )}
 
-              {(Object.keys(state.flags).length > 0 || state.items.length > 0) && (
+              {/* ★ FIX B — raw flag(weapon_choice/rite 등 내부 키) 표시 금지. 깨끗한 소지품만. */}
+              {state.items.length > 0 && (
                 <div style={{ marginTop: 12, borderTop: "1px solid #2a2a3a", paddingTop: 8, fontSize: 11, color: "#999" }}>
-                  {state.items.length > 0 && <div>소지품: {state.items.map(unmaskIp).join(", ")}</div>}
-                  {Object.entries(state.flags).map(([k, v]) => (
-                    <div key={k}>{unmaskIp(k)}: {unmaskIp(v)}</div>
-                  ))}
+                  소지품: {state.items.map(unmaskIp).join(", ")}
                 </div>
               )}
             </aside>

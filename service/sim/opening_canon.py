@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from service.sim.disposition import Disposition
+from service.util.korean import eul_reul
 
 # 변환명(화면 unmask: 투르윈→비요른, 카이라→아이나르).
 PLAYER_NAME = "투르윈"
@@ -127,6 +128,48 @@ COMING_OF_AGE_WEAPONS: tuple[WeaponChoice, ...] = (
 
 # 첫 조우 몹(몹명은 IP 무관 — 일반 판타지 명칭).
 FIRST_FOES: tuple[str, ...] = ("고블린", "칼날늑대")
+
+
+@dataclass(frozen=True)
+class BeatChoice:
+    """비트 선택지 — ★ 코드 정의(LLM 생성 아님): 즉시 표시·결정적·캐논 grounding."""
+
+    id: str
+    label: str
+
+
+# 비전투/전투 스캐폴드 선택지 — 각 선택이 실제 state_delta·전환을 일으킨다(무의미 금지).
+# 성인식은 무기군(COMING_OF_AGE_WEAPONS, id=axe/hammer/greatsword)과 동기화(확정 정합).
+_DUNGEON_CHOICES: tuple[BeatChoice, ...] = (
+    BeatChoice("advance", "미궁 깊숙이 나아간다"),  # 진입 → 첫 조우로 전환
+    BeatChoice("scout", "벽의 수정과 통로를 살핀다"),
+    BeatChoice("guard", "카이라에게 선두 경계를 맡기고 전진한다"),
+)
+_ENCOUNTER_CHOICES: tuple[BeatChoice, ...] = (
+    BeatChoice("charge", "도끼로 정면 돌격한다"),
+    BeatChoice("flank", "카이라와 좌우로 협공한다"),
+    BeatChoice("careful", "거리를 두고 빈틈을 노린다"),
+    BeatChoice("defend", "방어 태세로 적의 공격을 받아친다"),
+)
+_AFTERMATH_CHOICES: tuple[BeatChoice, ...] = (
+    BeatChoice("loot", "쓰러진 적의 전리품을 챙긴다"),
+    BeatChoice("talk", "카이라와 한마디 나눈다"),
+    BeatChoice("descend", "미궁 더 깊은 곳으로 향한다"),
+)
+
+
+def beat_choices(beat: Beat) -> tuple[BeatChoice, ...]:
+    """비트별 코드 선택지 — 즉시 표시(LLM 대기 없음). 성인식은 무기군과 동기화."""
+    if beat is Beat.COMING_OF_AGE:
+        return tuple(
+            BeatChoice(w.id, f"{w.label}{eul_reul(w.label)} 든다 — {w.build}")
+            for w in COMING_OF_AGE_WEAPONS
+        )
+    if beat is Beat.DUNGEON_ENTRY:
+        return _DUNGEON_CHOICES
+    if beat is Beat.FIRST_ENCOUNTER:
+        return _ENCOUNTER_CHOICES
+    return _AFTERMATH_CHOICES
 
 
 def build_anchor_prompt(beat: Beat, *, weapon: str = "") -> str:
