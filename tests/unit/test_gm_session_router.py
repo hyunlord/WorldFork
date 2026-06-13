@@ -84,8 +84,9 @@ def test_free_input_advances_to_encounter_and_spawns_foe() -> None:
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ):
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        # ★ mechanical 분류 가능 입력(방위+이동) → 0토큰, classify_intent(9B 서버) 미의존
         body = c.post(
-            "/api/gm/session/act", json={"session_id": sid, "free_text": "미궁 깊숙이 나아간다"}
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "북쪽으로 나아간다"}
         ).json()
     assert body["beat"] == "first_encounter"
     assert body["foe"] is not None and body["foe"]["name"] == "고블린"

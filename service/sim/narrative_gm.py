@@ -8,13 +8,15 @@ state_delta(실제 상태를 구동)와 선택지 2~4개를 낸다. 모델은 pi
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
 from core.llm.client import Prompt
 from core.llm.local_client import LocalLLMClient, pivotal_gm_client
-from service.sim.opening_canon import Beat, build_anchor_prompt
+from service.sim.opening_canon import Beat, anchor_for, build_anchor_prompt
+from service.sim.rag_retrieval import get_grounding
 
 _GM_SYSTEM = (
     "# 역할\n"
@@ -26,6 +28,7 @@ _GM_SYSTEM = (
     "시스템 고지는 낫표 「」 합쇼체로 쓴다(예: 「성인식이 시작됩니다.」).\n\n"
     "# 캐논 고정\n"
     "아래 앵커만 근거로 삼는다. 근거 없는 새 고유명사·설정 확정은 금지.\n{anchor}\n\n"
+    "{grounding}"
     "# 끌개\n"
     "[목표]를 향해 부드럽게 견인하되 강제하지 않는다. 플레이어가 다른 길을 택하면 막지 말고 "
     "자연스럽게 이어 가되, 적절한 때 [목표]가 다른 형태로 다시 다가오게 한다.\n"
@@ -69,6 +72,57 @@ _CONFIRMED_TEMPLATE = (
     "## 확정 결과 (★ 이미 일어났다 — 그대로 서술만, 새 수치·아이템·결과를 만들지 마라)\n"
     "{lines}\n\n"
 )
+
+# A2.3 — RAG 원작 참조 주입 블록(passages 있을 때만). 캐논 앵커와 함께 배경·디테일 일관성용.
+_GROUNDING_TEMPLATE = (
+    "# 원작 참조 (배경·톤·디테일 일관성용 — ★ 복붙 금지, 새 고유명사 날조 금지)\n"
+    "아래는 원작의 관련 대목이다. 세계·분위기·구체 디테일을 일관되게 하는 참고로만 쓰고, "
+    "반드시 네 말로 새로 서술하라. ★ 현재 상태(플레이어 선택으로 갈린)와 충돌하면 현재 상태가 "
+    "우선 — 참조는 배경·디테일에만 쓴다.\n{refs}\n\n"
+)
+
+# 오프닝 비트의 원작 검색 범위·예산. 청크 보일러플레이트(URL·회차 헤더) 제거.
+_OPENING_EPISODE_RANGE = (1, 20)
+_GROUNDING_TOP_K = 3
+_GROUNDING_CHAR_BUDGET = 1000  # ~400토큰(한국어) 근사 — beat 캡 내
+_URL_RE = re.compile(r"https?://\S+")
+_WORK_HEADER_RE = re.compile(r"게임 속 .{0,24}?살아남기\s*-?\s*\d*\s*화?")
+_CHAPTER_HEADER_RE = re.compile(r"\d+\s*화\s*[^\n]{0,30}?\(\d+\)")
+
+
+def _clean_passage(text: str) -> str:
+    """검색 passage 청소 — 사이트 URL·작품 회차 헤더·메타 제거(서술 노이즈 차단)."""
+    text = _URL_RE.sub("", text)
+    text = _WORK_HEADER_RE.sub("", text)
+    text = _CHAPTER_HEADER_RE.sub("", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _grounding_block(beat: Beat, action: str) -> str:
+    """현 장면 컨텍스트로 RAG 검색 → 청소·예산 절단 → '# 원작 참조' 블록(없으면 빈 문자열).
+
+    ★ get_grounding의 정식 소비처(GM). passages는 이미 마스킹(변환명) — prompt/로그 원작명 0.
+    """
+    scene = anchor_for(beat).scene
+    query = f"{scene} {action}".strip()
+    passages = get_grounding(
+        query, episode_range=_OPENING_EPISODE_RANGE, top_k=_GROUNDING_TOP_K
+    )
+    refs: list[str] = []
+    total = 0
+    for p in passages:
+        cleaned = _clean_passage(p.text)
+        if len(cleaned) < 10:
+            continue
+        if total + len(cleaned) > _GROUNDING_CHAR_BUDGET:
+            cleaned = cleaned[: max(0, _GROUNDING_CHAR_BUDGET - total)]
+        if not cleaned:
+            break
+        refs.append(f"- {cleaned}")
+        total += len(cleaned)
+        if total >= _GROUNDING_CHAR_BUDGET:
+            break
+    return _GROUNDING_TEMPLATE.format(refs="\n".join(refs)) if refs else ""
 
 _GM_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -169,6 +223,7 @@ def build_gm_prompt(
     return Prompt(
         system=_GM_SYSTEM.format(
             anchor=build_anchor_prompt(beat, weapon=weapon),
+            grounding=_grounding_block(beat, action),  # ★ A2.3 RAG 원작 참조
             illustrations=", ".join(sorted(_ILLUSTRATIONS)),
         ),
         user=_GM_USER.format(

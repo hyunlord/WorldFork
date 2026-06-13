@@ -4,10 +4,11 @@
 gm_beat가 client.generate_json을 schema로 호출하는지(freeform 아님). LLM은 mock.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from service.sim.narrative_gm import (
     GMStateDelta,
+    build_gm_prompt,
     extract_narration,
     gm_beat,
     parse_beat_result,
@@ -24,6 +25,7 @@ from service.sim.opening_canon import (
     next_beat,
     parse_beat,
 )
+from service.sim.rag_retrieval import Passage
 
 
 class TestOpeningCanon:
@@ -129,19 +131,69 @@ class TestGmBeatCall:
                 "state_delta": {"relationship_delta": {"카이라": 1}},
             }
         )
-        result = gm_beat(
-            Beat.COMING_OF_AGE,
-            hp=120,
-            max_hp=120,
-            weapon="",
-            stones=0,
-            flags={},
-            history="",
-            action="(성인식)",
-            client=client,
-        )
+        # ★ get_grounding patch — 유닛 테스트에서 bge-m3 로드 회피(GPU 무관·결정적)
+        with patch("service.sim.narrative_gm.get_grounding", return_value=[]):
+            result = gm_beat(
+                Beat.COMING_OF_AGE,
+                hp=120,
+                max_hp=120,
+                weapon="",
+                stones=0,
+                flags={},
+                history="",
+                action="(성인식)",
+                client=client,
+            )
         # schema 기반 구조화 호출(freeform 아님)
         _, kwargs = client.generate_json.call_args
         assert "schema" in kwargs and kwargs["schema"]["required"] == ["narration"]
         assert result.narration == "부족장이 나를 불렀다."
         assert result.state_delta.relationship_delta == {"카이라": 1}
+
+
+class TestGroundingInjection:
+    """A2.3 — RAG 원작 참조 주입 + 보일러플레이트 청소(get_grounding mock, GPU 무관)."""
+
+    def test_grounding_block_injected_and_cleaned(self) -> None:
+        passages = [
+            Passage(
+                episode=4,
+                # 보일러플레이트(작품 헤더·URL) + 실제 디테일
+                text=(
+                    "게임 속 투르윈으로 살아남기-4화 https://ntk01.com/x "
+                    "벽의 수정이 광원 역할을 한다"
+                ),
+                score=0.62,
+            ),
+        ]
+        with patch("service.sim.narrative_gm.get_grounding", return_value=passages):
+            prompt = build_gm_prompt(
+                Beat.DUNGEON_ENTRY,
+                hp=120,
+                max_hp=120,
+                weapon="양손도끼",
+                stones=0,
+                flags={},
+                history="",
+                action="미궁 깊숙이 나아간다",
+            )
+        sys = prompt.system
+        assert "# 원작 참조" in sys  # 블록 주입
+        assert "벽의 수정이 광원 역할을 한다" in sys  # 핵심 디테일 보존
+        assert "ntk01.com" not in sys  # URL 청소
+        assert "살아남기-4화" not in sys  # 작품 회차 헤더 청소
+        assert "복붙 금지" in sys and "현재 상태가 " in sys  # GM 지시 반영
+
+    def test_no_grounding_omits_block(self) -> None:
+        with patch("service.sim.narrative_gm.get_grounding", return_value=[]):
+            prompt = build_gm_prompt(
+                Beat.COMING_OF_AGE,
+                hp=120,
+                max_hp=120,
+                weapon="",
+                stones=0,
+                flags={},
+                history="",
+                action="(성인식)",
+            )
+        assert "# 원작 참조" not in prompt.system  # passages 없으면 블록 생략
