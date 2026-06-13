@@ -31,12 +31,14 @@ _BERSERK_CRIT = 80
 
 @dataclass
 class TickEnemy:
-    """틱 루프용 최소 적 — 위치/HP/공격력(반격은 enemy_step, combat primitive 재사용)."""
+    """틱 루프용 최소 적 — 위치/HP/공격력 + 처치 드롭(마석 등급/정수, Phase 3)."""
 
     name: str
     pos: tuple[int, int]
     hp: int = 30
     attack: int = 6
+    grade: int = 9  # 마석 등급(9=입문·저가, WORLD_BIBLE 경제)
+    essence_drop: str = ""  # 정수 드롭 이름(빈 문자열=없음)
 
 
 @dataclass

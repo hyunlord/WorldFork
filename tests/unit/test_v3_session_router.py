@@ -110,6 +110,20 @@ def test_event_permanence_reflected() -> None:
     assert r.json()["flags"]["북쪽통로"] == "무너짐"  # 영구 반영
 
 
+def test_kill_awards_mana_and_essence() -> None:
+    # 처치 → 마석(소지금)·정수가 인벤에 쌓이고 RenderState에 노출되는가.
+    c = _client()
+    sid = c.post("/api/v3/session/start").json()["session_id"]
+    c.post("/api/v3/session/tick", json={"session_id": sid, "spawn_enemy": True})
+    # 결정적 처치 — 적 HP를 1로 낮춰 다음 틱에 파티가 정리.
+    for e in _SESSIONS[sid].world.enemies:
+        e.hp = 1
+    body = c.post("/api/v3/session/tick", json={"session_id": sid, "steps": 1}).json()
+    assert body["stones"] >= 20  # 9등급 마석 ≈ 20스톤
+    assert body["mana_stones"]  # 마석 등급 기록
+    assert "고블린 정수" in body["essences"]  # 정수 수집(표시만)
+
+
 def test_unknown_session_404() -> None:
     c = _client()
     assert c.get("/api/v3/session/없는세션").status_code == 404

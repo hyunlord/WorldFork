@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DungeonView } from "@/components/game/DungeonView";
-import type { DungeonViewData } from "@/components/game/types";
+import { InventoryPanel } from "@/components/game/InventoryPanel";
+import type { DungeonViewData, InventoryPanelData } from "@/components/game/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8090";
 const SPEEDS = [0.5, 1, 2, 4] as const;
@@ -36,11 +37,49 @@ interface Render {
   player_hp: number;
   player_max_hp: number;
   defeat: boolean;
+  stones: number;
+  mana_stones: number[];
+  essences: string[];
   flags: Record<string, string>;
   relationships: Record<string, number>;
   branch: string[];
   dungeon: DungeonViewData;
   log: string[];
+}
+
+// 백엔드 원시 인벤(스톤/마석 등급/정수 이름) → InventoryPanel 표시 데이터.
+function buildInventory(s: Render): InventoryPanelData {
+  const manaCounts = new Map<number, number>();
+  for (const g of s.mana_stones) manaCounts.set(g, (manaCounts.get(g) ?? 0) + 1);
+  const essCounts = new Map<string, number>();
+  for (const e of s.essences) essCounts.set(e, (essCounts.get(e) ?? 0) + 1);
+  const manaRows = [...manaCounts.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([g, n]) => ({ label: `${g}등급 마석`, value: `×${n}` }));
+  const essRows = [...essCounts.entries()].map(([name, n]) => ({
+    label: name,
+    value: `×${n}`,
+  }));
+  return {
+    sections: [
+      {
+        header: "소지금",
+        rows: [{ label: "스톤", value: `${s.stones}`, kind: "amber" as const }],
+      },
+      {
+        header: "마석",
+        rows: manaRows.length
+          ? manaRows
+          : [{ label: "없음", value: "-", kind: "unidentified" as const }],
+      },
+      {
+        header: "정수(수집)",
+        rows: essRows.length
+          ? essRows
+          : [{ label: "없음", value: "-", kind: "unidentified" as const }],
+      },
+    ],
+  };
 }
 
 async function call(path: string, body?: unknown): Promise<Render> {
@@ -219,9 +258,12 @@ export default function V3Page() {
             <button onClick={() => tickOnce(true)} disabled={busy || defeat}>적 출현</button>
           </div>
 
-          {/* 비요른(플레이어) HP */}
-          <div style={{ marginBottom: 8 }}>
-            <b style={{ color: defeat ? "#ff5050" : "#e8a838" }}>비요른</b> HP {state.player_hp}/{state.player_max_hp}
+          {/* 비요른(플레이어) HP + 소지금 */}
+          <div style={{ marginBottom: 8, display: "flex", gap: 20, alignItems: "center" }}>
+            <span>
+              <b style={{ color: defeat ? "#ff5050" : "#e8a838" }}>비요른</b> HP {state.player_hp}/{state.player_max_hp}
+            </span>
+            <span style={{ color: "#e8c838" }}>💰 {state.stones} 스톤</span>
           </div>
 
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -251,6 +293,12 @@ export default function V3Page() {
                 <div key={k}>{k}: 관계 {v}</div>
               ))}
             </div>
+          </div>
+
+          {/* ★ 인벤토리 — 소지금/마석/정수(처치 드롭). 기존 InventoryPanel 재사용 */}
+          <div style={{ marginTop: 12 }}>
+            <b>인벤토리</b>
+            <InventoryPanel data={buildInventory(state)} />
           </div>
 
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>

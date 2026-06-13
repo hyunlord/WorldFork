@@ -23,6 +23,7 @@ from service.sim.disposition import (
     Companion,
 )
 from service.sim.dungeon_map import crystal_cave
+from service.sim.loot import Inventory, award_drop
 from service.sim.party import (
     PartyWorld,
     command_all,
@@ -55,6 +56,7 @@ _LEGEND: list[dict[str, str]] = [
 class _Session:
     world: PartyWorld
     memory: WorldState = field(default_factory=WorldState)
+    inv: Inventory = field(default_factory=Inventory)  # 소지금/마석/정수(Phase 3)
 
 
 _SESSIONS: dict[str, _Session] = {}
@@ -161,6 +163,9 @@ class RenderState(BaseModel):
     player_hp: int
     player_max_hp: int
     defeat: bool  # 비요른 HP 0 — 슬라이스 패배(자동 진행 정지)
+    stones: int  # 소지금(스톤)
+    mana_stones: list[int]  # 보유 마석 등급들(Phase 3)
+    essences: list[str]  # 수집 정수 이름들(획득·표시만)
     flags: dict[str, str]
     relationships: dict[str, int]
     branch: list[str]  # 분기점(일시정지 권장 — LLM 개입 후보)
@@ -191,6 +196,9 @@ def _render(sid: str, s: _Session, log: list[str] | None = None) -> RenderState:
         player_hp=w.player_hp,
         player_max_hp=w.player_max_hp,
         defeat=w.defeat,
+        stones=s.inv.stones,
+        mana_stones=list(s.inv.mana_stones),
+        essences=list(s.inv.essences),
         flags=dict(s.memory.flags),
         relationships=dict(s.memory.relationships),
         branch=[r.value for r in detect_branch(w)],
@@ -230,8 +238,8 @@ async def tick(req: TickRequest) -> RenderState:
     if req.spawn_enemy and not s.world.enemies:
         # HP/공격력은 원거리 견제를 버티고 멜레까지 도달해 반격하도록(일방 전투 방지).
         s.world.enemies = [
-            TickEnemy("고블린", pos=(9, 2), hp=90, attack=9),
-            TickEnemy("고블린", pos=(9, 4), hp=90, attack=9),
+            TickEnemy("고블린", pos=(9, 2), hp=90, attack=9, grade=9, essence_drop="고블린 정수"),
+            TickEnemy("고블린", pos=(9, 4), hp=90, attack=9, grade=9, essence_drop="고블린 정수"),
         ]
         log.append("고블린 둘이 어둠 속에서 모습을 드러냈다!")
     for _ in range(req.steps):
@@ -240,11 +248,14 @@ async def tick(req: TickRequest) -> RenderState:
         results = party_step(s.world)
         log.extend(r.note for r in results if r.note.split(": ", 1)[-1])
         log.extend(enemy_step(s.world))  # ★ 적 반격(명중/피해/출혈)
-        dead = [e.name for e in s.world.enemies if e.hp <= 0]
+        dead = [e for e in s.world.enemies if e.hp <= 0]
         if dead:
-            s.world.enemies = [e for e in s.world.enemies if e.hp > 0]  # 정리(드롭 Phase 3)
-            log.extend(f"{n} 처치" for n in dead)
-    return _render(req.session_id, s, log[-10:])
+            s.world.enemies = [e for e in s.world.enemies if e.hp > 0]
+            for e in dead:
+                log.append(f"{e.name} 처치")
+                # ★ 처치 드롭 — 마석→소지금/인벤, 정수→인벤(수집). 흡수 메커닉 X(Phase 3 경계).
+                log.extend(award_drop(s.inv, grade=e.grade, essence=e.essence_drop))
+    return _render(req.session_id, s, log[-12:])
 
 
 class CommandRequest(BaseModel):
