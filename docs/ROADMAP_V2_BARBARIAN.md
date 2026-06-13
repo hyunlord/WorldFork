@@ -1,3 +1,5 @@
+> ⛔ SUPERSEDED — 이 로드맵은 폐기되었습니다(턴제/RTwP 시기). 현행 로드맵은 `ROADMAP.md`, 아키텍처는 `ENGINE_ARCHITECTURE.md` / `NARRATIVE_DESIGN.md` 입니다.
+
 # WorldFork — ROADMAP V2 (Barbarian Pivot)
 
 > ⚠️ **폐기 (V3로 대체, 2026-06-11)** — 자율 파티 RTwP + 성향 엔진으로 방향 전환.

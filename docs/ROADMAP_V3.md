@@ -1,3 +1,5 @@
+> ⛔ SUPERSEDED — 이 로드맵은 폐기되었습니다(턴제/RTwP 시기). 현행 로드맵은 `ROADMAP.md`, 아키텍처는 `ENGINE_ARCHITECTURE.md` / `NARRATIVE_DESIGN.md` 입니다.
+
 # WorldFork — Roadmap V3 (뒤집기: 자율 파티 + LLM 영혼)
 
 > **세계관 속에서 사는 자율 파티 시뮬레이션 게임**
