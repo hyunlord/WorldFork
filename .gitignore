@@ -83,3 +83,6 @@ tools/eval/eval_dashboard.html
 episode_*.txt
 ntk01_novel*
 *novel*.zip
+unsloth_compiled_cache/
+.omx/
+.ipynb_checkpoints/
