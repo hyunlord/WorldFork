@@ -7,6 +7,8 @@ state_delta(실제 상태를 구동)와 선택지 2~4개를 낸다. 모델은 pi
 
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,8 +30,9 @@ _GM_SYSTEM = (
     "[목표]를 향해 부드럽게 견인하되 강제하지 않는다. 플레이어가 다른 길을 택하면 막지 말고 "
     "자연스럽게 이어 가되, 적절한 때 [목표]가 다른 형태로 다시 다가오게 한다.\n"
     "★ 플레이어가 무언가를 확정·획득·결정하면(예: 무기 선택, 처치, 합의) 그 변화를 반드시 "
-    "state_delta(flags/inventory_add/relationship_delta)에 싣는다. 그리고 이 비트의 [목표]가 "
-    "달성되면 scene_transition으로 다음 비트를 연다 — 같은 자리를 맴돌지 않는다.\n\n"
+    "state_delta(flags/inventory_add/relationship_delta)에 싣는다.\n"
+    "★ 플레이어 입력이 현 장면에서 불가능하거나 장면 밖이면(예: 동굴에서 갑자기 왕을 만난다) "
+    "막지 말고, 그 시도를 장면 안의 결과로 받아 재유도한다(장면 밖으로 끌려가지 않음).\n\n"
     "# 출력 계약 (엄수)\n"
     "- narration: 장면 서술(2~5문장, 전투·중대 장면은 더 길게 허용).\n"
     "- choices: 서로 결과가 다른 선택지 2~4개(겉만 다른 선택 금지). 각 {{id, label}}.\n"
@@ -158,6 +161,47 @@ def parse_beat_result(parsed: dict[str, Any]) -> GMBeatResult:
     )
 
 
+def build_gm_prompt(
+    beat: Beat,
+    *,
+    hp: int,
+    max_hp: int,
+    weapon: str,
+    stones: int,
+    flags: dict[str, str],
+    history: str,
+    action: str,
+) -> Prompt:
+    """캐논 앵커 고정 + 상태 주입 GM 프롬프트(비스트리밍/스트리밍 공용)."""
+    return Prompt(
+        system=_GM_SYSTEM.format(anchor=build_anchor_prompt(beat, weapon=weapon)),
+        user=_GM_USER.format(
+            history=history or "(시작)",
+            hp=hp,
+            max_hp=max_hp,
+            weapon=weapon or "맨손",
+            stones=stones,
+            flags=flags or {},
+            action=action or "(장면을 연다)",
+        ),
+    )
+
+
+def parse_beat_text(text: str) -> GMBeatResult:
+    """누적 텍스트에서 JSON 본문을 관대하게 추출·파싱(스트리밍 종료 후 파싱용).
+
+    스트리밍(astream)은 schema 가드가 없어 앞뒤 잡소리가 섞일 수 있다 — 첫 '{'~마지막 '}'만 파싱.
+    """
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        raise ValueError(f"JSON 본문 없음: {text[:120]}")
+    parsed = json.loads(text[start : end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("JSON 객체 아님")
+    return parse_beat_result(parsed)
+
+
 def gm_beat(
     beat: Beat,
     *,
@@ -170,24 +214,44 @@ def gm_beat(
     action: str,
     client: LocalLLMClient | None = None,
 ) -> GMBeatResult:
-    """현 비트를 한 번 진전 — 캐논 앵커 고정 + 상태 주입 → 구조화 출력.
+    """현 비트를 한 번 진전 — 구조화 출력(guided JSON, 신뢰 경로).
 
     client 미지정 시 pivotal_gm_client()(현 라우팅 = Gemma). 포트 하드코딩 없음.
     """
     cli = client or pivotal_gm_client()
-    prompt = Prompt(
-        system=_GM_SYSTEM.format(anchor=build_anchor_prompt(beat, weapon=weapon)),
-        user=_GM_USER.format(
-            history=history or "(시작)",
-            hp=hp,
-            max_hp=max_hp,
-            weapon=weapon or "맨손",
-            stones=stones,
-            flags=flags or {},
-            action=action or "(장면을 연다)",
-        ),
+    prompt = build_gm_prompt(
+        beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
+        flags=flags, history=history, action=action,
     )
     resp = cli.generate_json(
         prompt, schema=_GM_SCHEMA, max_tokens=_max_tokens(beat), temperature=0.8
     )
     return parse_beat_result(resp.parsed)
+
+
+async def astream_gm_beat(
+    beat: Beat,
+    *,
+    hp: int,
+    max_hp: int,
+    weapon: str,
+    stones: int,
+    flags: dict[str, str],
+    history: str,
+    action: str,
+    client: LocalLLMClient | None = None,
+) -> AsyncIterator[str]:
+    """현 비트를 토큰 스트리밍(체감 지연 완화) — 원시 토큰을 그대로 yield.
+
+    구조화 파싱은 스트림 종료 후 parse_beat_text(누적)로 한다(스키마 가드 없음 — 신뢰 경로는
+    gm_beat). 호출자가 토큰을 누적해 화면에 점진 표시(Phase 4 /gm 페이지)하고, 끝에 파싱한다.
+    """
+    cli = client or pivotal_gm_client()
+    prompt = build_gm_prompt(
+        beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
+        flags=flags, history=history, action=action,
+    )
+    async for token in cli.astream(
+        prompt, max_tokens=_max_tokens(beat), temperature=0.8
+    ):
+        yield token

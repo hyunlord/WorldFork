@@ -104,6 +104,11 @@ def anchor_for(beat: Beat) -> BeatAnchor:
     return _ANCHORS[beat]
 
 
+def kaira_present(beat: Beat) -> bool:
+    """카이라(아이나르) 동행 여부 — 미궁 진입부터 합류(성향 반응 노출 무대)."""
+    return beat in (Beat.DUNGEON_ENTRY, Beat.FIRST_ENCOUNTER, Beat.AFTERMATH)
+
+
 @dataclass(frozen=True)
 class WeaponChoice:
     """성인식 무기 선택(=빌드). scenario.py 성인식과 정합."""
@@ -137,10 +142,10 @@ def build_anchor_prompt(beat: Beat, *, weapon: str = "") -> str:
     ]
     if weapon:
         lines.append(f"[무기] {weapon} — 일관되게 쓴다.")
-    if beat in (Beat.FIRST_ENCOUNTER, Beat.AFTERMATH):
+    if kaira_present(beat):
         lines.append(
             f"[동료] {KAIRA_NAME} — 흑곰족 대검 전사, 성인식 동기. 저돌적(돌격 본능)·우직, "
-            "신중함은 부족. 성향대로 자율 반응한다."
+            "신중함은 부족. 성향대로 자율 반응하며 플레이어 지시에 순응/변형/거부한다."
         )
     if beat is Beat.FIRST_ENCOUNTER:
         lines.append(f"[적] {', '.join(FIRST_FOES)} 중 하나 — 미궁 1층 잡몹. 습성·약점이 있다.")

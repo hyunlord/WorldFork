@@ -8,23 +8,43 @@ NARRATIVE_DESIGN 코어: GM이 비트를 펼치고(narration/choices), state_del
 
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from service.api.schemas.freeform_action import IntentMatch
 from service.sim.disposition import Companion
+from service.sim.disposition_command import (
+    CommandResponse,
+    apply_order,
+    interpret_command,
+)
+from service.sim.intent_classifier import classify_intent, mechanical_classify
 from service.sim.loot import Inventory
-from service.sim.narrative_gm import GMBeatResult, gm_beat
+from service.sim.narrative_gm import (
+    GMBeatResult,
+    astream_gm_beat,
+    gm_beat,
+    parse_beat_text,
+)
 from service.sim.opening_canon import (
     COMING_OF_AGE_WEAPONS,
     KAIRA_DISPOSITION,
     KAIRA_NAME,
     Beat,
+    anchor_for,
+    kaira_present,
     next_beat,
-    parse_beat,
 )
 from service.sim.world_memory import WorldState, adjust_relationship
+
+# 미궁 진입 의도 — DUNGEON_ENTRY exit 조건(코드 전환). intent 또는 키워드로 판정.
+_ENTER_INTENTS = frozenset({"enter_dungeon", "move", "enter_next_floor", "explore"})
+_ENTER_WORDS = ("진입", "들어", "미궁", "내려", "나아간", "전진", "안으로", "탐색")
 
 router = APIRouter(prefix="/api/gm", tags=["gm-narrative"])
 
@@ -47,6 +67,7 @@ class _GMSession:
     items: list[str] = field(default_factory=list)  # GM이 준 서사 아이템
     history: list[str] = field(default_factory=list)
     last: GMBeatResult | None = None
+    last_reaction: CommandResponse | None = None  # 카이라 성향 반응(직전)
 
 
 _SESSIONS: dict[str, _GMSession] = {}
@@ -77,6 +98,16 @@ class MemberView(BaseModel):
     disposition: dict[str, int]
 
 
+class CompanionReactionView(BaseModel):
+    """카이라 성향 반응 — 화면에 또렷이 노출(차별점 가시화)."""
+
+    name: str
+    reaction: str  # comply / adapt / refuse
+    action: str
+    reason: str
+    speech: str
+
+
 class GMRender(BaseModel):
     """서사 렌더 — 이름은 변환명(화면 unmask는 프론트 unmaskIp)."""
 
@@ -93,10 +124,15 @@ class GMRender(BaseModel):
     flags: dict[str, str]
     relationships: dict[str, int]
     party: list[MemberView]
+    companion_reaction: CompanionReactionView | None = None  # 카이라 성향 반응
 
 
 def _apply_delta(s: _GMSession, result: GMBeatResult) -> None:
-    """★ state_delta를 실제 세션 상태에 반영(장식 금지) — 이후 비트·서술에 영향."""
+    """★ state_delta를 실제 세션 상태에 반영(장식 금지) — 이후 비트·서술에 영향.
+
+    ★ Phase 2: 비트 전환은 LLM scene_transition이 아니라 코드 exit 조건(_advance_if_done)이
+    결정한다(모델 편차로 맴도는 문제 근절). 여기선 flags/HP/관계/아이템만 반영.
+    """
     d = result.state_delta
     s.world.flags.update(d.flags)
     if d.hp_change:
@@ -104,15 +140,65 @@ def _apply_delta(s: _GMSession, result: GMBeatResult) -> None:
     for name, delta in d.relationship_delta.items():
         adjust_relationship(s.world, name, delta)
     s.items.extend(d.inventory_add)
-    # 비트 전환 — 바로 다음 비트로만(끌개 순서 보존: 건너뛰기·역행 차단).
-    if d.scene_transition is not None:
-        target = parse_beat(d.scene_transition)
-        if target is not None and target is next_beat(s.beat):
-            s.beat = target
     if result.narration:
         s.history.append(result.narration)
         s.history[:] = s.history[-_HISTORY_MAX:]
     s.last = result
+
+
+def _interpret(action: str, *, is_free: bool) -> IntentMatch | None:
+    """자유 입력 해석 — mechanical(0토큰) 먼저, 자유·미분류면 classify_intent(9B).
+
+    선택지 라벨은 0토큰 분류만(LLM 낭비 방지). 결과 intent로 장면 내 행동·전환을 판정한다.
+    """
+    m = mechanical_classify(action)
+    if m is not None:
+        return m
+    return classify_intent(action) if is_free else None
+
+
+def _situation(s: _GMSession) -> str:
+    """카이라 성향 반응용 상황 요약 — 현 비트 장면 + 최근 서술."""
+    scene = anchor_for(s.beat).scene
+    recent = s.history[-1] if s.history else ""
+    return f"{scene} 최근: {recent}" if recent else scene
+
+
+def _kaira_react(s: _GMSession, action: str) -> None:
+    """카이라(아이나르) 성향 반응 — 플레이어 행동을 지시로 받아 순응/변형/거부(LLM).
+
+    화면에 또렷이 노출(차별점). 반응의 action을 current_order로 반영(거부는 자기 판단).
+    """
+    if not kaira_present(s.beat):
+        s.last_reaction = None
+        return
+    resp = interpret_command(s.kaira, action, _situation(s))
+    apply_order(s.kaira, resp)
+    s.last_reaction = resp
+
+
+def _advance_if_done(s: _GMSession, action: str, intent: IntentMatch | None) -> None:
+    """★ 코드 구동 비트 전환 — 비트별 exit 조건을 상태로 판정(LLM 의존 폐기).
+
+    조건 충족 시 next_beat로만 진행(끌개 순서 보존: 건너뛰기·역행 차단).
+    """
+    done = False
+    if s.beat is Beat.COMING_OF_AGE:
+        done = bool(s.weapon)  # 무기 확정 = 성인식 완료
+    elif s.beat is Beat.DUNGEON_ENTRY:
+        entered = (intent is not None and intent.matched_action in _ENTER_INTENTS) or any(
+            w in action for w in _ENTER_WORDS
+        )
+        if entered:
+            s.world.flags["entered_floor1"] = "true"
+            done = True
+    elif s.beat is Beat.FIRST_ENCOUNTER:
+        done = s.world.flags.get("first_foe_resolved") == "true"  # Phase 3 전투가 설정
+    # AFTERMATH = 종착
+    if done:
+        nxt = next_beat(s.beat)
+        if nxt is not None:
+            s.beat = nxt
 
 
 def _render(sid: str, s: _GMSession) -> GMRender:
@@ -144,6 +230,17 @@ def _render(sid: str, s: _GMSession) -> GMRender:
                 },
             )
         ],
+        companion_reaction=(
+            CompanionReactionView(
+                name=s.kaira.name,
+                reaction=s.last_reaction.reaction.value,
+                action=s.last_reaction.action.value,
+                reason=s.last_reaction.reason,
+                speech=s.last_reaction.speech,
+            )
+            if s.last_reaction is not None
+            else None
+        ),
     )
 
 
@@ -175,26 +272,78 @@ async def start() -> GMRender:
 class ActRequest(BaseModel):
     session_id: str
     choice_id: str = ""  # 선택지 id(혼합 입력)
-    free_text: str = Field(default="", max_length=300)  # 자유 입력(Phase 2 해석 강화)
+    free_text: str = Field(default="", max_length=300)  # 자유 입력
 
 
-@router.post("/session/act", response_model=GMRender)
-async def act(req: ActRequest) -> GMRender:
-    """플레이어 행동(선택지 또는 자유) → GM 진전 + state_delta 반영."""
-    s = _get(req.session_id)
+def _resolve_action(s: _GMSession, req: ActRequest) -> tuple[str, IntentMatch | None]:
+    """입력(선택지/자유) → 행동 문자열 + 해석된 intent. 혼합 입력의 단일 진입.
+
+    ★ 입력 처리 순서(맴돎 근절): ① 행동 확정 ② 무기 결정적 확정 ③ 코드 전환(narrate 전).
+    전환을 먼저 해 GM이 '현재(전환 후) 비트'를 서술 — 비트와 선택지가 항상 일치한다.
+    """
+    is_free = bool(req.free_text.strip())
     action = req.free_text.strip()
     if not action and req.choice_id and s.last is not None:
         chosen = next((c for c in s.last.choices if c.id == req.choice_id), None)
         action = chosen.label if chosen else req.choice_id
     if not action:
         raise HTTPException(status_code=400, detail="choice_id 또는 free_text 필요")
-    # ★ 성인식 무기 확정(=빌드) — choice_id로 결정적(GM 임의 flag 키에 의존 X).
+    # ★ 성인식 무기 확정(=빌드) — choice_id로 결정적(GM 임의 flag 키 의존 X).
     if s.beat is Beat.COMING_OF_AGE and req.choice_id and not s.weapon:
         weapon = next((w for w in COMING_OF_AGE_WEAPONS if w.id == req.choice_id), None)
         if weapon is not None:
             s.weapon = weapon.label
+    intent = _interpret(action, is_free=is_free)
+    _advance_if_done(s, action, intent)  # ★ 코드 전환을 narrate 전에
+    return action, intent
+
+
+@router.post("/session/act", response_model=GMRender)
+async def act(req: ActRequest) -> GMRender:
+    """플레이어 행동(혼합 입력) → 코드 전환 → GM 진전 + 카이라 성향 반응."""
+    s = _get(req.session_id)
+    action, _ = _resolve_action(s, req)
     _run_beat(s, action=action)
+    _kaira_react(s, action)
     return _render(req.session_id, s)
+
+
+@router.post("/session/act/stream")
+async def act_stream(req: ActRequest) -> StreamingResponse:
+    """★ Phase 2 보강 B — narration 토큰 스트리밍(체감 지연 완화).
+
+    토큰을 SSE ``data:``로 흘려 보내고, 스트림 종료 후 누적 텍스트를 파싱해 state_delta·
+    카이라 반응까지 반영한 최종 렌더를 ``event: done``으로 보낸다(구조화 파싱은 종료 후).
+    화면 점진 표시는 Phase 4 /gm 페이지. 신뢰 경로는 비스트리밍 /session/act(guided JSON).
+    """
+    s = _get(req.session_id)
+    action, _ = _resolve_action(s, req)
+
+    async def _gen() -> AsyncIterator[str]:
+        buf: list[str] = []
+        async for token in astream_gm_beat(
+            s.beat,
+            hp=s.hp,
+            max_hp=s.max_hp,
+            weapon=s.weapon,
+            stones=s.inv.stones,
+            flags=dict(s.world.flags),
+            history="\n".join(s.history),
+            action=action,
+        ):
+            buf.append(token)
+            yield f"data: {json.dumps({'token': token}, ensure_ascii=False)}\n\n"
+        try:
+            result = parse_beat_text("".join(buf))
+        except (ValueError, json.JSONDecodeError):
+            yield f"event: error\ndata: {json.dumps({'detail': '파싱 실패'})}\n\n"
+            return
+        _apply_delta(s, result)
+        _kaira_react(s, action)
+        final = _render(req.session_id, s).model_dump()
+        yield f"event: done\ndata: {json.dumps(final, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
 @router.get("/session/{sid}", response_model=GMRender)

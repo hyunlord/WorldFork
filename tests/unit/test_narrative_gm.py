@@ -10,6 +10,7 @@ from service.sim.narrative_gm import (
     GMStateDelta,
     gm_beat,
     parse_beat_result,
+    parse_beat_text,
 )
 from service.sim.opening_canon import (
     COMING_OF_AGE_WEAPONS,
@@ -101,6 +102,24 @@ class TestParseBeatResult:
             }
         )
         assert len(r.choices) == 1  # 빈/이상 선택지 제거
+
+
+class TestParseBeatText:
+    """스트리밍 종료 후 누적 텍스트 파싱(astream은 schema 가드 없음 → 관대 추출)."""
+
+    def test_extracts_json_from_noisy_text(self) -> None:
+        noisy = '어쩌고 {"narration": "장면.", "choices": [{"id":"a","label":"ㄱ"},' \
+            '{"id":"b","label":"ㄴ"}], "state_delta": {"flags": {"k": "v"}}} 뒤꼬리'
+        r = parse_beat_text(noisy)
+        assert r.narration == "장면."
+        assert len(r.choices) == 2
+        assert r.state_delta.flags == {"k": "v"}
+
+    def test_no_json_raises(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError):
+            parse_beat_text("JSON이 전혀 없는 텍스트")
 
 
 class TestGmBeatCall:
