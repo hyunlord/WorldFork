@@ -42,6 +42,27 @@ from service.canon.spawn import SpawnTable
 from service.sim.session_manager import get_session_manager
 
 
+def _warm_rag_grounding() -> None:
+    """bge-m3 사전 로드 — 인덱스 있고 grounding ON일 때만, 백그라운드 스레드(기동 지연 0)."""
+    import os
+    import threading
+
+    if os.environ.get("GM_GROUNDING", "1") == "0":
+        return
+    from service.sim.rag_retrieval import index_available
+
+    if not index_available():
+        return
+
+    def _do() -> None:
+        from service.sim.rag_embed import warm
+
+        warm()
+        print("[startup] RAG bge-m3 사전 로드 완료")
+
+    threading.Thread(target=_do, daemon=True).start()
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     get_session_manager()  # startup: SQLite DB 초기화 (.local/worldfork.db)
@@ -52,6 +73,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     item_registry = ItemRegistry(facts)
     set_item_registry(item_registry)
     print(f"[startup] ItemRegistry loaded: {item_registry.size()} items")
+    _warm_rag_grounding()  # bge-m3 사전 로드(콜드 완화) — 백그라운드, 인덱스 있을 때만
     yield
     clear_entity_index()
     clear_spawn_table()

@@ -40,6 +40,11 @@ def get_tokenizer() -> Any:
     return _load()[1]
 
 
+def warm() -> None:
+    """모델 사전 로드 — 첫 검색의 콜드 23s를 백엔드 기동 시 미리 흡수(A2.4)."""
+    embed(["워밍업"])
+
+
 def embed(texts: list[str]) -> np.ndarray:
     """bge-m3 dense 임베딩 — CLS 토큰 + L2 정규화(GPU는 bf16 autocast). float32 [N, 1024].
 

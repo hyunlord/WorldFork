@@ -8,6 +8,7 @@ state_delta(실제 상태를 구동)와 선택지 2~4개를 낸다. 모델은 pi
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -17,6 +18,11 @@ from core.llm.client import Prompt
 from core.llm.local_client import LocalLLMClient, pivotal_gm_client
 from service.sim.opening_canon import Beat, anchor_for, build_anchor_prompt
 from service.sim.rag_retrieval import get_grounding
+
+
+def _grounding_enabled() -> bool:
+    """RAG grounding on/off 토글 — env GM_GROUNDING=0이면 OFF(비교·안전용). 기본 ON."""
+    return os.environ.get("GM_GROUNDING", "1") != "0"
 
 _GM_SYSTEM = (
     "# 역할\n"
@@ -102,7 +108,10 @@ def _grounding_block(beat: Beat, action: str) -> str:
     """현 장면 컨텍스트로 RAG 검색 → 청소·예산 절단 → '# 원작 참조' 블록(없으면 빈 문자열).
 
     ★ get_grounding의 정식 소비처(GM). passages는 이미 마스킹(변환명) — prompt/로그 원작명 0.
+    GM_GROUNDING=0이면 빈 블록(ungrounded — 비교·안전용).
     """
+    if not _grounding_enabled():
+        return ""
     scene = anchor_for(beat).scene
     query = f"{scene} {action}".strip()
     passages = get_grounding(

@@ -6,6 +6,8 @@ gm_beat가 client.generate_json을 schema로 호출하는지(freeform 아님). L
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from service.sim.narrative_gm import (
     GMStateDelta,
     build_gm_prompt,
@@ -197,3 +199,26 @@ class TestGroundingInjection:
                 action="(성인식)",
             )
         assert "# 원작 참조" not in prompt.system  # passages 없으면 블록 생략
+
+    def test_toggle_off_skips_retrieval(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # ★ GM_GROUNDING=0 → 검색 자체를 건너뛰고 빈 블록(비교·안전용). get_grounding 미호출.
+        monkeypatch.setenv("GM_GROUNDING", "0")
+        called = {"n": 0}
+
+        def _spy(*a: object, **k: object) -> list[Passage]:
+            called["n"] += 1
+            return []
+
+        with patch("service.sim.narrative_gm.get_grounding", _spy):
+            prompt = build_gm_prompt(
+                Beat.DUNGEON_ENTRY,
+                hp=120,
+                max_hp=120,
+                weapon="양손도끼",
+                stones=0,
+                flags={},
+                history="",
+                action="나아간다",
+            )
+        assert "# 원작 참조" not in prompt.system
+        assert called["n"] == 0  # OFF면 검색 호출 안 함
