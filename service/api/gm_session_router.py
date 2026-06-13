@@ -25,6 +25,7 @@ from service.sim.disposition_command import (
 )
 from service.sim.intent_classifier import classify_intent, mechanical_classify
 from service.sim.loot import Inventory
+from service.sim.narrative_combat import Foe, resolve_round
 from service.sim.narrative_gm import (
     GMBeatResult,
     astream_gm_beat,
@@ -40,6 +41,7 @@ from service.sim.opening_canon import (
     kaira_present,
     next_beat,
 )
+from service.sim.status import StatusEffect, StatusType
 from service.sim.world_memory import WorldState, adjust_relationship
 
 # 미궁 진입 의도 — DUNGEON_ENTRY exit 조건(코드 전환). intent 또는 키워드로 판정.
@@ -65,9 +67,12 @@ class _GMSession:
     max_hp: int = 120
     weapon: str = ""
     items: list[str] = field(default_factory=list)  # GM이 준 서사 아이템
+    player_status: list[StatusEffect] = field(default_factory=list)  # 출혈 등
+    foe: Foe | None = None  # 첫 조우 전투 적(내러티브 턴)
     history: list[str] = field(default_factory=list)
     last: GMBeatResult | None = None
     last_reaction: CommandResponse | None = None  # 카이라 성향 반응(직전)
+    last_illustration: str | None = None  # 직전 비트 일러스트 스틸 키
 
 
 _SESSIONS: dict[str, _GMSession] = {}
@@ -108,6 +113,14 @@ class CompanionReactionView(BaseModel):
     speech: str
 
 
+class FoeView(BaseModel):
+    """전투 적 — 좌표 없음(HP만)."""
+
+    name: str
+    hp: int
+    max_hp: int
+
+
 class GMRender(BaseModel):
     """서사 렌더 — 이름은 변환명(화면 unmask는 프론트 unmaskIp)."""
 
@@ -124,6 +137,9 @@ class GMRender(BaseModel):
     flags: dict[str, str]
     relationships: dict[str, int]
     party: list[MemberView]
+    foe: FoeView | None = None  # 전투 적(첫 조우)
+    bleeding: bool = False  # 비요른 출혈 상태
+    illustration: str | None = None  # 띄울 스틸 키(Phase 4 렌더)
     companion_reaction: CompanionReactionView | None = None  # 카이라 성향 반응
 
 
@@ -140,6 +156,8 @@ def _apply_delta(s: _GMSession, result: GMBeatResult) -> None:
     for name, delta in d.relationship_delta.items():
         adjust_relationship(s.world, name, delta)
     s.items.extend(d.inventory_add)
+    if result.illustration is not None:
+        s.last_illustration = result.illustration
     if result.narration:
         s.history.append(result.narration)
         s.history[:] = s.history[-_HISTORY_MAX:]
@@ -199,6 +217,9 @@ def _advance_if_done(s: _GMSession, action: str, intent: IntentMatch | None) -> 
         nxt = next_beat(s.beat)
         if nxt is not None:
             s.beat = nxt
+            if nxt is Beat.FIRST_ENCOUNTER and s.foe is None:
+                # 첫 조우 적 등장(내러티브 턴 전투 — 좌표 없음).
+                s.foe = Foe("고블린", hp=36, max_hp=36, attack=8, essence_drop="고블린 정수")
 
 
 def _render(sid: str, s: _GMSession) -> GMRender:
@@ -230,6 +251,13 @@ def _render(sid: str, s: _GMSession) -> GMRender:
                 },
             )
         ],
+        foe=(
+            FoeView(name=s.foe.name, hp=s.foe.hp, max_hp=s.foe.max_hp)
+            if s.foe is not None
+            else None
+        ),
+        bleeding=any(st.type is StatusType.BLEED for st in s.player_status),
+        illustration=s.last_illustration,
         companion_reaction=(
             CompanionReactionView(
                 name=s.kaira.name,
@@ -275,34 +303,82 @@ class ActRequest(BaseModel):
     free_text: str = Field(default="", max_length=300)  # 자유 입력
 
 
-def _resolve_action(s: _GMSession, req: ActRequest) -> tuple[str, IntentMatch | None]:
-    """입력(선택지/자유) → 행동 문자열 + 해석된 intent. 혼합 입력의 단일 진입.
-
-    ★ 입력 처리 순서(맴돎 근절): ① 행동 확정 ② 무기 결정적 확정 ③ 코드 전환(narrate 전).
-    전환을 먼저 해 GM이 '현재(전환 후) 비트'를 서술 — 비트와 선택지가 항상 일치한다.
-    """
-    is_free = bool(req.free_text.strip())
+def _action_text(s: _GMSession, req: ActRequest) -> str:
+    """입력(선택지/자유) → 행동 문자열. 비면 400."""
     action = req.free_text.strip()
     if not action and req.choice_id and s.last is not None:
         chosen = next((c for c in s.last.choices if c.id == req.choice_id), None)
         action = chosen.label if chosen else req.choice_id
     if not action:
         raise HTTPException(status_code=400, detail="choice_id 또는 free_text 필요")
-    # ★ 성인식 무기 확정(=빌드) — choice_id로 결정적(GM 임의 flag 키 의존 X).
+    return action
+
+
+def _resolve_action(s: _GMSession, req: ActRequest) -> str:
+    """행동 확정 → 무기 결정적 확정 → 코드 전환(narrate 전). 전환 후 비트를 GM이 서술해 일치."""
+    action = _action_text(s, req)
     if s.beat is Beat.COMING_OF_AGE and req.choice_id and not s.weapon:
         weapon = next((w for w in COMING_OF_AGE_WEAPONS if w.id == req.choice_id), None)
         if weapon is not None:
             s.weapon = weapon.label
-    intent = _interpret(action, is_free=is_free)
-    _advance_if_done(s, action, intent)  # ★ 코드 전환을 narrate 전에
-    return action, intent
+    intent = _interpret(action, is_free=bool(req.free_text.strip()))
+    _advance_if_done(s, action, intent)
+    return action
+
+
+def _combat_round(s: _GMSession, sid: str, action: str) -> GMRender:
+    """첫 조우 한 라운드 — 코드 판정(권위) → GM 서술(라운드당 1회, 확정 결과만).
+
+    적 처치 시 first_foe_resolved → 마무리(AFTERMATH)로 전환하고 GM이 마무리를 연다.
+    """
+    assert s.foe is not None
+    rr = resolve_round(
+        player_action=action,
+        weapon=s.weapon,
+        player_hp=s.hp,
+        player_max_hp=s.max_hp,
+        player_status=s.player_status,
+        foe=s.foe,
+        kaira=s.kaira,
+        inv=s.inv,
+        situation=_situation(s),
+    )
+    s.hp = rr.player_hp
+    s.player_status = rr.player_status
+    s.last_reaction = rr.kaira_reaction
+    if rr.foe_defeated:
+        s.world.flags["first_foe_resolved"] = "true"
+        s.foe = None
+        _advance_if_done(s, action, None)  # → AFTERMATH
+    # GM 서술(1회) — 확정 결과만(코드가 권위). narration/choices/illustration만 취한다.
+    result = gm_beat(
+        s.beat,
+        hp=s.hp,
+        max_hp=s.max_hp,
+        weapon=s.weapon,
+        stones=s.inv.stones,
+        flags=dict(s.world.flags),
+        history="\n".join(s.history),
+        action=action,
+        confirmed=rr.lines,
+    )
+    s.last = result
+    if result.narration:
+        s.history.append(result.narration)
+        s.history[:] = s.history[-_HISTORY_MAX:]
+    s.last_illustration = result.illustration or rr.illustration  # GM 유효 지정 우선
+    return _render(sid, s)
 
 
 @router.post("/session/act", response_model=GMRender)
 async def act(req: ActRequest) -> GMRender:
-    """플레이어 행동(혼합 입력) → 코드 전환 → GM 진전 + 카이라 성향 반응."""
+    """플레이어 행동(혼합 입력) → 전투 라운드 또는 비트 진전 + 카이라 성향 반응."""
     s = _get(req.session_id)
-    action, _ = _resolve_action(s, req)
+    # 첫 조우 + 생존 적 → 내러티브 턴 전투 라운드(코드 판정 + GM 서술 1회)
+    if s.beat is Beat.FIRST_ENCOUNTER and s.foe is not None and s.foe.alive:
+        return _combat_round(s, req.session_id, _action_text(s, req))
+    # 일반 비트 — 코드 전환(narrate 전) → GM 진전 → 카이라 성향 반응
+    action = _resolve_action(s, req)
     _run_beat(s, action=action)
     _kaira_react(s, action)
     return _render(req.session_id, s)
@@ -317,7 +393,7 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
     화면 점진 표시는 Phase 4 /gm 페이지. 신뢰 경로는 비스트리밍 /session/act(guided JSON).
     """
     s = _get(req.session_id)
-    action, _ = _resolve_action(s, req)
+    action = _resolve_action(s, req)
 
     async def _gen() -> AsyncIterator[str]:
         buf: list[str] = []

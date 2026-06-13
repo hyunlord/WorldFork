@@ -134,6 +134,50 @@ def test_free_input_unclassified_uses_classify_intent() -> None:
     ci.assert_called_once()  # mechanical 미분류 → LLM 해석 fallback
 
 
+def test_combat_round_then_aftermath() -> None:
+    # 첫 조우 진입 → 전투 라운드(코드 판정) → 처치 → 마무리(AFTERMATH) 전환 + 드롭.
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})  # →dungeon
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "미궁으로 들어간다"}
+        ).json()
+    assert body["beat"] == "first_encounter"
+    assert body["foe"] is not None and body["foe"]["name"] == "고블린"  # 적 등장
+    # 전투 라운드 — resolve_round patch(처치 결과)로 결정적
+    from service.sim.narrative_combat import RoundResult
+
+    killed = RoundResult(
+        lines=["투르윈의 양손도끼가 고블린에게 40 피해 (치명타!)", "「고블린을 쓰러뜨렸다.」"],
+        player_hp=120,
+        player_status=[],
+        foe_hp=0,
+        kaira_reaction=_reaction(),
+        foe_defeated=True,
+        drops=["「9등급 마석 획득 — +20 스톤」"],
+        illustration="ui_combat_vfx_axe_strike",
+    )
+
+    def _kill(**kw: object) -> RoundResult:
+        kw["inv"].stones += 20  # type: ignore[union-attr,operator]
+        return killed
+
+    with patch("service.api.gm_session_router.resolve_round", side_effect=_kill), patch(
+        "service.api.gm_session_router.gm_beat", return_value=_beat(narration="고블린이 쓰러졌다.")
+    ):
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "도끼로 벤다"}
+        ).json()
+    assert body["beat"] == "aftermath"  # ★ 처치 → 코드 전환(4비트 완결)
+    assert body["foe"] is None
+    assert body["stones"] >= 20  # 드롭 반영
+    assert body["illustration"] == "ui_combat_vfx_axe_strike"
+
+
 def test_act_requires_input() -> None:
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):

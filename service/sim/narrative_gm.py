@@ -39,15 +39,35 @@ _GM_SYSTEM = (
     "- state_delta: 이 장면이 실제로 바꾸는 상태. flags(키:값 문자열), hp_change(정수), "
     "relationship_delta(이름:정수), inventory_add(문자열 배열), scene_transition(다음 비트로 "
     "넘어갈 때만 그 비트명). ★ 장식 금지 — 실제 변화가 있을 때만 채운다.\n"
-    "- speaker: 핵심 화자 이름(포트레이트용, 없으면 생략)."
+    "- speaker: 핵심 화자 이름(포트레이트용, 없으면 생략).\n"
+    "- illustration: 이 순간에 띄울 스틸(아래 목록 중 하나만, 없으면 생략): {illustrations}."
 )
+
+# 전투/장면 스틸 자산(public/assets/worldfork/<key>.png). GM이 이 중에서만 고른다(환각 차단).
+_ILLUSTRATIONS: frozenset[str] = frozenset({
+    "ui_gameplay_bg_crystal",
+    "ui_combat_bjorn_action",
+    "ui_combat_vfx_axe_strike",
+    "ui_combat_vfx_magic_missile",
+    "ui_combat_monster_goblin",
+    "ui_combat_monster_blade_wolf",
+    "ui_combat_monster_ghoul",
+    "ui_combat_monster_gnome",
+})
 
 _GM_USER = (
     "## 최근 흐름\n{history}\n\n"
     "## 현재 상태\n"
     "HP {hp}/{max_hp} · 무기 {weapon} · 소지금 {stones} 스톤 · flags {flags}\n\n"
+    "{confirmed}"
     "## 플레이어 행동\n{action}\n\n"
     "현 비트의 목표를 향해 장면을 진전시키고, 출력 계약대로 JSON을 낸다."
+)
+
+# 전투 라운드 등 코드가 확정한 결과를 GM에 넘길 때의 블록(서술만, 새 수치 금지).
+_CONFIRMED_TEMPLATE = (
+    "## 확정 결과 (★ 이미 일어났다 — 그대로 서술만, 새 수치·아이템·결과를 만들지 마라)\n"
+    "{lines}\n\n"
 )
 
 _GM_SCHEMA: dict[str, Any] = {
@@ -78,6 +98,7 @@ _GM_SCHEMA: dict[str, Any] = {
             },
         },
         "speaker": {"type": "string"},
+        "illustration": {"type": "string"},
     },
     "required": ["narration", "choices", "state_delta"],
 }
@@ -117,12 +138,13 @@ class GMStateDelta:
 
 @dataclass
 class GMBeatResult:
-    """GM 한 비트 출력 — 서술 + 선택지 + 상태 변화(+화자)."""
+    """GM 한 비트 출력 — 서술 + 선택지 + 상태 변화(+화자·일러스트)."""
 
     narration: str
     choices: list[GMChoice]
     state_delta: GMStateDelta
     speaker: str | None = None
+    illustration: str | None = None  # 띄울 스틸 키(_ILLUSTRATIONS 검증 통과만)
 
 
 def _coerce_int(value: object, default: int = 0) -> int:
@@ -153,11 +175,16 @@ def parse_beat_result(parsed: dict[str, Any]) -> GMBeatResult:
         for c in (parsed.get("choices") or [])
         if isinstance(c, dict) and c.get("id") and c.get("label")
     ]
+    raw_illust = parsed.get("illustration")
+    illustration = (
+        str(raw_illust) if raw_illust and str(raw_illust) in _ILLUSTRATIONS else None
+    )
     return GMBeatResult(
         narration=str(parsed.get("narration", "")).strip(),
         choices=choices,
         state_delta=delta,
         speaker=str(parsed["speaker"]) if parsed.get("speaker") else None,
+        illustration=illustration,
     )
 
 
@@ -171,10 +198,22 @@ def build_gm_prompt(
     flags: dict[str, str],
     history: str,
     action: str,
+    confirmed: list[str] | None = None,
 ) -> Prompt:
-    """캐논 앵커 고정 + 상태 주입 GM 프롬프트(비스트리밍/스트리밍 공용)."""
+    """캐논 앵커 고정 + 상태 주입 GM 프롬프트(비스트리밍/스트리밍 공용).
+
+    confirmed: 코드가 확정한 결과(전투 라운드 등) — 있으면 '서술만, 새 수치 금지'로 주입.
+    """
+    confirmed_block = (
+        _CONFIRMED_TEMPLATE.format(lines="\n".join(f"- {ln}" for ln in confirmed))
+        if confirmed
+        else ""
+    )
     return Prompt(
-        system=_GM_SYSTEM.format(anchor=build_anchor_prompt(beat, weapon=weapon)),
+        system=_GM_SYSTEM.format(
+            anchor=build_anchor_prompt(beat, weapon=weapon),
+            illustrations=", ".join(sorted(_ILLUSTRATIONS)),
+        ),
         user=_GM_USER.format(
             history=history or "(시작)",
             hp=hp,
@@ -182,6 +221,7 @@ def build_gm_prompt(
             weapon=weapon or "맨손",
             stones=stones,
             flags=flags or {},
+            confirmed=confirmed_block,
             action=action or "(장면을 연다)",
         ),
     )
@@ -212,16 +252,18 @@ def gm_beat(
     flags: dict[str, str],
     history: str,
     action: str,
+    confirmed: list[str] | None = None,
     client: LocalLLMClient | None = None,
 ) -> GMBeatResult:
     """현 비트를 한 번 진전 — 구조화 출력(guided JSON, 신뢰 경로).
 
-    client 미지정 시 pivotal_gm_client()(현 라우팅 = Gemma). 포트 하드코딩 없음.
+    confirmed: 전투 라운드 등 코드 확정 결과(서술만). client 미지정 시 pivotal_gm_client()
+    (현 라우팅 = Gemma). 포트 하드코딩 없음.
     """
     cli = client or pivotal_gm_client()
     prompt = build_gm_prompt(
         beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
-        flags=flags, history=history, action=action,
+        flags=flags, history=history, action=action, confirmed=confirmed,
     )
     resp = cli.generate_json(
         prompt, schema=_GM_SCHEMA, max_tokens=_max_tokens(beat), temperature=0.8
