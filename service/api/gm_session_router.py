@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from service.api.schemas.freeform_action import IntentMatch
+from service.engine.content_pack import require_active_pack
 from service.sim.disposition import Companion
 from service.sim.disposition_command import (
     CommandResponse,
@@ -36,8 +37,6 @@ from service.sim.narrative_gm import (
 )
 from service.sim.opening_canon import (
     COMING_OF_AGE_WEAPONS,
-    KAIRA_DISPOSITION,
-    KAIRA_NAME,
     Beat,
     anchor_for,
     beat_choices,
@@ -82,7 +81,9 @@ _PERSISTENT_WORLD = WorldState()
 
 
 def _new_kaira() -> Companion:
-    return Companion(KAIRA_NAME, KAIRA_DISPOSITION, hp=140, max_hp=140, attack=14)
+    # ★ A1.2: 동행 동료는 활성 콘텐츠팩 소유(중복 리터럴 제거). 미설정이면 명확한 오류.
+    c = require_active_pack().companion
+    return Companion(c.name, c.disposition, hp=c.hp, max_hp=c.hp, attack=c.attack)
 
 
 @dataclass
@@ -261,8 +262,11 @@ def _advance_if_done(s: _GMSession, action: str, intent: IntentMatch | None) -> 
     if nxt is not None:
         s.beat = nxt
         if nxt is Beat.FIRST_ENCOUNTER and s.foe is None:
-            # 첫 조우 적 등장(내러티브 턴 전투 — 좌표 없음).
-            s.foe = Foe("고블린", hp=36, max_hp=36, attack=8, essence_drop="고블린 정수")
+            # 첫 조우 적 등장(내러티브 턴 전투 — 좌표 없음). ★ A1.2: 활성 팩 소유(중복 제거).
+            f = require_active_pack().first_foe
+            s.foe = Foe(
+                f.name, hp=f.hp, max_hp=f.hp, attack=f.attack, essence_drop=f.essence_drop
+            )
 
 
 def _render(sid: str, s: _GMSession) -> GMRender:

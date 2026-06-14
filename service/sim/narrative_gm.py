@@ -16,6 +16,7 @@ from typing import Any
 
 from core.llm.client import Prompt
 from core.llm.local_client import LocalLLMClient, pivotal_gm_client
+from service.engine.content_pack import require_active_pack
 from service.sim.opening_canon import Beat, anchor_for, build_anchor_prompt
 from service.sim.rag_retrieval import get_grounding
 
@@ -24,45 +25,8 @@ def _grounding_enabled() -> bool:
     """RAG grounding on/off 토글 — env GM_GROUNDING=0이면 OFF(비교·안전용). 기본 ON."""
     return os.environ.get("GM_GROUNDING", "1") != "0"
 
-_GM_SYSTEM = (
-    "# 역할\n"
-    "당신은 한국 web novel '게임 속 바바리안으로 살아남기' 세계의 게임 마스터(GM)다. "
-    "장면을 1인칭('나는') 문어체 한국어로 펼치고, 플레이어의 선택을 받아 진전시킨다. "
-    "메타·시스템·규칙 설명·AI 자칭·사과는 금지한다.\n\n"
-    "# 톤\n"
-    "냉소·실리주의 + 생존 긴장 + 바바리안 위장 코미디(우직한 야만인을 연기하나 속은 계산적). "
-    "시스템 고지는 낫표 「」 합쇼체로 쓴다(예: 「성인식이 시작됩니다.」).\n\n"
-    "# 캐논 고정\n"
-    "아래 앵커만 근거로 삼는다. 근거 없는 새 고유명사·설정 확정은 금지.\n{anchor}\n\n"
-    "{grounding}"
-    "# 끌개\n"
-    "[목표]를 향해 부드럽게 견인하되 강제하지 않는다. 플레이어가 다른 길을 택하면 막지 말고 "
-    "자연스럽게 이어 가되, 적절한 때 [목표]가 다른 형태로 다시 다가오게 한다.\n"
-    "★ 플레이어가 무언가를 확정·획득·결정하면(예: 무기 선택, 처치, 합의) 그 변화를 반드시 "
-    "state_delta(flags/inventory_add/relationship_delta)에 싣는다.\n"
-    "★ 플레이어 입력이 현 장면에서 불가능하거나 장면 밖이면(예: 동굴에서 갑자기 왕을 만난다) "
-    "막지 말고, 그 시도를 장면 안의 결과로 받아 재유도한다(장면 밖으로 끌려가지 않음).\n\n"
-    "# 출력 계약 (엄수)\n"
-    "★ 너는 '서술'만 한다. 선택지·상태 수치·무기/아이템 보유·진행 단계는 코드가 정한다 — "
-    "지어내지 마라(특히 무기·장비·성인식 완료 여부). 주어진 [무기]·[상태]에만 맞춰 묘사한다.\n"
-    "- narration: 장면 서술(2~5문장, 전투·중대 장면은 더 길게 허용).\n"
-    "- state_delta: 관계 변화만 선택적으로. relationship_delta(이름:정수), "
-    "inventory_add(서사상 자연히 얻은 물건만). ★ flags·hp·무기는 넣지 마라(코드 소관).\n"
-    "- speaker: 핵심 화자 이름(포트레이트용, 없으면 생략).\n"
-    "- illustration: 이 순간에 띄울 스틸(아래 목록 중 하나만, 없으면 생략): {illustrations}."
-)
-
-# 전투/장면 스틸 자산(public/assets/worldfork/<key>.png). GM이 이 중에서만 고른다(환각 차단).
-_ILLUSTRATIONS: frozenset[str] = frozenset({
-    "ui_gameplay_bg_crystal",
-    "ui_combat_bjorn_action",
-    "ui_combat_vfx_axe_strike",
-    "ui_combat_vfx_magic_missile",
-    "ui_combat_monster_goblin",
-    "ui_combat_monster_blade_wolf",
-    "ui_combat_monster_ghoul",
-    "ui_combat_monster_gnome",
-})
+# ★ A1.2: GM 시스템 프롬프트(페르소나+출력계약)·일러스트 화이트리스트는 콘텐츠팩 소유
+#   (service/content/worldfork/pack.py). 엔진은 require_active_pack()으로 소비 — 원본 리터럴 제거.
 
 _GM_USER = (
     "## 최근 흐름\n{history}\n\n"
@@ -97,10 +61,8 @@ _GROUNDING_TEMPLATE = (
     "우선 — 참조는 배경·디테일에만 쓴다.\n{refs}\n\n"
 )
 
-# 오프닝 비트의 원작 검색 범위·예산. 청크 보일러플레이트(URL·회차 헤더) 제거.
-_OPENING_EPISODE_RANGE = (1, 20)
-_GROUNDING_TOP_K = 3
-_GROUNDING_CHAR_BUDGET = 1000  # ~400토큰(한국어) 근사 — beat 캡 내
+# 원작 검색 범위·예산은 콘텐츠팩 소유(grounding_*) — A1.2 require_active_pack()으로 소비.
+# 청크 보일러플레이트(URL·회차 헤더) 제거는 엔진 청소 메커니즘.
 _URL_RE = re.compile(r"https?://\S+")
 _WORK_HEADER_RE = re.compile(r"게임 속 .{0,24}?살아남기\s*-?\s*\d*\s*화?")
 _CHAPTER_HEADER_RE = re.compile(r"\d+\s*화\s*[^\n]{0,30}?\(\d+\)")
@@ -122,10 +84,12 @@ def _grounding_block(beat: Beat, action: str) -> str:
     """
     if not _grounding_enabled():
         return ""
+    pack = require_active_pack()
+    budget = pack.grounding_char_budget
     scene = anchor_for(beat).scene
     query = f"{scene} {action}".strip()
     passages = get_grounding(
-        query, episode_range=_OPENING_EPISODE_RANGE, top_k=_GROUNDING_TOP_K
+        query, episode_range=pack.grounding_episode_range, top_k=pack.grounding_top_k
     )
     refs: list[str] = []
     total = 0
@@ -133,13 +97,13 @@ def _grounding_block(beat: Beat, action: str) -> str:
         cleaned = _clean_passage(p.text)
         if len(cleaned) < 10:
             continue
-        if total + len(cleaned) > _GROUNDING_CHAR_BUDGET:
-            cleaned = cleaned[: max(0, _GROUNDING_CHAR_BUDGET - total)]
+        if total + len(cleaned) > budget:
+            cleaned = cleaned[: max(0, budget - total)]
         if not cleaned:
             break
         refs.append(f"- {cleaned}")
         total += len(cleaned)
-        if total >= _GROUNDING_CHAR_BUDGET:
+        if total >= budget:
             break
     return _GROUNDING_TEMPLATE.format(refs="\n".join(refs)) if refs else ""
 
@@ -207,9 +171,8 @@ def parse_beat_result(parsed: dict[str, Any]) -> GMBeatResult:
         inventory_add=[str(x) for x in (raw_delta.get("inventory_add") or [])],
     )
     raw_illust = parsed.get("illustration")
-    illustration = (
-        str(raw_illust) if raw_illust and str(raw_illust) in _ILLUSTRATIONS else None
-    )
+    keys = require_active_pack().illustration_keys  # 팩 소유 화이트리스트(환각 차단)
+    illustration = str(raw_illust) if raw_illust and str(raw_illust) in keys else None
     return GMBeatResult(
         narration=str(parsed.get("narration", "")).strip(),
         state_delta=delta,
@@ -249,11 +212,12 @@ def build_gm_prompt(
         else ""
     )
     pull_block = _PULL_TEMPLATE.format(pull=pull) if pull else ""
+    pack = require_active_pack()  # GM 페르소나·일러스트 화이트리스트는 팩 소유(A1.2)
     return Prompt(
-        system=_GM_SYSTEM.format(
+        system=pack.gm_system_persona.format(
             anchor=build_anchor_prompt(beat, weapon=weapon),
             grounding=_grounding_block(beat, action),  # ★ A2.3 RAG 원작 참조
-            illustrations=", ".join(sorted(_ILLUSTRATIONS)),
+            illustrations=", ".join(sorted(pack.illustration_keys)),
         ),
         user=_GM_USER.format(
             history=history or "(시작)",

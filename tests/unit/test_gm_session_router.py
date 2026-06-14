@@ -308,9 +308,11 @@ def test_take_code_grants_item_suppresses_gm_dup() -> None:
     ):
         sid = c.post("/api/gm/session/start").json()["session_id"]
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+    # ★ 서버 독립 — take는 키워드 기반이라 intent 불필요(classify_intent 9B 미의존)
+    unmatched = IntentMatch(matched_action=None, confidence=0.3, reason="자유")
     with patch("service.api.gm_session_router.gm_beat", return_value=gm_with_item), patch(
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
-    ):
+    ), patch("service.api.gm_session_router.classify_intent", return_value=unmatched):
         body = c.post(
             "/api/gm/session/act",
             json={"session_id": sid, "free_text": "바닥의 수정 파편을 주워 챙긴다"},

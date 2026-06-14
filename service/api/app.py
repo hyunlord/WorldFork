@@ -65,6 +65,12 @@ def _warm_rag_grounding() -> None:
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # ★ A1.1: 활성 콘텐츠팩 주입(WorldFork). 엔진은 A1.2부터 get_active_pack()으로 소비.
+    from service.content.worldfork import WORLDFORK_PACK
+    from service.engine.content_pack import clear_active_pack, set_active_pack
+
+    set_active_pack(WORLDFORK_PACK)
+    print(f"[startup] content pack: {WORLDFORK_PACK.pack_id}")
     get_session_manager()  # startup: SQLite DB 초기화 (.local/worldfork.db)
     facts = load_canon_facts()
     set_canon_facts(facts)
@@ -79,6 +85,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     clear_spawn_table()
     clear_item_registry()
     clear_canon_facts()
+    clear_active_pack()
 
 
 def _parse_cors_origins() -> list[str]:
