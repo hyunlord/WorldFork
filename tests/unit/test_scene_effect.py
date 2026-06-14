@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from service.api.schemas.freeform_action import IntentMatch
 from service.sim.opening_canon import Beat, scene_details
-from service.sim.scene_effect import _POLICY, map_effect
+from service.sim.scene_effect import (
+    _POLICY,
+    BEAT_THRESHOLD,
+    map_effect,
+    pull_flavor,
+)
 
 
 def _intent(action: str | None, conf: float = 0.95) -> IntentMatch:
@@ -91,3 +96,20 @@ class TestDialogueAndDefault:
         eff = map_effect(_intent("move"), "더 깊이 간다", Beat.DUNGEON_ENTRY, [])
         assert eff.kind == "advance"
         assert eff.progress_delta == _POLICY.advance
+
+
+class TestPullFlavor:
+    def test_progress_gated_beat_strengthens_with_progress(self) -> None:
+        thr = BEAT_THRESHOLD[Beat.DUNGEON_ENTRY]
+        low = pull_flavor(Beat.DUNGEON_ENTRY, 0)
+        mid = pull_flavor(Beat.DUNGEON_ENTRY, int(thr * 0.5))
+        high = pull_flavor(Beat.DUNGEON_ENTRY, thr)
+        assert low and mid and high
+        assert low != mid != high  # 진행도별로 견인 강도가 다른 서술
+        # ★ 수치 노출 금지(메타 차단) — 힌트에 진행도 숫자가 들어가지 않는다
+        for txt in (low, mid, high):
+            assert not any(ch.isdigit() for ch in txt)
+
+    def test_non_gated_beat_no_pull(self) -> None:
+        # 임계 없는 비트(성인식)는 견인 힌트 없음
+        assert pull_flavor(Beat.COMING_OF_AGE, 50) is None

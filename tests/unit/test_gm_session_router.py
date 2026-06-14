@@ -76,7 +76,8 @@ def test_weapon_choice_commits_and_advances() -> None:
     assert "대검" not in body["weapon"] and "방패" not in str(body["items"])
 
 
-def test_free_input_advances_to_encounter_and_spawns_foe() -> None:
+def test_free_input_accumulates_to_encounter_and_spawns_foe() -> None:
+    # ★ A3.2 — 단일 입력은 강제 전진 안 함(누적 끌개). 전진 반복으로 임계 도달 시 자연 전환.
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
         sid = c.post("/api/gm/session/start").json()["session_id"]
@@ -84,10 +85,20 @@ def test_free_input_advances_to_encounter_and_spawns_foe() -> None:
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ):
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
-        # ★ mechanical 분류 가능 입력(방위+이동) → 0토큰, classify_intent(9B 서버) 미의존
-        body = c.post(
+        # 첫 전진 1회로는 전환 안 됨(임계 100 > advance 40 — 머무를 자유)
+        b1 = c.post(
             "/api/gm/session/act", json={"session_id": sid, "free_text": "북쪽으로 나아간다"}
         ).json()
+        assert b1["beat"] == "dungeon_entry"
+        # 전진 누적 → 임계 도달 시 자연 전환(최대 8회 — property 성격)
+        body = b1
+        for _ in range(8):
+            if body["beat"] == "first_encounter":
+                break
+            body = c.post(
+                "/api/gm/session/act",
+                json={"session_id": sid, "free_text": "북쪽으로 더 나아간다"},
+            ).json()
     assert body["beat"] == "first_encounter"
     assert body["foe"] is not None and body["foe"]["name"] == "고블린"
 
@@ -105,7 +116,10 @@ def test_combat_round_survive_stays() -> None:
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ), patch("service.api.gm_session_router.resolve_round", return_value=survive):
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
-        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+        for _ in range(5):  # 누적 끌개 — 전진 반복으로 첫 조우 진입(A3.2)
+            r = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+            if r.json()["beat"] == "first_encounter":
+                break
         body = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "charge"}).json()
     assert body["beat"] == "first_encounter"  # 처치 전 → 그대로
     assert body["hp"] == 110  # 코드 판정 반영
@@ -130,7 +144,10 @@ def test_combat_kill_to_aftermath_with_drop() -> None:
         "service.api.gm_session_router.interpret_command", return_value=_reaction()
     ), patch("service.api.gm_session_router.resolve_round", side_effect=_kill):
         c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
-        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+        for _ in range(5):  # 누적 끌개 — 전진 반복으로 첫 조우 진입(A3.2)
+            r = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "advance"})
+            if r.json()["beat"] == "first_encounter":
+                break
         body = c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "charge"}).json()
     assert body["beat"] == "aftermath"  # ★ 처치 → 코드 전환(4비트 완결)
     assert body["foe"] is None and body["stones"] >= 20
@@ -205,6 +222,78 @@ def test_free_explore_dedups_no_repeat() -> None:
     # progress가 두 번째에 더 누적(단조)
     assert int(b2["flags"]["scene_progress"]) > int(b1["flags"]["scene_progress"])
     assert b2["beat"] == "dungeon_entry"  # 여전히 머무름(둘러보기는 캐논 진행에 모듈)
+
+
+def _reach_encounter(c: TestClient, sid: str) -> None:
+    """첫 조우까지 전진(누적 끌개) — 테스트 헬퍼. mechanical move만(9B 미의존)."""
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        for _ in range(10):
+            b = c.post(
+                "/api/gm/session/act", json={"session_id": sid, "free_text": "북쪽으로 나아간다"}
+            ).json()
+            if b["beat"] == "first_encounter":
+                return
+    raise AssertionError("첫 조우 도달 실패")
+
+
+def test_flee_avoids_combat_to_aftermath() -> None:
+    # ★ A3.2 — 첫 조우에서 도주는 전투 대신 마무리로 전진(회피 대안 exit, 막다른 길 0).
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+    _reach_encounter(c, sid)
+    fake = IntentMatch(matched_action=None, confidence=0.3, reason="자유")
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ), patch("service.api.gm_session_router.classify_intent", return_value=fake):
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "뒤돌아 도망친다"}
+        ).json()
+    assert body["beat"] == "aftermath"  # 전투 회피 → 마무리로 전진
+    assert body["foe"] is None
+
+
+def test_soft_floor_no_stuck_pure_explore() -> None:
+    # ★ A3.2 no-stuck — 디테일 소진 후 둘러보기만 반복해도 soft-floor가 끌어 자연 전환(막다른 길 0).
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+    last = 0
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        moved = False
+        for _ in range(20):
+            b = c.post(
+                "/api/gm/session/act", json={"session_id": sid, "free_text": "주변을 둘러본다"}
+            ).json()
+            if b["beat"] == "dungeon_entry":  # 단조 progress 확인(감소 없음)
+                cur = int(b["flags"]["scene_progress"])
+                assert cur >= last
+                last = cur
+            else:
+                moved = True
+                break
+    assert moved  # 둘러보기만으로도 끝내 전진(stuck 0)
+
+
+def test_free_text_weapon_naming_commits() -> None:
+    # ★ A3.2 — 성인식 무기 확정을 자유 텍스트 명명으로도 허용(choice_id 외).
+    c = _client()
+    fake = IntentMatch(matched_action=None, confidence=0.3, reason="자유")
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ), patch("service.api.gm_session_router.classify_intent", return_value=fake):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "대검을 집어 든다"}
+        ).json()
+    assert body["weapon"] == "대검"  # 자유 텍스트 무기 명명 → 코드 확정
+    assert body["beat"] == "dungeon_entry"  # 무기 확정 = 성인식 완료(이벤트 게이트)
 
 
 def test_take_code_grants_item_suppresses_gm_dup() -> None:

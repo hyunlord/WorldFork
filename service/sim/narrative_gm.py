@@ -68,6 +68,7 @@ _GM_USER = (
     "## 최근 흐름\n{history}\n\n"
     "## 현재 상태\n"
     "HP {hp}/{max_hp} · 무기 {weapon} · 소지금 {stones} 스톤 · flags {flags}\n\n"
+    "{pull}"
     "{discovered}"
     "{confirmed}"
     "## 플레이어 행동\n{action}\n\n"
@@ -78,6 +79,9 @@ _GM_USER = (
 _DISCOVERED_TEMPLATE = (
     "## 이미 드러난 것 (★ 다시 묘사하지 말고 다음으로 진전시켜라)\n{lines}\n\n"
 )
+
+# A3.2 — 끌개 견인 힌트(progress 차오를수록 강해짐). 서술에 녹여라(★ 수치·시스템 언급 금지).
+_PULL_TEMPLATE = "## 끌림 (배경으로 녹여라 — 수치 언급 금지)\n{pull}\n\n"
 
 # 전투 라운드 등 코드가 확정한 결과를 GM에 넘길 때의 블록(서술만, 새 수치 금지).
 _CONFIRMED_TEMPLATE = (
@@ -226,11 +230,13 @@ def build_gm_prompt(
     action: str,
     confirmed: list[str] | None = None,
     discovered: list[str] | None = None,
+    pull: str | None = None,
 ) -> Prompt:
     """캐논 앵커 고정 + 상태 주입 GM 프롬프트(비스트리밍/스트리밍 공용).
 
     confirmed: 코드가 확정한 결과(전투·자유 행동 효과) — 있으면 '서술만, 새 수치 금지'로 주입.
     discovered: 이미 공개된 장면 디테일(A3.1) — 있으면 '반복 말고 진전' 지시(coherence).
+    pull: 끌개 견인 힌트(A3.2) — progress 차오를수록 [목표]가 강하게 다가오게 서술시킨다.
     """
     confirmed_block = (
         _CONFIRMED_TEMPLATE.format(lines="\n".join(f"- {ln}" for ln in confirmed))
@@ -242,6 +248,7 @@ def build_gm_prompt(
         if discovered
         else ""
     )
+    pull_block = _PULL_TEMPLATE.format(pull=pull) if pull else ""
     return Prompt(
         system=_GM_SYSTEM.format(
             anchor=build_anchor_prompt(beat, weapon=weapon),
@@ -255,6 +262,7 @@ def build_gm_prompt(
             weapon=weapon or "맨손",
             stones=stones,
             flags=flags or {},
+            pull=pull_block,
             discovered=discovered_block,
             confirmed=confirmed_block,
             action=action or "(장면을 연다)",
@@ -323,18 +331,19 @@ def gm_beat(
     action: str,
     confirmed: list[str] | None = None,
     discovered: list[str] | None = None,
+    pull: str | None = None,
     client: LocalLLMClient | None = None,
 ) -> GMBeatResult:
     """현 비트를 한 번 진전 — 구조화 출력(guided JSON, 신뢰 경로).
 
     confirmed: 전투·자유 행동 코드 확정 결과(서술만). discovered: 이미 공개된 디테일(반복 방지).
-    client 미지정 시 pivotal_gm_client()(현 라우팅 = Gemma). 포트 하드코딩 없음.
+    pull: 끌개 견인 힌트(A3.2). client 미지정 시 pivotal_gm_client()(현 라우팅 = Gemma).
     """
     cli = client or pivotal_gm_client()
     prompt = build_gm_prompt(
         beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
         flags=flags, history=history, action=action, confirmed=confirmed,
-        discovered=discovered,
+        discovered=discovered, pull=pull,
     )
     resp = cli.generate_json(
         prompt, schema=_GM_SCHEMA, max_tokens=_max_tokens(beat), temperature=0.8
@@ -354,19 +363,20 @@ async def astream_gm_beat(
     action: str,
     confirmed: list[str] | None = None,
     discovered: list[str] | None = None,
+    pull: str | None = None,
     client: LocalLLMClient | None = None,
 ) -> AsyncIterator[str]:
     """현 비트를 토큰 스트리밍(체감 지연 완화) — 원시 토큰을 그대로 yield.
 
     구조화 파싱은 스트림 종료 후 parse_beat_text(누적)로 한다(스키마 가드 없음 — 신뢰 경로는
     gm_beat). 호출자가 토큰을 누적해 narration을 점진 표시(extract_narration)하고 끝에 파싱한다.
-    confirmed: 전투·자유 행동 코드 확정 결과(서술만). discovered: 이미 공개된 디테일(반복 방지).
+    confirmed: 코드 확정 결과(서술만). discovered: 이미 공개된 디테일. pull: 끌개 견인 힌트.
     """
     cli = client or pivotal_gm_client()
     prompt = build_gm_prompt(
         beat, hp=hp, max_hp=max_hp, weapon=weapon, stones=stones,
         flags=flags, history=history, action=action, confirmed=confirmed,
-        discovered=discovered,
+        discovered=discovered, pull=pull,
     )
     async for token in cli.astream(
         prompt, schema=_GM_SCHEMA, max_tokens=_max_tokens(beat), temperature=0.8
