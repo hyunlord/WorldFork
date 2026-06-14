@@ -54,6 +54,12 @@ from service.sim.world_memory import WorldState, adjust_relationship
 # 첫 조우 회피·도주 대안 exit — 전투를 피하는 선택도 마무리로 전진(막다른 길 0).
 _FLEE_WORDS = ("도망", "도주", "물러", "달아", "후퇴", "피한다", "피해", "회피", "빠져나")
 
+# ★ A3.3 지연 완화 — 카이라 LLM 반응은 '지시/분기' 턴만(말 걸기·명령·전투 조율). 루틴은 0토큰 생략.
+_DIRECTIVE_WORDS = (
+    "카이라", "맡기", "엄호", "협공", "구원", "지켜", "막아",
+    "물러서", "함께", "같이", "시켜", "도와", "명령",
+)
+
 # ★ 코드 선택지 id → 효과 분류(0토큰, 결정적) — 라벨 NL 분류에 의존하지 않게(예: "미궁 깊숙이
 #   나아간다"엔 방위가 없어 mechanical move 미분류). 선택지는 코드 정의 = 효과도 코드가 안다.
 _CHOICE_INTENT: dict[str, str] = {
@@ -421,12 +427,15 @@ def _apply_scene_effect(
     return list(eff.confirmed_lines), bool(eff.inventory_add)
 
 
-def _kaira_confirmed_line(s: _GMSession) -> str | None:
-    """직전 카이라 성향 반응을 GM 서술용 확정 라인으로(comply/adapt/refuse가 서술에 닿게)."""
-    r = s.last_reaction
-    if r is None or not r.speech:
-        return None
-    return f"{s.kaira.name}({r.reaction.value}): {r.speech}"
+def _kaira_should_react(action: str, intent: IntentMatch | None) -> bool:
+    """카이라 LLM 반응이 필요한 '지시/분기' 턴인가 — A3.3 지연 완화.
+
+    ★ 루틴 자유행동(둘러보기·이동·줍기·휴식)엔 interpret_command(Gemma) 호출 생략(0토큰):
+    동료는 매 발걸음마다 떠들지 않고, 말 걸거나 명령·전투 조율 때만 성향 반응한다.
+    """
+    if intent is not None and intent.matched_action in ("dialogue", "communicate"):
+        return True
+    return any(w in action for w in _DIRECTIVE_WORDS)
 
 
 def _weapon_from_text(text: str) -> str | None:
@@ -459,11 +468,11 @@ def _resolve_weapon(s: _GMSession, req: ActRequest, action: str) -> None:
 
 def _scene_turn(
     s: _GMSession, req: ActRequest
-) -> tuple[str, list[str], list[str], bool, str | None]:
-    """비전투 한 턴 — (action, confirmed, discovered_texts, suppress_gm_inventory, pull).
+) -> tuple[str, list[str], list[str], bool, str | None, bool]:
+    """비전투 한 턴(카이라 제외) — (action, confirmed, discovered, suppress_inv, pull, directive).
 
-    행동 확정(무기) → 코드 효과 적용(현 비트) → 누적 끌개 전환(A3.2) → 카이라 성향 반응 →
-    confirmed(효과+카이라). 플레이어 행동을 history에 누적(coherence). GM은 호출자가 _run_beat.
+    행동 확정(무기) → 코드 효과 적용(현 비트) → 누적 끌개 전환(A3.2) → 플레이어 행동 history 누적.
+    ★ 카이라 반응은 호출자가 directive(지시/분기)일 때만(A3.3 지연 완화 — 스트림 병렬/생략).
     """
     action = _action_text(s, req)
     _resolve_weapon(s, req, action)  # ★ 무기는 코드 확정(GM 아님), 선택지·자유 텍스트 둘 다
@@ -477,13 +486,10 @@ def _scene_turn(
     just = set(s.discovered.get(s.beat.value, [])) - prior  # 이번 턴 공개(confirmed에 이미 있음)
     _advance_if_done(s, action, intent)  # ★ A3.2 누적 progress 끌개 전환(이벤트 게이트 OR 임계)
     pull = pull_flavor(s.beat, s.scene_progress.get(s.beat.value, 0))  # 전환 후 비트의 견인 강도
-    _kaira_react(s, action)  # 카이라 성향 반응(전환 후 비트 기준 — 합류 즉시 반응)
-    kline = _kaira_confirmed_line(s)
-    if kline is not None:
-        confirmed.append(kline)  # GM이 카이라 반응을 '이미 한 말'로 서술
+    directive = kaira_present(s.beat) and _kaira_should_react(action, intent)  # 카이라 LLM 여부
     s.history.append(f"> {action}")  # ★ 플레이어 행동 누적(현재 GM narration만 → 맥락 보강)
     s.history[:] = s.history[-_HISTORY_MAX:]
-    return action, confirmed, _discovered_texts(s, exclude=just), gave_item, pull
+    return action, confirmed, _discovered_texts(s, exclude=just), gave_item, pull, directive
 
 
 def _apply_combat(s: _GMSession, action: str) -> RoundResult:
@@ -552,8 +558,12 @@ async def act(req: ActRequest) -> GMRender:
     if combat:  # 회피/도주 — 전투를 피해 마무리로 전진(막다른 길 0, A3.2)
         s.run_flags["encounter_avoided"] = "true"
         s.foe = None
-    # 일반 비트 — 코드 효과 적용·누적 끌개 전환·카이라 반응 → GM이 확정 효과를 서술
-    action, confirmed, discovered, gave_item, pull = _scene_turn(s, req)
+    # 일반 비트 — 코드 효과 적용·누적 끌개 전환 → GM이 확정 효과를 서술
+    action, confirmed, discovered, gave_item, pull, directive = _scene_turn(s, req)
+    if directive:  # ★ 카이라 LLM은 지시/분기 턴만(A3.3 지연 완화). 루틴은 0토큰 생략.
+        _kaira_react(s, action)
+    else:
+        s.last_reaction = None
     _run_beat(
         s,
         action=action,
@@ -580,23 +590,29 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
     if foe_live and not combat:  # 회피/도주 — 전투를 피해 마무리로 전진(A3.2)
         s.run_flags["encounter_avoided"] = "true"
         s.foe = None
-    # 비전투는 _scene_turn에서 효과 적용·전환·카이라 반응을 마치고 confirmed/discovered를 얻는다
-    # (카이라 반응이 confirmed로 GM 서술에 닿게 — 스트림에서도 일관). 전투는 _gen에서 코드 판정.
+    # 비전투는 _scene_turn에서 효과 적용·전환을 마치고 confirmed/discovered를 얻는다(카이라 제외).
+    # 전투는 _gen에서 코드 판정. 카이라 LLM은 directive 턴만 — GM 스트림과 병렬(A3.3 지연 완화).
     pull: str | None = None
+    directive = False
     if combat:
         action = action_text
         scene_confirmed: list[str] = []
         discovered: list[str] = []
         gave_item = False
     else:
-        action, scene_confirmed, discovered, gave_item, pull = _scene_turn(s, req)
+        action, scene_confirmed, discovered, gave_item, pull, directive = _scene_turn(s, req)
+        if not directive:
+            s.last_reaction = None  # 루틴 턴 — 카이라 LLM 생략(0토큰)
 
     async def _gen() -> AsyncIterator[str]:
         confirmed: list[str] | None = scene_confirmed or None
         illust_fallback: str | None = None
+        kaira_task: asyncio.Task[None] | None = None
         if combat:
             rr = await asyncio.to_thread(_apply_combat, s, action)  # 코드 판정(+카이라)
             confirmed, illust_fallback = rr.lines, rr.illustration
+        elif directive:  # ★ 지시/분기 턴만 카이라 LLM — GM 스트림과 병렬(지연 완화)
+            kaira_task = asyncio.create_task(asyncio.to_thread(_kaira_react, s, action))
 
         buf: list[str] = []
         emitted = ""
@@ -619,6 +635,8 @@ async def act_stream(req: ActRequest) -> StreamingResponse:
                 chunk = json.dumps({"narration": narr[len(emitted):]}, ensure_ascii=False)
                 yield f"data: {chunk}\n\n"
                 emitted = narr
+        if kaira_task is not None:
+            await kaira_task  # 병렬 카이라 반응 합류(렌더 전 — companion_reaction 반영)
         try:
             result = parse_beat_text("".join(buf))
         except (ValueError, json.JSONDecodeError):

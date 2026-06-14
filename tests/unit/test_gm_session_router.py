@@ -318,6 +318,55 @@ def test_take_code_grants_item_suppresses_gm_dup() -> None:
     assert body["items"].count("수정 파편") == 1  # 코드 1회만(GM 중복 억제)
 
 
+def test_routine_action_skips_kaira_llm() -> None:
+    # ★ A3.3 지연 완화 — 루틴 자유행동(둘러보기)엔 interpret_command(Gemma) 호출 0(0토큰).
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ) as ic:
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "주변을 둘러본다"}
+        ).json()
+    ic.assert_not_called()  # 루틴 턴 → 카이라 LLM 생략
+    assert body["companion_reaction"] is None
+
+
+def test_directive_action_invokes_kaira_llm() -> None:
+    # ★ 지시/분기 턴(카이라에게 말 걸기)엔 interpret_command 호출 — 성향 반응 노출.
+    c = _client()
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+    with patch("service.api.gm_session_router.gm_beat", return_value=_beat()), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ) as ic:
+        body = c.post(
+            "/api/gm/session/act", json={"session_id": sid, "free_text": "카이라에게 말을 건다"}
+        ).json()
+    ic.assert_called_once()  # 지시 턴 → 카이라 성향 반응
+    assert body["companion_reaction"] is not None
+
+
+def test_coherence_discovered_injected_to_gm() -> None:
+    # ★ A3.3 coherence — 이미 공개된 디테일이 GM 프롬프트(discovered)로 전달돼 반복을 막는다.
+    c = _client()
+    gm = MagicMock(return_value=_beat())
+    with patch("service.api.gm_session_router.gm_beat", gm), patch(
+        "service.api.gm_session_router.interpret_command", return_value=_reaction()
+    ):
+        sid = c.post("/api/gm/session/start").json()["session_id"]
+        c.post("/api/gm/session/act", json={"session_id": sid, "choice_id": "axe"})
+        c.post("/api/gm/session/act", json={"session_id": sid, "free_text": "주변을 둘러본다"})
+        gm.reset_mock()
+        # 두 번째 둘러보기 — 첫 번째에 공개한 디테일이 discovered로 GM에 전달돼야
+        c.post("/api/gm/session/act", json={"session_id": sid, "free_text": "다시 살펴본다"})
+    _, kw = gm.call_args
+    assert kw.get("discovered")  # 이미 공개된 디테일 주입(반복 방지)
+
+
 def test_act_requires_input() -> None:
     c = _client()
     with patch("service.api.gm_session_router.gm_beat", return_value=_beat()):
