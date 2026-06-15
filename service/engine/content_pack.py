@@ -11,8 +11,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from service.sim.disposition import Disposition
+
+if TYPE_CHECKING:
+    # 캐논 타입(메커니즘)은 엔진(opening_canon) 소유 — 데이터만 팩에. 런타임 미import(순환 회피).
+    from service.sim.opening_canon import Beat, BeatAnchor, BeatChoice, SceneDetail, WeaponChoice
 
 
 @dataclass(frozen=True)
@@ -68,10 +73,26 @@ class ContentPack:
     illustration_keys: frozenset[str]
     # RAG 원작 인덱스 (rag_retrieval/rag_embed)
     rag: RagConfig
+    rag_chapter_header_pattern: str  # narrative_gm._clean_passage — 작품 회차 헤더 제거 정규식
     # IP 마스킹 (ip_masking — 원작명→변환명). 코드·git=변환명 규율의 데이터 소유.
     ip_replacements: dict[str, str]
     ip_keywords: tuple[str, ...]
     ip_fallback_name: str
+    # 캐논 인덱스 (opening_canon 로직이 소비 — 데이터만 팩 소유)
+    beats: tuple[Beat, ...]
+    anchors: dict[Beat, BeatAnchor]
+    scene_details: dict[Beat, tuple[SceneDetail, ...]]
+    weapons: tuple[WeaponChoice, ...]
+    weapon_aliases: tuple[tuple[str, str], ...]  # 자유 텍스트 무기 약칭(부분어→무기 label)
+    beat_choices: dict[Beat, tuple[BeatChoice, ...]]  # 성인식은 weapons에서 동적 생성
+    beat_thresholds: dict[Beat, int]  # scene_effect/_beat_done — progress 끌개 임계
+    pull_flavors: tuple[str, str, str]  # pull_flavor 견인 텍스트(low/mid/high)
+    companion_present_beats: frozenset[Beat]  # kaira_present
+    player_name: str
+    player_brief: str  # build_anchor_prompt [주인공] 설명
+    companion_brief: str  # build_anchor_prompt [동료] 설명
+    first_foe_names: tuple[str, ...]
+    first_foe_desc: str  # build_anchor_prompt [적] 설명
 
 
 # ─── active 싱글톤 (canon/context.py 컨벤션 — app.py lifespan이 set) ────────────────

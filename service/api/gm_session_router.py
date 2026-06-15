@@ -36,7 +36,6 @@ from service.sim.narrative_gm import (
     parse_beat_text,
 )
 from service.sim.opening_canon import (
-    COMING_OF_AGE_WEAPONS,
     Beat,
     anchor_for,
     beat_choices,
@@ -44,7 +43,7 @@ from service.sim.opening_canon import (
     next_beat,
     scene_details,
 )
-from service.sim.scene_effect import _POLICY, BEAT_THRESHOLD, map_effect, pull_flavor
+from service.sim.scene_effect import _POLICY, map_effect, pull_flavor
 from service.sim.status import StatusEffect, StatusType
 from service.sim.world_memory import WorldState, adjust_relationship
 
@@ -54,8 +53,9 @@ from service.sim.world_memory import WorldState, adjust_relationship
 _FLEE_WORDS = ("도망", "도주", "물러", "달아", "후퇴", "피한다", "피해", "회피", "빠져나")
 
 # ★ A3.3 지연 완화 — 카이라 LLM 반응은 '지시/분기' 턴만(말 걸기·명령·전투 조율). 루틴은 0토큰 생략.
+# 동료 이름(WorldFork 고유)은 팩에서 — 여기엔 작품 무관 명령/조율 동사만(A1.2c).
 _DIRECTIVE_WORDS = (
-    "카이라", "맡기", "엄호", "협공", "구원", "지켜", "막아",
+    "맡기", "엄호", "협공", "구원", "지켜", "막아",
     "물러서", "함께", "같이", "시켜", "도와", "명령",
 )
 
@@ -240,7 +240,7 @@ def _beat_done(s: _GMSession) -> bool:
     if s.beat is Beat.COMING_OF_AGE:
         return bool(s.weapon)  # 이벤트: 무기 확정
     if s.beat is Beat.DUNGEON_ENTRY:
-        thr = BEAT_THRESHOLD.get(Beat.DUNGEON_ENTRY, 100)
+        thr = require_active_pack().beat_thresholds.get(Beat.DUNGEON_ENTRY, 100)
         return s.scene_progress.get(s.beat.value, 0) >= thr  # 누적 끌개
     if s.beat is Beat.FIRST_ENCOUNTER:
         return (
@@ -416,7 +416,7 @@ def _apply_scene_effect(
         adjust_relationship(s.world, name, delta)  # 관계(영구)
     # ★ soft-floor(no-stuck 보강) — progress-gated 비트에서 정체(새 발견 0·비전진) 연속 시 가속.
     #   단조 유지(progress 증가만). 정체가 아니면 카운터 리셋.
-    if s.beat in BEAT_THRESHOLD:
+    if s.beat in require_active_pack().beat_thresholds:
         skey = f"stall_{key}"
         stalled = (not eff.newly_discovered) and eff.progress_delta < _POLICY.advance
         if stalled:
@@ -439,20 +439,20 @@ def _kaira_should_react(action: str, intent: IntentMatch | None) -> bool:
     """
     if intent is not None and intent.matched_action in ("dialogue", "communicate"):
         return True
+    if require_active_pack().companion.name in action:  # 동료 호명(팩 소유 이름)
+        return True
     return any(w in action for w in _DIRECTIVE_WORDS)
 
 
 def _weapon_from_text(text: str) -> str | None:
     """자유 텍스트에서 성인식 무기 명명 인식(A3.2 — choice_id 외 자유 입력도 무기 확정 허용)."""
-    for w in COMING_OF_AGE_WEAPONS:
+    pack = require_active_pack()
+    for w in pack.weapons:
         if w.label in text:
             return w.label
-    if "도끼" in text:
-        return "양손도끼"
-    if "망치" in text:
-        return "양손망치"
-    if "대검" in text or "검을" in text or "검을 든" in text:
-        return "대검"
+    for sub, label in pack.weapon_aliases:  # 무기 약칭(팩 소유, A1.2c)
+        if sub in text:
+            return label
     return None
 
 
@@ -461,7 +461,9 @@ def _resolve_weapon(s: _GMSession, req: ActRequest, action: str) -> None:
     if s.beat is not Beat.COMING_OF_AGE or s.weapon:
         return
     if req.choice_id:
-        weapon = next((w for w in COMING_OF_AGE_WEAPONS if w.id == req.choice_id), None)
+        weapon = next(
+            (w for w in require_active_pack().weapons if w.id == req.choice_id), None
+        )
         if weapon is not None:
             s.weapon = weapon.label
     elif req.free_text.strip():

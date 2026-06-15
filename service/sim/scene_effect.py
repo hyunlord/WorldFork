@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from service.api.schemas.freeform_action import IntentMatch
+from service.engine.content_pack import require_active_pack
 from service.sim.opening_canon import Beat, scene_details
 from service.util.korean import eul_reul
 
@@ -40,26 +41,27 @@ class ProgressPolicy:
 
 _POLICY = ProgressPolicy()
 
-# 비트별 progress 전환 임계(설정값 — A3.3 페이싱 튜닝 1순위). 없는 비트는 이벤트 게이트만.
-# ★ 미궁(DUNGEON_ENTRY)만 progress-gated(자유 탐색 무대) — 성인식=무기확정, 첫조우=처치/회피,
-#   마무리=종착(이벤트 게이트). default 3로도 누적되면 반드시 도달(단조 → no-stuck 보장).
-BEAT_THRESHOLD: dict[Beat, int] = {Beat.DUNGEON_ENTRY: 100}
+
+def beat_threshold(beat: Beat) -> int | None:
+    """비트별 progress 전환 임계(팩 소유 — A1.2c). 없으면 None(이벤트 게이트 비트)."""
+    return require_active_pack().beat_thresholds.get(beat)
 
 
 def pull_flavor(beat: Beat, progress: int) -> str | None:
     """progress-gated 비트의 차오른 정도별 '끌개' 견인 힌트(★ 수치 노출 금지 — 메타 차단).
 
-    진행도가 높을수록 [목표]가 강하게 다가오게 서술시킨다. 임계 없는 비트는 None.
+    진행도가 높을수록 [목표]가 강하게 다가오게 서술시킨다. 임계·텍스트는 팩 소유. 임계 없으면 None.
     """
-    thr = BEAT_THRESHOLD.get(beat)
+    thr = beat_threshold(beat)
     if not thr:
         return None
+    low, mid, high = require_active_pack().pull_flavors
     ratio = progress / thr
     if ratio < 0.34:
-        return "미궁 깊은 곳에서 희미한 기척이 손짓하듯 흘러나온다."
+        return low
     if ratio < 0.67:
-        return "더 깊은 어둠이 점점 또렷하게 너를 끌어당긴다."
-    return "미궁이 너를 집어삼킬 듯 강하게 빨아들인다 — 다음 걸음이 임박했다."
+        return mid
+    return high
 
 # intent.matched_action(PlayerActionType value) → 효과 분류.
 _ADVANCE_ACTIONS = frozenset({"move", "enter_dungeon", "enter_next_floor", "move_chamber"})

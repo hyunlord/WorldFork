@@ -120,9 +120,9 @@ class TestEngineConsumesPack:
             set_active_pack(WORLDFORK_PACK)
 
     def test_no_engine_literal_duplication(self) -> None:
-        # ★ 원본 리터럴 제거 확인 — 엔진 모듈에 중복 0(A1.2 persona/illust, A1.2b rag/ip)
+        # ★ 원본 리터럴 제거 확인 — 엔진 모듈에 중복 0(persona/illust, rag/ip, 캐논)
         from service.pipeline import ip_masking
-        from service.sim import narrative_gm, rag_embed, rag_retrieval
+        from service.sim import narrative_gm, opening_canon, rag_embed, rag_retrieval, scene_effect
 
         assert not hasattr(narrative_gm, "_GM_SYSTEM")
         assert not hasattr(narrative_gm, "_ILLUSTRATIONS")
@@ -130,6 +130,36 @@ class TestEngineConsumesPack:
         assert not hasattr(rag_retrieval, "_RAG_DIR")
         assert not hasattr(ip_masking, "GENERIC_REPLACEMENTS")
         assert not hasattr(ip_masking, "KOREAN_IP_KEYWORDS")
+        # A1.2c — 캐논 데이터 상수도 제거(타입·접근자만 남음)
+        assert not hasattr(opening_canon, "_ANCHORS")
+        assert not hasattr(opening_canon, "COMING_OF_AGE_WEAPONS")
+        assert not hasattr(opening_canon, "KAIRA_DISPOSITION")
+        assert not hasattr(scene_effect, "BEAT_THRESHOLD")
+
+
+class TestCanonGoldenSnapshot:
+    """★ A1.2c 핵심 가드 — 조립 GM 프롬프트가 캐논 분산 전후 바이트 동일(거동 0 변화)."""
+
+    def test_assembled_prompt_byte_identical(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import json
+        from pathlib import Path
+
+        from service.sim.narrative_gm import build_gm_prompt
+        from service.sim.opening_canon import Beat, beat_choices, build_anchor_prompt, scene_details
+
+        monkeypatch.setenv("GM_GROUNDING", "0")  # grounding off — 캐논 부분만 비교
+        golden = json.loads(
+            Path("tests/fixtures/canon_golden_prompts.json").read_text(encoding="utf-8")
+        )
+        for b in Beat:
+            g = golden[b.value]
+            sysnow = build_gm_prompt(
+                b, hp=120, max_hp=120, weapon="양손도끼", stones=0, flags={}, history="", action="x"
+            ).system
+            assert sysnow == g["system"], f"{b.value} system 프롬프트 드리프트"
+            assert build_anchor_prompt(b, weapon="양손도끼") == g["anchor"]
+            assert [[c.id, c.label] for c in beat_choices(b)] == g["choices"]
+            assert [[d.key, d.detail, d.item] for d in scene_details(b)] == g["details"]
 
     def test_mask_text_reads_active_pack(self) -> None:
         # ★ IP 마스킹이 팩 소유 매핑을 소비 — 변형 팩 주입 시 마스킹 결과가 바뀐다.

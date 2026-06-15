@@ -7,13 +7,15 @@
 from __future__ import annotations
 
 from service.api.schemas.freeform_action import IntentMatch
+from service.content.worldfork import WORLDFORK_PACK
 from service.sim.opening_canon import Beat, scene_details
 from service.sim.scene_effect import (
     _POLICY,
-    BEAT_THRESHOLD,
     map_effect,
     pull_flavor,
 )
+
+BEAT_THRESHOLD = WORLDFORK_PACK.beat_thresholds  # A1.2c: 팩 소유
 
 
 def _intent(action: str | None, conf: float = 0.95) -> IntentMatch:

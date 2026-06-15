@@ -7,12 +7,14 @@
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
+from service.content.worldfork import WORLDFORK_PACK
 from service.sim.disposition import Companion, DispoAction
 from service.sim.disposition_command import CommandReaction, CommandResponse
 from service.sim.loot import Inventory
 from service.sim.narrative_combat import Foe, player_attack_damage, resolve_round
-from service.sim.opening_canon import KAIRA_DISPOSITION
 from service.sim.status import StatusType
+
+KAIRA_DISPOSITION = WORLDFORK_PACK.companion.disposition  # A1.2c: 팩 소유
 
 
 def _seq(values: list[float]) -> Callable[[], float]:

@@ -61,17 +61,16 @@ _GROUNDING_TEMPLATE = (
     "우선 — 참조는 배경·디테일에만 쓴다.\n{refs}\n\n"
 )
 
-# 원작 검색 범위·예산은 콘텐츠팩 소유(grounding_*) — A1.2 require_active_pack()으로 소비.
-# 청크 보일러플레이트(URL·회차 헤더) 제거는 엔진 청소 메커니즘.
+# 검색 범위·예산·작품 헤더 패턴은 콘텐츠팩 소유 — require_active_pack()으로 소비.
+# URL·일반 회차(\d+화) 제거는 작품 무관 엔진 청소 메커니즘.
 _URL_RE = re.compile(r"https?://\S+")
-_WORK_HEADER_RE = re.compile(r"게임 속 .{0,24}?살아남기\s*-?\s*\d*\s*화?")
 _CHAPTER_HEADER_RE = re.compile(r"\d+\s*화\s*[^\n]{0,30}?\(\d+\)")
 
 
 def _clean_passage(text: str) -> str:
     """검색 passage 청소 — 사이트 URL·작품 회차 헤더·메타 제거(서술 노이즈 차단)."""
     text = _URL_RE.sub("", text)
-    text = _WORK_HEADER_RE.sub("", text)
+    text = re.sub(require_active_pack().rag_chapter_header_pattern, "", text)  # 작품 헤더(팩)
     text = _CHAPTER_HEADER_RE.sub("", text)
     return re.sub(r"\s+", " ", text).strip()
 
