@@ -44,6 +44,11 @@ class TestPackShape:
         assert p.grounding_episode_range == (1, 20)
         assert p.grounding_top_k == 3 and p.grounding_char_budget == 1000
         assert "ui_combat_monster_goblin" in p.illustration_keys
+        # RAG·IP (A1.2b)
+        assert p.rag.index_dir == ".local/rag" and p.rag.model_name == "BAAI/bge-m3"
+        assert p.rag.episode_range == (1, 20) and p.rag.top_k == 4
+        assert p.ip_replacements["비요른"] == "투르윈" and "라프도니아" in p.ip_keywords
+        assert p.ip_fallback_name == "투르윈"
 
     def test_pack_is_frozen(self) -> None:
         import dataclasses
@@ -115,8 +120,31 @@ class TestEngineConsumesPack:
             set_active_pack(WORLDFORK_PACK)
 
     def test_no_engine_literal_duplication(self) -> None:
-        # ★ 원본 리터럴 제거 확인 — narrative_gm에 _GM_SYSTEM/_ILLUSTRATIONS 없음(중복 0)
-        from service.sim import narrative_gm
+        # ★ 원본 리터럴 제거 확인 — 엔진 모듈에 중복 0(A1.2 persona/illust, A1.2b rag/ip)
+        from service.pipeline import ip_masking
+        from service.sim import narrative_gm, rag_embed, rag_retrieval
 
         assert not hasattr(narrative_gm, "_GM_SYSTEM")
         assert not hasattr(narrative_gm, "_ILLUSTRATIONS")
+        assert not hasattr(rag_embed, "_MODEL_NAME")
+        assert not hasattr(rag_retrieval, "_RAG_DIR")
+        assert not hasattr(ip_masking, "GENERIC_REPLACEMENTS")
+        assert not hasattr(ip_masking, "KOREAN_IP_KEYWORDS")
+
+    def test_mask_text_reads_active_pack(self) -> None:
+        # ★ IP 마스킹이 팩 소유 매핑을 소비 — 변형 팩 주입 시 마스킹 결과가 바뀐다.
+        import dataclasses
+
+        from service.pipeline.ip_masking import mask_text
+
+        variant = dataclasses.replace(
+            WORLDFORK_PACK,
+            ip_keywords=("테스트원작명",),
+            ip_replacements={"테스트원작명": "변환됨"},
+        )
+        set_active_pack(variant)
+        try:
+            assert mask_text("테스트원작명의 모험").masked == "변환됨의 모험"
+            assert mask_text("비요른").masking_applied is False  # 변형 팩엔 비요른 없음
+        finally:
+            set_active_pack(WORLDFORK_PACK)

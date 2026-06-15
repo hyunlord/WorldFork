@@ -9,12 +9,13 @@ def test_no_rapdonia_in_production_code() -> None:
 
     허용 예외:
     - ip_masking.py: 감지 키워드 정의
+    - content/worldfork/pack.py: ★ A1.2b — IP 변환 매핑(원작명→변환명) 데이터 소유처
     - loop.py: IP 차단 룰 주석
     - '→ 라스카니아'가 같은 줄에 있는 주석 (변환 설명)
     - 'IP 치환'이 같은 줄에 있는 주석
     """
     service_dir = Path("service")
-    allow_files = {"ip_masking", "loop"}
+    allow_files = {"ip_masking", "loop", "content/worldfork/pack"}
     hits = []
     for f in service_dir.rglob("*.py"):
         if "__pycache__" in str(f):
@@ -75,23 +76,24 @@ def test_force_return_uses_rascania() -> None:
 
 
 def test_ip_masking_keywords_complete() -> None:
-    """KOREAN_IP_KEYWORDS 주요 명칭 포함."""
-    from service.pipeline.ip_masking import KOREAN_IP_KEYWORDS
+    """IP 키워드 주요 명칭 포함(콘텐츠팩 소유 — A1.2b)."""
+    from service.content.worldfork import WORLDFORK_PACK
 
     expected = ["라프도니아", "비요른", "에르웬", "아이나르", "에쉬드", "두모카"]
     for kw in expected:
-        assert kw in KOREAN_IP_KEYWORDS, f"누락: {kw}"
+        assert kw in WORLDFORK_PACK.ip_keywords, f"누락: {kw}"
 
 
 def test_generic_replacements_complete() -> None:
-    """GENERIC_REPLACEMENTS 변환 정합."""
-    from service.pipeline.ip_masking import GENERIC_REPLACEMENTS
+    """IP 변환 매핑 정합(콘텐츠팩 소유 — A1.2b)."""
+    from service.content.worldfork import WORLDFORK_PACK
 
-    assert GENERIC_REPLACEMENTS["라프도니아"] == "라스카니아"
-    assert GENERIC_REPLACEMENTS["비요른"] == "투르윈"
-    assert GENERIC_REPLACEMENTS["에르웬"] == "실렌"
-    assert GENERIC_REPLACEMENTS["아이나르"] == "카이라"
-    assert GENERIC_REPLACEMENTS["에쉬드"] == "셰인"
+    r = WORLDFORK_PACK.ip_replacements
+    assert r["라프도니아"] == "라스카니아"
+    assert r["비요른"] == "투르윈"
+    assert r["에르웬"] == "실렌"
+    assert r["아이나르"] == "카이라"
+    assert r["에쉬드"] == "셰인"
 
 
 def test_mask_text_raphdonia() -> None:

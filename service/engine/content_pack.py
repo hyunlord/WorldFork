@@ -36,6 +36,17 @@ class CompanionSpec:
 
 
 @dataclass(frozen=True)
+class RagConfig:
+    """RAG 원작 인덱스 설정 — rag_retrieval/rag_embed가 쓰는 경로·모델·기본 범위."""
+
+    index_dir: str
+    cache_dir: str
+    model_name: str
+    episode_range: tuple[int, int]
+    top_k: int
+
+
+@dataclass(frozen=True)
 class ContentPack:
     """작품 콘텐츠팩 — 엔진이 소비하는 작품별 데이터(작품 무관 메커니즘은 엔진 소유).
 
@@ -55,6 +66,12 @@ class ContentPack:
     grounding_char_budget: int
     # 비주얼 (narrative_gm GM 출력 일러스트 화이트리스트)
     illustration_keys: frozenset[str]
+    # RAG 원작 인덱스 (rag_retrieval/rag_embed)
+    rag: RagConfig
+    # IP 마스킹 (ip_masking — 원작명→변환명). 코드·git=변환명 규율의 데이터 소유.
+    ip_replacements: dict[str, str]
+    ip_keywords: tuple[str, ...]
+    ip_fallback_name: str
 
 
 # ─── active 싱글톤 (canon/context.py 컨벤션 — app.py lifespan이 set) ────────────────

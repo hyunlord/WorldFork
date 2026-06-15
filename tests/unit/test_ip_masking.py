@@ -1,13 +1,16 @@
 """W2 D1 작업 8: IP Masking 테스트."""
 
+from service.content.worldfork import WORLDFORK_PACK
 from service.pipeline.ip_masking import (
-    GENERIC_REPLACEMENTS,
-    KOREAN_IP_KEYWORDS,
     apply_ip_masking,
     detect_ip_keywords,
     mask_text,
 )
 from service.pipeline.types import CharacterPlan, Plan, WorldSetting
+
+# ★ A1.2b: IP 데이터는 콘텐츠팩 소유 — 테스트도 팩에서 참조.
+GENERIC_REPLACEMENTS = WORLDFORK_PACK.ip_replacements
+KOREAN_IP_KEYWORDS = WORLDFORK_PACK.ip_keywords
 
 
 class TestDetectIPKeywords:

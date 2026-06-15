@@ -12,6 +12,11 @@ from service.sim.rag_retrieval import get_grounding, index_available
 
 
 def main() -> None:
+    # ★ A1.2b: 오프라인 툴 — app lifespan 밖이라 활성 콘텐츠팩을 직접 주입(rag/mask가 require).
+    from service.content.worldfork import WORLDFORK_PACK
+    from service.engine.content_pack import set_active_pack
+
+    set_active_pack(WORLDFORK_PACK)
     parser = argparse.ArgumentParser(description="RAG 검색 점검(마스킹 top-k 출력)")
     parser.add_argument("query", help="검색 쿼리(장면 컨텍스트)")
     parser.add_argument("--lo", type=int, default=1, help="episode 범위 하한")

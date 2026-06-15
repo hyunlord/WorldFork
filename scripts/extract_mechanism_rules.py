@@ -21,7 +21,7 @@ from typing import Any, Final
 
 import httpx
 
-from service.pipeline.ip_masking import GENERIC_REPLACEMENTS
+from service.content.worldfork import WORLDFORK_PACK
 
 CANON_PATH = Path(".local/canon/canon_facts_v3.json")
 
@@ -30,9 +30,9 @@ def mask_ip(text: str) -> str:
     """IP 고유명사만 변환 (라프도니아→라스카니아 등).
 
     ★ mask_text 대신 사용 — mask_text는 '넘버스/바바리안' 같은 게임 용어를
-      fallback 이름으로 오변환. 여기선 GENERIC_REPLACEMENTS(고유명사) 만 적용.
+      fallback 이름으로 오변환. 여기선 변환 매핑(고유명사)만 적용. 매핑은 콘텐츠팩 소유(A1.2b).
     """
-    for kw, repl in GENERIC_REPLACEMENTS.items():
+    for kw, repl in WORLDFORK_PACK.ip_replacements.items():
         text = text.replace(kw, repl)
     return text
 

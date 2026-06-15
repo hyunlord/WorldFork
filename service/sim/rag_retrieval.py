@@ -16,13 +16,9 @@ from typing import Any
 
 import numpy as np
 
+from service.engine.content_pack import require_active_pack
 from service.pipeline.ip_masking import mask_text
 from service.sim.rag_embed import embed
-
-_RAG_DIR = Path(".local/rag")
-# 오프닝 기본 episode 범위(후반 스포일러 차단). 호출자가 override.
-_OPENING_RANGE = (1, 20)
-_TOP_K = 4
 
 
 @dataclass(frozen=True)
@@ -37,12 +33,18 @@ class Passage:
 _index: dict[str, Any] = {}
 
 
+def _rag_dir() -> Path:
+    """RAG 인덱스 경로 — 콘텐츠팩 소유(A1.2b)."""
+    return Path(require_active_pack().rag.index_dir)
+
+
 def _load_index() -> tuple[np.ndarray, list[dict[str, Any]], np.ndarray]:
     """lazy 인덱스 로드 — (embeddings [N,1024], chunks, episode 배열). 싱글톤."""
     if not _index:
-        emb = np.load(_RAG_DIR / "embeddings.npy")
+        rag_dir = _rag_dir()
+        emb = np.load(rag_dir / "embeddings.npy")
         chunks: list[dict[str, Any]] = []
-        with (_RAG_DIR / "chunks.jsonl").open(encoding="utf-8") as fh:
+        with (rag_dir / "chunks.jsonl").open(encoding="utf-8") as fh:
             for line in fh:
                 chunks.append(json.loads(line))
         episodes = np.array([int(c["episode"]) for c in chunks], dtype=np.int64)
@@ -52,20 +54,27 @@ def _load_index() -> tuple[np.ndarray, list[dict[str, Any]], np.ndarray]:
 
 def index_available() -> bool:
     """인덱스 산출물 존재 여부(서빙/CI에서 RAG 가용성 게이트용)."""
-    return (_RAG_DIR / "embeddings.npy").exists() and (_RAG_DIR / "chunks.jsonl").exists()
+    rag_dir = _rag_dir()
+    return (rag_dir / "embeddings.npy").exists() and (rag_dir / "chunks.jsonl").exists()
 
 
 def get_grounding(
     scene_context: str,
     *,
-    episode_range: tuple[int, int] = _OPENING_RANGE,
-    top_k: int = _TOP_K,
+    episode_range: tuple[int, int] | None = None,
+    top_k: int | None = None,
 ) -> list[Passage]:
     """장면 컨텍스트 → 관련 원작 passages(마스킹). cosine top-k + episode 범위 필터.
 
     scene_context: 위치·등장인물·사건·플레이어 행동 등을 합친 검색 쿼리 문자열.
-    반환 text는 mask_text 적용 후(변환명) — 호출부·로그·git엔 원작명이 들어가지 않는다.
+    episode_range/top_k 미지정 시 콘텐츠팩 rag 기본값(A1.2b). 반환 text는 mask_text 적용 후
+    (변환명) — 호출부·로그·git엔 원작명이 들어가지 않는다.
     """
+    rag = require_active_pack().rag
+    if episode_range is None:
+        episode_range = rag.episode_range
+    if top_k is None:
+        top_k = rag.top_k
     if not index_available():
         return []
     emb, chunks, episodes = _load_index()

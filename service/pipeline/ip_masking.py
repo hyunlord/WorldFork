@@ -13,6 +13,8 @@
 
 from dataclasses import dataclass, field
 
+from service.engine.content_pack import require_active_pack
+
 from .types import CharacterPlan, Plan, WorldSetting
 
 GENERIC_WORK_NAMES = [
@@ -21,36 +23,7 @@ GENERIC_WORK_NAMES = [
     "mystic_realm_y",
 ]
 
-# 한국 IP 키워드 감지용
-KOREAN_IP_KEYWORDS = [
-    "바바리안",
-    "주인공으로 살아남기",
-    "회귀",
-    "환생",
-    "비요른",
-    "비요른 얀델",
-    "라프도니아",
-    "라프도니아 왕국",
-    "에르웬",
-    "아이나르",
-    "에쉬드",
-    "두모카",
-    "넘버스",
-]
-
-# IP 명칭 변환 mapping (원본 → 변환, CLAUDE.md 7.1 + design 결정)
-GENERIC_REPLACEMENTS: dict[str, str] = {
-    "라프도니아 왕국": "라스카니아 왕국",
-    "라프도니아": "라스카니아",
-    "비요른 얀델": "투르윈",
-    "비요른": "투르윈",
-    "에르웬": "실렌",
-    "아이나르": "카이라",
-    "에쉬드": "셰인",
-}
-
-# 특정 매핑 없을 때 사용할 fallback 캐릭터명
-_FALLBACK_NAME = "투르윈"
+# ★ A1.2b: IP 키워드·변환 매핑·fallback명은 콘텐츠팩 소유(원작별 데이터). 엔진은 require로 소비.
 
 
 @dataclass
@@ -64,8 +37,8 @@ class MaskingResult:
 
 
 def detect_ip_keywords(text: str) -> list[str]:
-    """텍스트에서 IP 키워드 감지."""
-    return [kw for kw in KOREAN_IP_KEYWORDS if kw in text]
+    """텍스트에서 IP 키워드 감지(키워드는 콘텐츠팩 소유)."""
+    return [kw for kw in require_active_pack().ip_keywords if kw in text]
 
 
 def mask_text(
@@ -76,16 +49,17 @@ def mask_text(
 
     Args:
         text: 원본
-        keyword_replacements: 커스텀 매핑 (없으면 GENERIC_REPLACEMENTS 사용)
+        keyword_replacements: 커스텀 매핑 (없으면 콘텐츠팩 ip_replacements 사용)
     """
+    pack = require_active_pack()
     detected = detect_ip_keywords(text)
     if not detected:
         return MaskingResult(original=text, masked=text, masking_applied=False)
 
     masked = text
-    replacements = {**GENERIC_REPLACEMENTS, **(keyword_replacements or {})}
+    replacements = {**pack.ip_replacements, **(keyword_replacements or {})}
     for kw in detected:
-        replacement = replacements.get(kw, _FALLBACK_NAME)
+        replacement = replacements.get(kw, pack.ip_fallback_name)
         masked = masked.replace(kw, replacement)
 
     return MaskingResult(

@@ -7,15 +7,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
 from transformers import AutoModel, AutoTokenizer
 
-_MODEL_NAME = "BAAI/bge-m3"
-_CACHE_DIR = Path(".local/hf_cache")
+from service.engine.content_pack import require_active_pack
+
 _MAX_LEN = 512
 _BATCH = 64
 
@@ -25,11 +24,12 @@ _state: dict[str, Any] = {}
 def _load() -> tuple[Any, Any, torch.device]:
     """lazy 로드 — (model, tokenizer, device) 싱글톤."""
     if not _state:
+        rag = require_active_pack().rag  # 모델·캐시 경로는 콘텐츠팩 소유(A1.2b)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[no-untyped-call]
-            _MODEL_NAME, cache_dir=str(_CACHE_DIR)
+            rag.model_name, cache_dir=rag.cache_dir
         )
-        model = AutoModel.from_pretrained(_MODEL_NAME, cache_dir=str(_CACHE_DIR)).to(device)
+        model = AutoModel.from_pretrained(rag.model_name, cache_dir=rag.cache_dir).to(device)
         model.eval()
         _state.update(model=model, tokenizer=tokenizer, device=device)
     return _state["model"], _state["tokenizer"], _state["device"]

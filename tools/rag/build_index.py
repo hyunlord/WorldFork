@@ -68,6 +68,11 @@ def chunk_episode(tokenizer: Any, episode: int, text: str) -> list[Chunk]:
 
 
 def main() -> None:
+    # ★ A1.2b: 오프라인 툴 — app lifespan 밖이라 활성 콘텐츠팩을 직접 주입(rag_embed가 require).
+    from service.content.worldfork import WORLDFORK_PACK
+    from service.engine.content_pack import set_active_pack
+
+    set_active_pack(WORLDFORK_PACK)
     if not _EPISODES_DIR.is_dir():
         print(f"원작 episodes 없음: {_EPISODES_DIR}", file=sys.stderr)
         sys.exit(1)

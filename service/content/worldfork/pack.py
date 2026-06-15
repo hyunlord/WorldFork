@@ -7,7 +7,12 @@
 
 from __future__ import annotations
 
-from service.engine.content_pack import CompanionSpec, ContentPack, FoeSpec
+from service.engine.content_pack import (
+    CompanionSpec,
+    ContentPack,
+    FoeSpec,
+    RagConfig,
+)
 from service.sim.opening_canon import KAIRA_DISPOSITION, KAIRA_NAME
 
 # GM 시스템 프롬프트(페르소나+출력계약 블렌드) — narrative_gm이 build_gm_prompt에서 소비.
@@ -62,4 +67,37 @@ WORLDFORK_PACK = ContentPack(
     grounding_top_k=3,
     grounding_char_budget=1000,
     illustration_keys=_ILLUSTRATION_KEYS,
+    rag=RagConfig(
+        index_dir=".local/rag",
+        cache_dir=".local/hf_cache",
+        model_name="BAAI/bge-m3",
+        episode_range=(1, 20),
+        top_k=4,
+    ),
+    # IP 마스킹 — 원작명→변환명(CLAUDE.md 7.1). 코드·git엔 변환명만.
+    ip_replacements={
+        "라프도니아 왕국": "라스카니아 왕국",
+        "라프도니아": "라스카니아",
+        "비요른 얀델": "투르윈",
+        "비요른": "투르윈",
+        "에르웬": "실렌",
+        "아이나르": "카이라",
+        "에쉬드": "셰인",
+    },
+    ip_keywords=(
+        "바바리안",
+        "주인공으로 살아남기",
+        "회귀",
+        "환생",
+        "비요른",
+        "비요른 얀델",
+        "라프도니아",
+        "라프도니아 왕국",
+        "에르웬",
+        "아이나르",
+        "에쉬드",
+        "두모카",
+        "넘버스",
+    ),
+    ip_fallback_name="투르윈",
 )
